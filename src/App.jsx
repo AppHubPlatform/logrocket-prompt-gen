@@ -1037,7 +1037,7 @@ Respond ONLY as valid JSON, no markdown:
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 1600,
       system: systemPrompt,
       messages: [{ role: "user", content: "Generate the prompts." }],
@@ -1045,8 +1045,16 @@ Respond ONLY as valid JSON, no markdown:
   });
 
   const data = await res.json();
-  const raw = data.content?.find(b => b.type === "text")?.text || "{}";
-  return JSON.parse(raw.replace(/```json|```/g, "").trim());
+
+  if (!res.ok || data.error) {
+    throw new Error(data.error?.message || `API error ${res.status}`);
+  }
+
+  const raw = data.content?.find(b => b.type === "text")?.text || "";
+  if (!raw) throw new Error("Empty response from API");
+
+  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+  return JSON.parse(cleaned);
 }
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -1067,7 +1075,8 @@ export default function App() {
       const res = await generatePrompts({ selectedTools, useCase: selectedUseCase, contact, context });
       setResult(res);
     } catch (e) {
-      setResult({ chat_prompt: "Error generating prompts. Check your API key and try again.", automation_prompt: "" });
+      console.error("generatePrompts failed:", e);
+      setResult({ chat_prompt: `Error: ${e.message}`, automation_prompt: "", discover_prompt: "" });
     } finally {
       setLoading(false);
     }
