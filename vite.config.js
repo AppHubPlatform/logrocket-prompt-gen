@@ -6,7 +6,16 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
+      allowedHosts: ['reporter-electable-shape.ngrok-free.dev'],
       proxy: {
+        '/api/rog': {
+          target: 'https://rog.logrocket.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/rog/, ''),
+          headers: {
+            'Authorization': `Bearer ${env.VITE_ROG_TOKEN}`,
+          },
+        },
         '/api/anthropic': {
           target: 'https://api.anthropic.com',
           changeOrigin: true,

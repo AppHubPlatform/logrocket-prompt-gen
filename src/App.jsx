@@ -40,10 +40,11 @@ const TOOLS = [
   { name: "Jira",             icon: "🗂️" },
   { name: "Notion",           icon: "📓" },
   { name: "Heap",             icon: "📋" },
-  { name: "FullStory",        icon: "👁️" },
   { name: "VWO",              icon: "⚗️" },
-  { name: "Hotjar",           icon: "🔥" },
   { name: "Snowflake",        icon: "❄️" },
+  { name: "Zendesk",          icon: "🎧" },
+  { name: "ServiceNow",       icon: "⚙️" },
+  { name: "Qualtrics",        icon: "📝" },
 ];
 
 const INDUSTRIES = [
@@ -630,6 +631,51 @@ const S = {
     color: "#78600a",
     lineHeight: "1.5",
   },
+  rogPanel: {
+    backgroundColor: "#F0FDF4",
+    border: "1px solid #86efac",
+    borderRadius: "10px",
+    padding: "14px 16px",
+    marginBottom: "16px",
+  },
+  rogPanelHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: "8px",
+  },
+  rogPanelTitle: {
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "#15803d",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+  },
+  rogPanelText: {
+    fontSize: "12px",
+    color: "#166534",
+    lineHeight: "1.65",
+    whiteSpace: "pre-wrap",
+    maxHeight: "220px",
+    overflowY: "auto",
+  },
+  rogBtn: (loading) => ({
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "5px",
+    padding: "9px 12px",
+    borderRadius: "8px",
+    border: "1px solid #86efac",
+    backgroundColor: loading ? "#f0fdf4" : "#dcfce7",
+    color: "#15803d",
+    fontSize: "12px",
+    fontWeight: "500",
+    cursor: loading ? "not-allowed" : "pointer",
+    fontFamily: "inherit",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
+  }),
   agentBadge: (bg, color) => ({
     display: "inline-flex",
     alignItems: "center",
@@ -795,11 +841,39 @@ function StepTools({ selectedTools, setSelectedTools, onNext }) {
 
 // ─── Step 2: Contact + Use Case ───────────────────────────────────────────────
 
-function StepUseCase({ contact, setContact, selectedUseCase, setSelectedUseCase, context, setContext, onBack, onGenerate }) {
-  const [activePersona, setActivePersona] = useState("All");
-  const personas = ["All", "Product", "Engineering", "UX / Design", "Support", "Marketing", "Executive"];
+function StepUseCase({ contact, setContact, selectedUseCase, setSelectedUseCase, context, setContext, rogContext, setRogContext, onBack, onGenerate }) {
+  const [activePersonas, setActivePersonas] = useState(new Set());
+  const [rogLoading, setRogLoading] = useState(false);
+  const [rogError, setRogError] = useState("");
+  const personas = ["Product", "Engineering", "UX / Design", "Support", "Marketing", "Executive"];
 
-  const filtered = activePersona === "All" ? USE_CASES : USE_CASES.filter(u => u.persona === activePersona);
+  const togglePersona = (p) => {
+    setActivePersonas(prev => {
+      const next = new Set(prev);
+      next.has(p) ? next.delete(p) : next.add(p);
+      return next;
+    });
+  };
+
+  const filtered = activePersonas.size === 0
+    ? USE_CASES
+    : USE_CASES.filter(u => activePersonas.has(u.persona));
+
+  const handleEnrichFromRog = async () => {
+    if (!contact.company.trim()) return;
+    setRogLoading(true);
+    setRogError("");
+    setRogContext("");
+    try {
+      const ctx = await fetchRogContext(contact.company.trim());
+      setRogContext(ctx);
+    } catch (e) {
+      setRogError(e.message);
+    } finally {
+      setRogLoading(false);
+    }
+  };
+
   const initials = contact.name ? contact.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() : "?";
   const showCard = contact.name || contact.title || contact.company;
 
@@ -823,7 +897,17 @@ function StepUseCase({ contact, setContact, selectedUseCase, setSelectedUseCase,
         <div style={S.fieldGrid}>
           <div>
             <label style={S.fieldLabel}>Company</label>
-            <input style={S.input} value={contact.company} onChange={e => setContact(c => ({ ...c, company: e.target.value }))} placeholder="e.g. Acme Corp" />
+            <div style={{ display: "flex", gap: "6px" }}>
+              <input style={{ ...S.input, flex: 1 }} value={contact.company} onChange={e => { setContact(c => ({ ...c, company: e.target.value })); setRogContext(""); }} placeholder="e.g. Acme Corp" />
+              <button
+                style={S.rogBtn(rogLoading || !contact.company.trim())}
+                onClick={handleEnrichFromRog}
+                disabled={rogLoading || !contact.company.trim()}
+                title="Pull recent Gong call themes and email context from Rog"
+              >
+                {rogLoading ? "⏳" : "✦"} Enrich from Rog
+              </button>
+            </div>
           </div>
           <div>
             <label style={S.fieldLabel}>Industry</label>
@@ -843,6 +927,21 @@ function StepUseCase({ contact, setContact, selectedUseCase, setSelectedUseCase,
             </div>
           </div>
         )}
+
+        {rogContext && (
+          <div style={S.rogPanel}>
+            <div style={S.rogPanelHeader}>
+              <span style={S.rogPanelTitle}>✦ Rog context — {contact.company}</span>
+              <button onClick={() => setRogContext("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#15803d", fontSize: "14px", padding: 0 }}>×</button>
+            </div>
+            <p style={S.rogPanelText}>{rogContext}</p>
+          </div>
+        )}
+        {rogError && (
+          <div style={{ ...S.tipBox, backgroundColor: "#fef2f2", border: "1px solid #fca5a5", color: "#991b1b", marginBottom: "12px" }}>
+            ⚠️ Rog error: {rogError}
+          </div>
+        )}
       </div>
 
       {/* Use case */}
@@ -852,8 +951,11 @@ function StepUseCase({ contact, setContact, selectedUseCase, setSelectedUseCase,
 
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "14px" }}>
           {personas.map(p => (
-            <button key={p} style={S.personaTab(activePersona === p)} onClick={() => setActivePersona(p)}>{p}</button>
+            <button key={p} style={S.personaTab(activePersonas.has(p))} onClick={() => togglePersona(p)}>{p}</button>
           ))}
+          {activePersonas.size > 0 && (
+            <button onClick={() => setActivePersonas(new Set())} style={{ ...S.btnGhost, fontSize: "11px", padding: "4px 10px", color: "#9ca3af" }}>Clear</button>
+          )}
         </div>
 
         <div>
@@ -933,7 +1035,7 @@ function StepOutput({ result, contact, useCase, loading, onBack, onReset }) {
       <div style={{ ...S.sectionSub, marginBottom: "16px" }}>
         {contact.name
           ? `Tailored for ${contact.name}${contact.title ? `, ${contact.title}` : ""}${contact.company ? ` at ${contact.company}` : ""}.`
-          : "Copy either prompt into LogRocket's Galileo AI or Claude to get started."}
+          : "Use the chat prompt in Galileo AI, the agent prompt in Cursor or Claude with MCP, and save the Discover prompt as a LogRocket Stream."}
       </div>
 
       {result.rationale && (
@@ -958,7 +1060,7 @@ function StepOutput({ result, contact, useCase, loading, onBack, onReset }) {
 
       <div style={S.outputBlock}>
         <div style={S.outputLabel}>
-          <span>▶ Stream / MCP automation prompt</span>
+          <span>▶ MCP / Claude Agent / Cursor prompt</span>
           <CopyButton text={result.automation_prompt || ""} />
         </div>
         <p style={S.outputText}>{result.automation_prompt}</p>
@@ -988,7 +1090,7 @@ function StepOutput({ result, contact, useCase, loading, onBack, onReset }) {
 
 // ─── API Call ─────────────────────────────────────────────────────────────────
 
-async function generatePrompts({ selectedTools, useCase, contact, context }) {
+async function generatePrompts({ selectedTools, useCase, contact, context, rogContext }) {
   const tools = [...selectedTools].join(", ");
   const contactLine = [
     contact.name && `Contact: ${contact.name}`,
@@ -1010,6 +1112,7 @@ Team persona: ${useCase.persona}
 ${contactLine ? `\nContact:\n${contactLine}` : ""}
 Customer tools: ${tools}
 ${context ? `Extra context: ${context}` : ""}
+${rogContext ? `\nRecent Gong call themes and email context from Rog (use this to personalize the prompts):\n${rogContext}` : ""}
 
 LogRocket prompt templates to adapt from:
 - Chat template: "${useCase.lrChatPrompt}"
@@ -1019,7 +1122,7 @@ LogRocket prompt templates to adapt from:
 
 Generate THREE refined prompts:
 1. "chat_prompt" — Ready-to-use for LogRocket's Ask Galileo or Claude. Adapt the template to be specific to the customer's tools, industry, persona, and context.
-2. "automation_prompt" — Refined for LogRocket Streams or MCP agentic workflows. Include trigger conditions, output format, and destination (Slack, Jira, etc.) based on their tool stack.
+2. "automation_prompt" — Written as an MCP / Claude agent / Cursor instruction that a developer or power user would run to pull LogRocket session, issue, or analytics data via the LogRocket MCP server and combine it with data from the customer's other tools (e.g. pull a Jira ticket + matching LogRocket session, or query Salesforce account health + LogRocket usage metrics). The prompt should read like a natural-language agent instruction with: (a) a clear trigger or starting condition, (b) which MCP tools or data sources to call and in what order, (c) how to combine or cross-reference the data, and (d) the final output format or destination (Slack message, Jira comment, dashboard, etc.). Reference the customer's actual tool stack where relevant.
 3. "discover_prompt" — A suggested Discovery Stream prompt the customer can save in LogRocket to surface unexpected behavioral patterns proactively. Should be open-ended, exploratory, and adapted to the customer's specific context and tools.
 
 Respond ONLY as valid JSON, no markdown:
@@ -1057,6 +1160,21 @@ Respond ONLY as valid JSON, no markdown:
   return JSON.parse(cleaned);
 }
 
+// ─── Rog Fetch ───────────────────────────────────────────────────────────────
+
+async function fetchRogContext(company) {
+  const res = await fetch("/api/rog/api/v1/ask", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      question: `For the customer account "${company}", summarize in plain text: (1) the top 3 Gong call themes from the last 90 days including sentiment and any risk signals, and (2) key recent email exchange themes from the last 30 days. Keep it concise — 150 words max. Focus on pain points, product feedback, and relationship signals that would help a sales rep personalize an AI prompt.`,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Rog API error ${res.status}`);
+  return data.answer || "";
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -1067,12 +1185,13 @@ export default function App() {
   const [context, setContext] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState({});
+  const [rogContext, setRogContext] = useState("");
 
   const handleGenerate = useCallback(async () => {
     setLoading(true);
     setStep(3);
     try {
-      const res = await generatePrompts({ selectedTools, useCase: selectedUseCase, contact, context });
+      const res = await generatePrompts({ selectedTools, useCase: selectedUseCase, contact, context, rogContext });
       setResult(res);
     } catch (e) {
       console.error("generatePrompts failed:", e);
@@ -1089,6 +1208,7 @@ export default function App() {
     setSelectedUseCase(null);
     setContext("");
     setResult({});
+    setRogContext("");
   };
 
   return (
@@ -1129,6 +1249,8 @@ export default function App() {
             setSelectedUseCase={setSelectedUseCase}
             context={context}
             setContext={setContext}
+            rogContext={rogContext}
+            setRogContext={setRogContext}
             onBack={() => setStep(1)}
             onGenerate={handleGenerate}
           />
