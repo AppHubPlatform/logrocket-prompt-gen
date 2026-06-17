@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
         '/api/rog': {
           target: 'https://rog.logrocket.com',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/rog/, ''),
+          rewrite: () => '/api/v1/ask',
           headers: {
             'Authorization': `Bearer ${env.VITE_ROG_TOKEN}`,
           },
@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
         '/api/anthropic': {
           target: 'https://api.anthropic.com',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/anthropic/, ''),
+          rewrite: () => '/v1/messages',
           headers: {
             'x-api-key': env.VITE_ANTHROPIC_API_KEY,
             'anthropic-version': '2023-06-01',

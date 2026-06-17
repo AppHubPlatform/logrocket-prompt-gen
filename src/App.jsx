@@ -292,6 +292,20 @@ const USE_CASES = [
     outcome: "Release scorecard with before/after metrics and business impact estimate",
   },
   {
+    label: "Revenue Impact Analysis",
+    icon: "💰",
+    persona: "Executive",
+    desc: "Connect product experience signals to revenue outcomes — what's driving growth and what's costing you",
+    agent: "Analytics AI",
+    agentColor: "#374151",
+    agentBg: "#F3F4F6",
+    tip: "Tag your highest-value user segments and key revenue flows (trial → paid, upsell, renewal) as custom events or user properties in LogRocket so Galileo AI can isolate the sessions that matter most to revenue.",
+    lrChatPrompt: "Show me the product experience differences between users who upgraded, renewed, or expanded their contract in the last 90 days versus those who downgraded or churned. Which features drove the most value, where did revenue-positive users spend their time, and what friction or errors appeared most often in sessions that preceded a cancellation or downgrade?",
+    lrAutoPrompt: "Using the LogRocket MCP, pull session and funnel data for accounts tagged as 'at-risk' or 'expansion opportunity' in Salesforce. Cross-reference their recent feature usage and error rates with their ARR and renewal date. For any account showing declining engagement or recurring errors in a revenue-critical flow, generate a revenue risk summary and push it to the CSM in Slack with a link to the most relevant session replay and a suggested next action.",
+    lrDiscoverPrompt: "Find the sessions in high-ARR accounts from the last 30 days where users encountered an error or rage-clicked in a flow directly tied to a paid feature or upgrade path. How many of these accounts have an open renewal or expansion opportunity, and what is the combined ARR at risk from these friction points?",
+    outcome: "Revenue risk and growth register mapping product experience signals to ARR impact",
+  },
+  {
     label: "Competitive Win/Loss Signal Analysis",
     icon: "🏆",
     persona: "Executive",
@@ -976,7 +990,7 @@ function StepUseCase({ contact, setContact, selectedUseCase, setSelectedUseCase,
                 {sel && (
                   <div style={{ padding: "0 14px 12px 44px" }}>
                     <span style={S.agentBadge(u.agentBg, u.agentColor)}>✦ {u.agent}</span>
-                    <div style={S.tipBox}><strong>💡 Best results tip:</strong> {u.tip}</div>
+                    <div style={S.tipBox}><strong>💡 Additional Context Needed for Best Results:</strong> {u.tip}</div>
                   </div>
                 )}
               </div>
@@ -1134,7 +1148,7 @@ Respond ONLY as valid JSON, no markdown:
   "galileo_tip": "One sentence on how to get the best results from Galileo AI for this use case"
 }`;
 
-  const res = await fetch("/api/anthropic/v1/messages", {
+  const res = await fetch("/api/anthropic", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -1163,7 +1177,7 @@ Respond ONLY as valid JSON, no markdown:
 // ─── Rog Fetch ───────────────────────────────────────────────────────────────
 
 async function fetchRogContext(company) {
-  const res = await fetch("/api/rog/api/v1/ask", {
+  const res = await fetch("/api/rog", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
