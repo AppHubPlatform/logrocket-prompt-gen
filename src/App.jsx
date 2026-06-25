@@ -103,7 +103,7 @@ const USE_CASES = [
     agent: "Issues AI",
     agentColor: "#b85c1a",
     agentBg: "#FEF3EC",
-    tip: "Galileo AI finds and ranks issues automatically in the LogRocket issues table — no manual triage needed.",
+    tip: "Include top areas to focus on i.e. pages, URLs, click actions, etc.",
     lrChatPrompt: "Show me all high-impact issues detected in the last 7 days, ranked by number of affected sessions. For each, summarize what's breaking, which users are impacted, and the recommended fix.",
     lrAutoPrompt: "Daily: scan all new issues in my project. For any Severe-rated issue affecting more than 500 sessions, auto-generate a root cause summary, list of affected user IDs, and a recommended resolution path. Push to Jira.",
     lrDiscoverPrompt: "Find sessions in the last 48 hours where users encountered an error but did not trigger our error tracking custom event. What silent failures are slipping through, and which user flows are most affected?",
@@ -299,7 +299,7 @@ const USE_CASES = [
     agent: "Analytics AI",
     agentColor: "#374151",
     agentBg: "#F3F4F6",
-    tip: "Tag your highest-value user segments and key revenue flows (trial → paid, upsell, renewal) as custom events or user properties in LogRocket so Galileo AI can isolate the sessions that matter most to revenue.",
+    tip: "Include your highest-value user segments and key revenue flows (trial → paid, upsell, renewal) as custom events or user properties in LogRocket so Galileo AI can isolate the sessions that matter most to revenue.",
     lrChatPrompt: "Show me the product experience differences between users who upgraded, renewed, or expanded their contract in the last 90 days versus those who downgraded or churned. Which features drove the most value, where did revenue-positive users spend their time, and what friction or errors appeared most often in sessions that preceded a cancellation or downgrade?",
     lrAutoPrompt: "Using the LogRocket MCP, pull session and funnel data for accounts tagged as 'at-risk' or 'expansion opportunity' in Salesforce. Cross-reference their recent feature usage and error rates with their ARR and renewal date. For any account showing declining engagement or recurring errors in a revenue-critical flow, generate a revenue risk summary and push it to the CSM in Slack with a link to the most relevant session replay and a suggested next action.",
     lrDiscoverPrompt: "Find the sessions in high-ARR accounts from the last 30 days where users encountered an error or rage-clicked in a flow directly tied to a paid feature or upgrade path. How many of these accounts have an open renewal or expansion opportunity, and what is the combined ARR at risk from these friction points?",
@@ -313,7 +313,7 @@ const USE_CASES = [
     agent: "Session Watching AI",
     agentColor: "#374151",
     agentBg: "#F3F4F6",
-    tip: "Tag sessions by deal stage, competitor mentioned, or win/loss outcome using custom user properties synced from your CRM.",
+    tip: "Include information using custom user properties synced from your CRM like deal stage, competitor mentioned, or win/loss outcome.",
     lrChatPrompt: "Show me sessions from prospects who signed up after a competitive evaluation vs. those who churned within 30 days. What features did each group explore, what friction did they hit, and what patterns distinguish the wins from the losses?",
     lrAutoPrompt: "Monthly: analyze sessions from accounts tagged 'competitive deal' in Salesforce. Which product areas do they explore most, where do they drop off, and how does their session depth compare to accounts that closed without a competitor? Send a summary to the VP of Sales.",
     lrDiscoverPrompt: "Find sessions where users visited our pricing or comparison pages and then either signed up or left without converting. What did each group look at, how long did they spend, and is there a feature or pricing tier that correlates with the decision?",
@@ -751,7 +751,7 @@ const S = {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function ProgressBar({ step }) {
-  const steps = ["Select tools", "Team & use case", "Your prompts"];
+  const steps = ["Select tools", "Team & use cases", "Add context", "Your prompts"];
   return (
     <div style={S.progress}>
       {steps.map((label, i) => {
@@ -855,7 +855,7 @@ function StepTools({ selectedTools, setSelectedTools, onNext }) {
 
 // ─── Step 2: Contact + Use Case ───────────────────────────────────────────────
 
-function StepUseCase({ contact, setContact, selectedUseCase, setSelectedUseCase, context, setContext, rogContext, setRogContext, onBack, onGenerate }) {
+function StepUseCase({ contact, setContact, selectedUseCases, setSelectedUseCases, rogContext, setRogContext, onBack, onNext }) {
   const [activePersonas, setActivePersonas] = useState(new Set());
   const [rogLoading, setRogLoading] = useState(false);
   const [rogError, setRogError] = useState("");
@@ -974,9 +974,15 @@ function StepUseCase({ contact, setContact, selectedUseCase, setSelectedUseCase,
 
         <div>
           {filtered.map(u => {
-            const sel = selectedUseCase?.label === u.label;
+            const sel = selectedUseCases.has(u.label);
             return (
-              <div key={u.label} style={S.useCase(sel)} onClick={() => setSelectedUseCase(u)}>
+              <div key={u.label} style={S.useCase(sel)} onClick={() => {
+                setSelectedUseCases(prev => {
+                  const next = new Set(prev);
+                  next.has(u.label) ? next.delete(u.label) : next.add(u.label);
+                  return next;
+                });
+              }}>
                 <div style={S.useCaseHeader}>
                   <span style={{ fontSize: "18px", marginTop: "1px" }}>{u.icon}</span>
                   <div style={{ flex: 1 }}>
@@ -986,6 +992,7 @@ function StepUseCase({ contact, setContact, selectedUseCase, setSelectedUseCase,
                     </div>
                     <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "2px" }}>{u.desc}</div>
                   </div>
+                  {sel && <span style={{ fontSize: "16px", color: "#4C3DB4", flexShrink: 0 }}>✓</span>}
                 </div>
                 {sel && (
                   <div style={{ padding: "0 14px 12px 44px" }}>
@@ -998,20 +1005,24 @@ function StepUseCase({ contact, setContact, selectedUseCase, setSelectedUseCase,
           })}
         </div>
 
-        <div style={{ marginTop: "16px" }}>
-          <label style={S.fieldLabel}>Additional context <span style={{ fontWeight: 400, color: "#9ca3af" }}>(optional)</span></label>
-          <textarea
-            style={S.textarea}
-            value={context}
-            onChange={e => setContext(e.target.value)}
-            placeholder="e.g. Mobile-first app, React Native, high drop-off on step 3 of onboarding..."
-          />
-        </div>
+        {selectedUseCases.size > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "12px" }}>
+            {[...selectedUseCases].map(label => {
+              const uc = USE_CASES.find(u => u.label === label);
+              return (
+                <span key={label} style={{ ...S.tag, backgroundColor: uc?.agentBg || "#EEEDFE", color: uc?.agentColor || "#3C3489" }}>
+                  {uc?.icon} {label}
+                  <button onClick={(e) => { e.stopPropagation(); setSelectedUseCases(prev => { const next = new Set(prev); next.delete(label); return next; }); }} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: "14px", lineHeight: 1, padding: 0 }}>×</button>
+                </span>
+              );
+            })}
+          </div>
+        )}
 
-        <div style={{ display: "flex", gap: "10px", justifyContent: "space-between", marginTop: "8px" }}>
+        <div style={{ display: "flex", gap: "10px", justifyContent: "space-between", marginTop: "16px" }}>
           <button style={S.btnGhost} onClick={onBack}>← Back</button>
-          <button style={S.btnPrimary(!selectedUseCase)} onClick={onGenerate} disabled={!selectedUseCase}>
-            ✦ Generate prompts
+          <button style={S.btnPrimary(selectedUseCases.size === 0)} onClick={onNext} disabled={selectedUseCases.size === 0}>
+            Continue →
           </button>
         </div>
       </div>
@@ -1019,9 +1030,99 @@ function StepUseCase({ contact, setContact, selectedUseCase, setSelectedUseCase,
   );
 }
 
-// ─── Step 3: Output ───────────────────────────────────────────────────────────
+// ─── Step 3: Per-use-case Context ────────────────────────────────────────────
 
-function StepOutput({ result, contact, useCase, loading, onBack, onReset }) {
+function StepContext({ selectedUseCases, useCaseContexts, setUseCaseContexts, onBack, onGenerate }) {
+  const useCaseList = USE_CASES.filter(u => selectedUseCases.has(u.label));
+
+  return (
+    <div style={S.card}>
+      <div style={S.sectionTitle}>Add context for best results</div>
+      <div style={S.sectionSub}>
+        Fill in the details below to personalize your prompts. Each field is tailored to the use case you selected.
+      </div>
+
+      {useCaseList.map(u => (
+        <div key={u.label} style={{ marginBottom: "20px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+            <span style={{ fontSize: "16px" }}>{u.icon}</span>
+            <span style={{ fontSize: "13px", fontWeight: "600", color: "#1a1523" }}>{u.label}</span>
+            <span style={S.agentBadge(u.agentBg, u.agentColor)}>✦ {u.agent}</span>
+          </div>
+          <label style={{ ...S.fieldLabel, marginBottom: "6px", color: "#374151", fontSize: "12px" }}>
+            {u.tip}
+          </label>
+          <textarea
+            style={S.textarea}
+            value={useCaseContexts[u.label] || ""}
+            onChange={e => setUseCaseContexts(prev => ({ ...prev, [u.label]: e.target.value }))}
+            placeholder="Optional — leave blank to use the default template..."
+            rows={3}
+          />
+        </div>
+      ))}
+
+      <div style={{ display: "flex", gap: "10px", justifyContent: "space-between", marginTop: "8px" }}>
+        <button style={S.btnGhost} onClick={onBack}>← Back</button>
+        <button style={S.btnPrimary(false)} onClick={onGenerate}>
+          ✦ Generate {useCaseList.length > 1 ? `${useCaseList.length} use cases` : "prompts"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step 4: Output ───────────────────────────────────────────────────────────
+
+function UseCaseResult({ item }) {
+  const { useCase: uc, prompts } = item;
+  return (
+    <div style={{ ...S.card, marginBottom: "16px" }}>
+      <div style={S.lrBanner}>
+        {uc.icon} <strong>{uc.label}</strong> &nbsp;·&nbsp; ✦ {uc.agent}
+        <span style={{ marginLeft: "auto", opacity: 0.75, fontWeight: 400 }}>{uc.persona}</span>
+      </div>
+
+      {prompts.rationale && (
+        <p style={{ fontSize: "13px", color: "#6b7280", lineHeight: "1.65", marginBottom: "14px" }}>
+          {prompts.rationale}
+        </p>
+      )}
+
+      <div style={S.outputBlock}>
+        <div style={S.outputLabel}>
+          <span>💬 Ask Galileo / Chat prompt</span>
+          <CopyButton text={prompts.chat_prompt || ""} />
+        </div>
+        <p style={S.outputText}>{prompts.chat_prompt}</p>
+      </div>
+
+      <div style={S.outputBlock}>
+        <div style={S.outputLabel}>
+          <span>▶ MCP / Claude Agent / Cursor prompt</span>
+          <CopyButton text={prompts.automation_prompt || ""} />
+        </div>
+        <p style={S.outputText}>{prompts.automation_prompt}</p>
+      </div>
+
+      <div style={{ ...S.outputBlock, borderColor: "#c7d2fe", backgroundColor: "#eef2ff" }}>
+        <div style={S.outputLabel}>
+          <span style={{ color: "#4338ca" }}>🔭 Discover Stream prompt</span>
+          <CopyButton text={prompts.discover_prompt || ""} />
+        </div>
+        <p style={S.outputText}>{prompts.discover_prompt}</p>
+      </div>
+
+      {prompts.galileo_tip && (
+        <div style={S.tipBox}>
+          <strong>💡 Galileo tip:</strong> {prompts.galileo_tip}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StepOutput({ results, contact, loading, loadingCount, onBack, onReset }) {
   if (loading) {
     return (
       <div style={S.card}>
@@ -1036,7 +1137,7 @@ function StepOutput({ result, contact, useCase, loading, onBack, onReset }) {
             ))}
           </div>
           <span style={{ fontSize: "13px", color: "#6b7280" }}>
-            Generating prompts{contact.name ? ` for ${contact.name}` : ""}...
+            Generating {loadingCount} use case{loadingCount > 1 ? "s" : ""}{contact.name ? ` for ${contact.name}` : ""}...
           </span>
         </div>
       </div>
@@ -1044,57 +1145,21 @@ function StepOutput({ result, contact, useCase, loading, onBack, onReset }) {
   }
 
   return (
-    <div style={S.card}>
-      <div style={S.sectionTitle}>Your suggested prompts</div>
-      <div style={{ ...S.sectionSub, marginBottom: "16px" }}>
-        {contact.name
-          ? `Tailored for ${contact.name}${contact.title ? `, ${contact.title}` : ""}${contact.company ? ` at ${contact.company}` : ""}.`
-          : "Use the chat prompt in Galileo AI, the agent prompt in Cursor or Claude with MCP, and save the Discover prompt as a LogRocket Stream."}
+    <div>
+      <div style={{ marginBottom: "16px" }}>
+        <div style={S.sectionTitle}>Your suggested prompts</div>
+        <div style={S.sectionSub}>
+          {contact.name
+            ? `Tailored for ${contact.name}${contact.title ? `, ${contact.title}` : ""}${contact.company ? ` at ${contact.company}` : ""} — ${results.length} use case${results.length > 1 ? "s" : ""}.`
+            : `${results.length} use case${results.length > 1 ? "s" : ""} — use the chat prompt in Galileo AI, the agent prompt in Cursor or Claude with MCP, and save the Discover prompt as a LogRocket Stream.`}
+        </div>
       </div>
 
-      {result.rationale && (
-        <p style={{ fontSize: "13px", color: "#6b7280", lineHeight: "1.65", marginBottom: "14px" }}>
-          {result.rationale}
-        </p>
-      )}
+      {results.map(item => (
+        <UseCaseResult key={item.useCase.label} item={item} />
+      ))}
 
-      {useCase && (
-        <div style={S.lrBanner}>
-          🚀 <strong>{useCase.label}</strong> &nbsp;·&nbsp; ✦ {useCase.agent}
-        </div>
-      )}
-
-      <div style={S.outputBlock}>
-        <div style={S.outputLabel}>
-          <span>💬 Ask Galileo / Chat prompt</span>
-          <CopyButton text={result.chat_prompt || ""} />
-        </div>
-        <p style={S.outputText}>{result.chat_prompt}</p>
-      </div>
-
-      <div style={S.outputBlock}>
-        <div style={S.outputLabel}>
-          <span>▶ MCP / Claude Agent / Cursor prompt</span>
-          <CopyButton text={result.automation_prompt || ""} />
-        </div>
-        <p style={S.outputText}>{result.automation_prompt}</p>
-      </div>
-
-      <div style={{ ...S.outputBlock, borderColor: "#c7d2fe", backgroundColor: "#eef2ff" }}>
-        <div style={S.outputLabel}>
-          <span style={{ color: "#4338ca" }}>🔭 Discover Stream prompt</span>
-          <CopyButton text={result.discover_prompt || ""} />
-        </div>
-        <p style={S.outputText}>{result.discover_prompt}</p>
-      </div>
-
-      {result.galileo_tip && (
-        <div style={S.tipBox}>
-          <strong>💡 Galileo tip:</strong> {result.galileo_tip}
-        </div>
-      )}
-
-      <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+      <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
         <button style={S.btnGhost} onClick={onBack}>← Adjust</button>
         <button style={S.btnGhost} onClick={onReset}>↺ Start over</button>
       </div>
@@ -1195,33 +1260,34 @@ export default function App() {
   const [step, setStep] = useState(1);
   const [selectedTools, setSelectedTools] = useState(new Set());
   const [contact, setContact] = useState({ name: "", title: "", company: "", industry: "" });
-  const [selectedUseCase, setSelectedUseCase] = useState(null);
-  const [context, setContext] = useState("");
+  const [selectedUseCases, setSelectedUseCases] = useState(new Set());
+  const [useCaseContexts, setUseCaseContexts] = useState({});
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState({});
+  const [results, setResults] = useState([]);
   const [rogContext, setRogContext] = useState("");
 
   const handleGenerate = useCallback(async () => {
     setLoading(true);
-    setStep(3);
-    try {
-      const res = await generatePrompts({ selectedTools, useCase: selectedUseCase, contact, context, rogContext });
-      setResult(res);
-    } catch (e) {
-      console.error("generatePrompts failed:", e);
-      setResult({ chat_prompt: `Error: ${e.message}`, automation_prompt: "", discover_prompt: "" });
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedTools, selectedUseCase, contact, context]);
+    setStep(4);
+    const useCaseList = USE_CASES.filter(u => selectedUseCases.has(u.label));
+    const settled = await Promise.all(
+      useCaseList.map(useCase =>
+        generatePrompts({ selectedTools, useCase, contact, context: useCaseContexts[useCase.label] || "", rogContext })
+          .then(prompts => ({ useCase, prompts }))
+          .catch(e => ({ useCase, prompts: { chat_prompt: `Error: ${e.message}`, automation_prompt: "", discover_prompt: "" } }))
+      )
+    );
+    setResults(settled);
+    setLoading(false);
+  }, [selectedTools, selectedUseCases, contact, useCaseContexts, rogContext]);
 
   const reset = () => {
     setStep(1);
     setSelectedTools(new Set());
     setContact({ name: "", title: "", company: "", industry: "" });
-    setSelectedUseCase(null);
-    setContext("");
-    setResult({});
+    setSelectedUseCases(new Set());
+    setUseCaseContexts({});
+    setResults([]);
     setRogContext("");
   };
 
@@ -1259,24 +1325,32 @@ export default function App() {
           <StepUseCase
             contact={contact}
             setContact={setContact}
-            selectedUseCase={selectedUseCase}
-            setSelectedUseCase={setSelectedUseCase}
-            context={context}
-            setContext={setContext}
+            selectedUseCases={selectedUseCases}
+            setSelectedUseCases={setSelectedUseCases}
             rogContext={rogContext}
             setRogContext={setRogContext}
             onBack={() => setStep(1)}
-            onGenerate={handleGenerate}
+            onNext={() => setStep(3)}
           />
         )}
 
         {step === 3 && (
-          <StepOutput
-            result={result}
-            contact={contact}
-            useCase={selectedUseCase}
-            loading={loading}
+          <StepContext
+            selectedUseCases={selectedUseCases}
+            useCaseContexts={useCaseContexts}
+            setUseCaseContexts={setUseCaseContexts}
             onBack={() => setStep(2)}
+            onGenerate={handleGenerate}
+          />
+        )}
+
+        {step === 4 && (
+          <StepOutput
+            results={results}
+            contact={contact}
+            loading={loading}
+            loadingCount={selectedUseCases.size}
+            onBack={() => setStep(3)}
             onReset={reset}
           />
         )}
