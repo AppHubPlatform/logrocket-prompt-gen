@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.github
+infra
+*.local
+.env
+.env.*
+npm-debug.log*
+.DS_Store
+.vscode
+.idea
+README.md
