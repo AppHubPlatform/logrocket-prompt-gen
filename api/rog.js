@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${process.env.VITE_ROG_TOKEN}`,
+      "Authorization": `Bearer ${process.env.ROG_TOKEN || process.env.VITE_ROG_TOKEN}`,
     },
     body: JSON.stringify(req.body),
   });
