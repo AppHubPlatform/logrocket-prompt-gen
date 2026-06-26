@@ -883,6 +883,7 @@ function StepUseCase({ contact, setContact, selectedUseCases, setSelectedUseCase
       const ctx = await fetchRogContext(contact.company.trim());
       setRogContext(ctx);
     } catch (e) {
+      LogRocket.captureException(e, { tags: { source: 'rog-enrichment' } });
       setRogError(e.message);
     } finally {
       setRogLoading(false);
@@ -1282,7 +1283,10 @@ export default function App() {
       useCaseList.map(useCase =>
         generatePrompts({ selectedTools, useCase, contact, context: useCaseContexts[useCase.label] || "", rogContext })
           .then(prompts => ({ useCase, prompts }))
-          .catch(e => ({ useCase, prompts: { chat_prompt: `Error: ${e.message}`, automation_prompt: "", discover_prompt: "" } }))
+          .catch(e => {
+            LogRocket.captureException(e, { tags: { source: 'prompt-generation', useCase: useCase.label } });
+            return { useCase, prompts: { chat_prompt: `Error: ${e.message}`, automation_prompt: "", discover_prompt: "" } };
+          })
       )
     );
     setResults(settled);
