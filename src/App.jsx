@@ -20,7 +20,8 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import LogRocket from 'logrocket';
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -1266,6 +1267,13 @@ export default function App() {
   const [results, setResults] = useState([]);
   const [rogContext, setRogContext] = useState("");
 
+  useEffect(() => {
+    LogRocket.identify('sales-rep', {
+      email: 'team@logrocket.com',
+      name: 'Sales Rep',
+    });
+  }, []);
+
   const handleGenerate = useCallback(async () => {
     setLoading(true);
     setStep(4);
@@ -1279,6 +1287,11 @@ export default function App() {
     );
     setResults(settled);
     setLoading(false);
+    LogRocket.track('Prompts Generated', {
+      company: contact.company,
+      useCases: [...selectedUseCases].join(', '),
+      tools: [...selectedTools].join(', '),
+    });
   }, [selectedTools, selectedUseCases, contact, useCaseContexts, rogContext]);
 
   const reset = () => {
