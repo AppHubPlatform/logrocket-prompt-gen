@@ -1269,10 +1269,19 @@ export default function App() {
   const [rogContext, setRogContext] = useState("");
 
   useEffect(() => {
-    LogRocket.identify('sales-rep', {
-      email: 'team@logrocket.com',
-      name: 'Sales Rep',
-    });
+    // Identify the session by the logged-in user's email. In production the
+    // email comes from the GCP IAP header via /api/me; locally it's null, so
+    // the session is identified anonymously.
+    fetch('/api/me')
+      .then(r => r.json())
+      .then(({ email }) => {
+        if (email) {
+          LogRocket.identify(email, { email, name: email.split('@')[0] });
+        } else {
+          LogRocket.identify('anonymous');
+        }
+      })
+      .catch(() => LogRocket.identify('anonymous'));
   }, []);
 
   const handleGenerate = useCallback(async () => {

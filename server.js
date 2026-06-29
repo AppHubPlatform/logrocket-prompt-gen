@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import anthropic from "./api/anthropic.js";
 import rog from "./api/rog.js";
+import me from "./api/me.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.join(__dirname, "dist");
@@ -14,6 +15,7 @@ app.use(express.json({ limit: "2mb" }));
 
 app.get("/healthz", (_req, res) => res.status(200).send("ok"));
 
+app.get("/api/me", me);
 app.post("/api/anthropic", anthropic);
 app.post("/api/rog", rog);
 

@@ -4,7 +4,20 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        // In production the Express server serves /api/me from the IAP header.
+        // Locally there is no IAP, so return no email (anonymous identify).
+        name: 'dev-api-me',
+        configureServer(server) {
+          server.middlewares.use('/api/me', (_req, res) => {
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ email: null }))
+          })
+        },
+      },
+    ],
     server: {
       allowedHosts: ['reporter-electable-shape.ngrok-free.dev'],
       proxy: {
