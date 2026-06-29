@@ -1184,16 +1184,24 @@ async function generatePrompts({ selectedTools, useCase, contact, context, rogCo
 
 LogRocket's Galileo AI has three main AI agents:
 - Analytics AI: understands conversion funnels, feature usage, adoption trends
-- Issues AI: detects, triages, and explains bugs, errors, and user friction  
+- Issues AI: detects, triages, and explains bugs, errors, and user friction
 - Session Watching AI: reveals user behavior, heatmaps, journey maps, A/B test results
 
 The customer's selected use case is: ${useCase.label}
 Powered by: ${useCase.agent}
 Team persona: ${useCase.persona}
-${contactLine ? `\nContact:\n${contactLine}` : ""}
 Customer tools: ${tools}
 ${context ? `Extra context: ${context}` : ""}
-${rogContext ? `\nRecent Gong call themes and email context from Rog (use this to personalize the prompts):\n${rogContext}` : ""}
+${(contactLine || rogContext) ? `\n--- INTERNAL BACKGROUND (for your direction only — see the constraint below) ---${contactLine ? `\n${contactLine}` : ""}${rogContext ? `\nRecent Gong call themes and email context from Rog:\n${rogContext}` : ""}\n--- END INTERNAL BACKGROUND ---` : ""}
+
+IMPORTANT — how to use the INTERNAL BACKGROUND: Use it ONLY to inform your strategic
+angle, which capabilities to emphasize, and your "rationale" field below. You MUST NOT
+copy any of it into the three generated prompts. Specifically, the chat_prompt,
+automation_prompt, and discover_prompt must NOT contain: the contact's name or title,
+the company name, the industry, or any Gong call/email detail. Where a customer-specific
+value would naturally go, use a neutral placeholder instead (e.g. {company}, {user ID},
+{account}, {URL}, {custom event}). The three prompts must read as clean, reusable
+templates — only the customer's tool stack may be referenced by name.
 
 LogRocket prompt templates to adapt from:
 - Chat template: "${useCase.lrChatPrompt}"
@@ -1202,9 +1210,9 @@ LogRocket prompt templates to adapt from:
 - Desired outcome: ${useCase.outcome}
 
 Generate THREE refined prompts:
-1. "chat_prompt" — Ready-to-use for LogRocket's Ask Galileo or Claude. Adapt the template to be specific to the customer's tools, industry, persona, and context.
+1. "chat_prompt" — Ready-to-use for LogRocket's Ask Galileo or Claude. Adapt the template to the customer's tools and the selected use case, using placeholders for any customer-specific values (per the constraint above).
 2. "automation_prompt" — Written as an MCP / Claude agent / Cursor instruction that a developer or power user would run to pull LogRocket session, issue, or analytics data via the LogRocket MCP server and combine it with data from the customer's other tools (e.g. pull a Jira ticket + matching LogRocket session, or query Salesforce account health + LogRocket usage metrics). The prompt should read like a natural-language agent instruction with: (a) a clear trigger or starting condition, (b) which MCP tools or data sources to call and in what order, (c) how to combine or cross-reference the data, and (d) the final output format or destination (Slack message, Jira comment, dashboard, etc.). Reference the customer's actual tool stack where relevant.
-3. "discover_prompt" — A suggested Discovery Stream prompt the customer can save in LogRocket to surface unexpected behavioral patterns proactively. Should be open-ended, exploratory, and adapted to the customer's specific context and tools.
+3. "discover_prompt" — A suggested Discovery Stream prompt the customer can save in LogRocket to surface unexpected behavioral patterns proactively. Should be open-ended, exploratory, and adapted to the selected use case and the customer's tools (per the constraint above — no contact, company, industry, or Rog detail).
 
 Respond ONLY as valid JSON, no markdown:
 {
