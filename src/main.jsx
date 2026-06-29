@@ -9,7 +9,10 @@ import App from './App.jsx'
 // import resolves to the module object rather than the function itself.
 const setupLogRocketReact = setupLogRocketReactImport.default ?? setupLogRocketReactImport
 
-LogRocket.init('apphub/ai-prompts')
+LogRocket.init('apphub/ai-prompts', {
+  serverURL: 'https://staging-i.logrocket.com/i',
+  dashboardHost: 'https://staging.logrocket.com',
+})
 setupLogRocketReact(LogRocket)
 
 createRoot(document.getElementById('root')).render(
