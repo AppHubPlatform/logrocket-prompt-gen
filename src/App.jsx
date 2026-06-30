@@ -25,6 +25,19 @@ import LogRocket from 'logrocket';
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
+const LANGUAGES = [
+  "English",
+  "Spanish",
+  "French",
+  "German",
+  "Portuguese",
+  "Italian",
+  "Dutch",
+  "Japanese",
+  "Korean",
+  "Chinese (Simplified)",
+];
+
 const TOOLS = [
   { name: "LogRocket",        icon: "🚀" },
   { name: "LaunchDarkly",     icon: "🚩" },
@@ -1034,7 +1047,7 @@ function StepUseCase({ contact, setContact, selectedUseCases, setSelectedUseCase
 
 // ─── Step 3: Per-use-case Context ────────────────────────────────────────────
 
-function StepContext({ selectedUseCases, useCaseContexts, setUseCaseContexts, onBack, onGenerate }) {
+function StepContext({ selectedUseCases, useCaseContexts, setUseCaseContexts, language, setLanguage, onBack, onGenerate }) {
   const useCaseList = USE_CASES.filter(u => selectedUseCases.has(u.label));
 
   return (
@@ -1042,6 +1055,16 @@ function StepContext({ selectedUseCases, useCaseContexts, setUseCaseContexts, on
       <div style={S.sectionTitle}>Add context for best results</div>
       <div style={S.sectionSub}>
         Fill in the details below to personalize your prompts. Each field is tailored to the use case you selected.
+      </div>
+
+      <div style={{ marginBottom: "24px" }}>
+        <label style={{ ...S.fieldLabel, marginBottom: "6px" }}>Output language</label>
+        <select style={S.select} value={language} onChange={e => setLanguage(e.target.value)}>
+          {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+        </select>
+        <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "6px" }}>
+          The generated prompts will be written in this language.
+        </div>
       </div>
 
       {useCaseList.map(u => (
@@ -1171,7 +1194,7 @@ function StepOutput({ results, contact, loading, loadingCount, onBack, onReset }
 
 // ─── API Call ─────────────────────────────────────────────────────────────────
 
-async function generatePrompts({ selectedTools, useCase, contact, context, rogContext }) {
+async function generatePrompts({ selectedTools, useCase, contact, context, rogContext, language = "English" }) {
   const tools = [...selectedTools].join(", ");
   const contactLine = [
     contact.name && `Contact: ${contact.name}`,
@@ -1213,6 +1236,8 @@ Generate THREE refined prompts:
 1. "chat_prompt" — Ready-to-use for LogRocket's Ask Galileo or Claude. Adapt the template to the customer's tools and the selected use case, using placeholders for any customer-specific values (per the constraint above).
 2. "automation_prompt" — Written as an MCP / Claude agent / Cursor instruction that a developer or power user would run to pull LogRocket session, issue, or analytics data via the LogRocket MCP server and combine it with data from the customer's other tools (e.g. pull a Jira ticket + matching LogRocket session, or query Salesforce account health + LogRocket usage metrics). The prompt should read like a natural-language agent instruction with: (a) a clear trigger or starting condition, (b) which MCP tools or data sources to call and in what order, (c) how to combine or cross-reference the data, and (d) the final output format or destination (Slack message, Jira comment, dashboard, etc.). Reference the customer's actual tool stack where relevant.
 3. "discover_prompt" — A suggested Discovery Stream prompt the customer can save in LogRocket to surface unexpected behavioral patterns proactively. Should be open-ended, exploratory, and adapted to the selected use case and the customer's tools (per the constraint above — no contact, company, industry, or Rog detail).
+
+Write the "chat_prompt", "automation_prompt", "discover_prompt", "rationale", and "galileo_tip" values entirely in ${language}. Keep product and tool names (LogRocket, Galileo, Ask Galileo, Cursor, ${tools}) and placeholder tokens (e.g. {company}, {user ID}, {URL}, {custom event}) unchanged in their original form. The JSON keys must stay in English exactly as shown.
 
 Respond ONLY as valid JSON, no markdown:
 {
@@ -1275,6 +1300,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState([]);
   const [rogContext, setRogContext] = useState("");
+  const [language, setLanguage] = useState("English");
 
   useEffect(() => {
     // Identify the session by the logged-in user's email. In production the
@@ -1298,7 +1324,7 @@ export default function App() {
     const useCaseList = USE_CASES.filter(u => selectedUseCases.has(u.label));
     const settled = await Promise.all(
       useCaseList.map(useCase =>
-        generatePrompts({ selectedTools, useCase, contact, context: useCaseContexts[useCase.label] || "", rogContext })
+        generatePrompts({ selectedTools, useCase, contact, context: useCaseContexts[useCase.label] || "", rogContext, language })
           .then(prompts => ({ useCase, prompts }))
           .catch(e => {
             LogRocket.captureException(e, { tags: { source: 'prompt-generation', useCase: useCase.label } });
@@ -1313,7 +1339,7 @@ export default function App() {
       useCases: [...selectedUseCases].join(', '),
       tools: [...selectedTools].join(', '),
     });
-  }, [selectedTools, selectedUseCases, contact, useCaseContexts, rogContext]);
+  }, [selectedTools, selectedUseCases, contact, useCaseContexts, rogContext, language]);
 
   const reset = () => {
     setStep(1);
@@ -1373,6 +1399,8 @@ export default function App() {
             selectedUseCases={selectedUseCases}
             useCaseContexts={useCaseContexts}
             setUseCaseContexts={setUseCaseContexts}
+            language={language}
+            setLanguage={setLanguage}
             onBack={() => setStep(2)}
             onGenerate={handleGenerate}
           />
