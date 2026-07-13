@@ -393,35 +393,85 @@ const USE_CASES = [
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
+const MONO = "'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
+const ACCENT = "#6C4BD8";
+const ACCENT_DARK = "#4A2FA0";
+const ACCENT_SOFT = "#F0ECFB";
+const BORDER = "#EBE6DF";
+const CARD_SHADOW = "0 1px 2px rgba(23,19,32,0.04), 0 14px 34px -16px rgba(23,19,32,0.12)";
+
 const S = {
   app: {
     minHeight: "100vh",
-    backgroundColor: "#F8F7FE",
+    backgroundColor: "#F6F3EF",
     fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    color: "#1a1523",
+    color: "#171320",
   },
   header: {
-    backgroundColor: "#4C3DB4",
-    padding: "14px 24px",
+    backgroundColor: "#FFFFFF",
+    borderBottom: `1px solid ${BORDER}`,
+    padding: "16px 32px",
     display: "flex",
     alignItems: "center",
-    gap: "10px",
+    gap: "14px",
   },
   headerTitle: {
-    color: "white",
+    color: "#171320",
+    fontSize: "17px",
+    fontWeight: "700",
+    letterSpacing: "-0.02em",
+  },
+  headerDivider: {
+    width: "1px",
+    height: "20px",
+    backgroundColor: BORDER,
+  },
+  headerSubName: {
+    color: "#6b7280",
     fontSize: "15px",
-    fontWeight: "600",
-    letterSpacing: "-0.01em",
+    fontWeight: "400",
   },
   headerSub: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: "12px",
+    color: "#9ca3af",
+    fontSize: "13px",
     marginLeft: "auto",
   },
   main: {
-    maxWidth: "720px",
+    maxWidth: "760px",
     margin: "0 auto",
-    padding: "32px 24px 80px",
+    padding: "40px 24px 80px",
+  },
+  eyebrow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    fontFamily: MONO,
+    fontSize: "12px",
+    fontWeight: "600",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: ACCENT,
+    marginBottom: "12px",
+  },
+  eyebrowDot: {
+    width: "7px",
+    height: "7px",
+    borderRadius: "50%",
+    backgroundColor: ACCENT,
+  },
+  heroTitle: {
+    fontSize: "38px",
+    fontWeight: "700",
+    letterSpacing: "-0.03em",
+    color: "#171320",
+    margin: "0 0 10px",
+    lineHeight: "1.05",
+  },
+  heroSub: {
+    fontSize: "16px",
+    color: "#6b7280",
+    margin: "0 0 32px",
+    lineHeight: "1.5",
   },
   progress: {
     display: "flex",
@@ -433,15 +483,18 @@ const S = {
     display: "flex",
     alignItems: "center",
     gap: "6px",
-    fontSize: "12px",
-    fontWeight: active ? "600" : "400",
-    color: done ? "#4C3DB4" : active ? "#4C3DB4" : "#9ca3af",
+    fontFamily: MONO,
+    fontSize: "11px",
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    fontWeight: active ? "600" : "500",
+    color: done ? ACCENT : active ? ACCENT : "#9ca3af",
   }),
   progressDot: (active, done) => ({
     width: "20px",
     height: "20px",
     borderRadius: "50%",
-    backgroundColor: done ? "#4C3DB4" : active ? "#4C3DB4" : "#e5e7eb",
+    backgroundColor: done ? ACCENT : active ? ACCENT : "#e7e2db",
     color: done || active ? "white" : "#9ca3af",
     fontSize: "11px",
     fontWeight: "600",
@@ -452,20 +505,21 @@ const S = {
   progressLine: (done) => ({
     flex: 1,
     height: "1px",
-    backgroundColor: done ? "#4C3DB4" : "#e5e7eb",
+    backgroundColor: done ? ACCENT : "#e7e2db",
   }),
   card: {
     backgroundColor: "white",
-    borderRadius: "12px",
-    border: "1px solid #e9e5f8",
-    padding: "24px",
+    borderRadius: "18px",
+    border: `1px solid ${BORDER}`,
+    boxShadow: CARD_SHADOW,
+    padding: "28px",
     marginBottom: "16px",
   },
   sectionTitle: {
-    fontSize: "18px",
-    fontWeight: "600",
-    color: "#1a1523",
-    marginBottom: "4px",
+    fontSize: "22px",
+    fontWeight: "700",
+    color: "#171320",
+    marginBottom: "6px",
     letterSpacing: "-0.02em",
   },
   sectionSub: {
@@ -485,11 +539,11 @@ const S = {
     gap: "7px",
     padding: "9px 11px",
     borderRadius: "8px",
-    border: selected ? "1.5px solid #4C3DB4" : "1px solid #e9e5f8",
-    backgroundColor: selected ? "#EEEDFE" : "white",
+    border: selected ? "1.5px solid #6C4BD8" : "1px solid #EBE6DF",
+    backgroundColor: selected ? "#F0ECFB" : "white",
     cursor: "pointer",
     fontSize: "13px",
-    color: selected ? "#3C3489" : "#374151",
+    color: selected ? "#4A2FA0" : "#374151",
     fontWeight: selected ? "500" : "400",
     transition: "all 0.12s",
     userSelect: "none",
@@ -499,7 +553,7 @@ const S = {
     padding: "9px 12px",
     fontSize: "13px",
     borderRadius: "8px",
-    border: "1px solid #e9e5f8",
+    border: "1px solid #EBE6DF",
     backgroundColor: "white",
     color: "#1a1523",
     fontFamily: "inherit",
@@ -511,7 +565,7 @@ const S = {
     padding: "9px 12px",
     fontSize: "13px",
     borderRadius: "8px",
-    border: "1px solid #e9e5f8",
+    border: "1px solid #EBE6DF",
     backgroundColor: "white",
     color: "#1a1523",
     fontFamily: "inherit",
@@ -524,7 +578,7 @@ const S = {
     padding: "10px 12px",
     fontSize: "13px",
     borderRadius: "8px",
-    border: "1px solid #e9e5f8",
+    border: "1px solid #EBE6DF",
     backgroundColor: "white",
     color: "#1a1523",
     fontFamily: "inherit",
@@ -552,8 +606,8 @@ const S = {
     alignItems: "center",
     gap: "5px",
     padding: "4px 10px",
-    backgroundColor: "#EEEDFE",
-    color: "#3C3489",
+    backgroundColor: "#F0ECFB",
+    color: "#4A2FA0",
     borderRadius: "100px",
     fontSize: "12px",
     fontWeight: "500",
@@ -561,18 +615,18 @@ const S = {
   personaTab: (active) => ({
     padding: "6px 14px",
     borderRadius: "8px",
-    border: active ? "1.5px solid #4C3DB4" : "1px solid #e9e5f8",
-    backgroundColor: active ? "#EEEDFE" : "white",
+    border: active ? "1.5px solid #6C4BD8" : "1px solid #EBE6DF",
+    backgroundColor: active ? "#F0ECFB" : "white",
     fontSize: "12px",
     fontWeight: "500",
-    color: active ? "#3C3489" : "#6b7280",
+    color: active ? "#4A2FA0" : "#6b7280",
     cursor: "pointer",
     transition: "all 0.12s",
   }),
   useCase: (selected) => ({
     borderRadius: "10px",
-    border: selected ? "1.5px solid #4C3DB4" : "1px solid #e9e5f8",
-    backgroundColor: selected ? "#EEEDFE" : "white",
+    border: selected ? "1.5px solid #6C4BD8" : "1px solid #EBE6DF",
+    backgroundColor: selected ? "#F0ECFB" : "white",
     cursor: "pointer",
     transition: "all 0.12s",
     marginBottom: "8px",
@@ -591,7 +645,7 @@ const S = {
     padding: "10px 20px",
     borderRadius: "8px",
     border: "none",
-    backgroundColor: disabled ? "#c4bef0" : "#4C3DB4",
+    backgroundColor: disabled ? "#c4bef0" : "#6C4BD8",
     color: "white",
     fontSize: "14px",
     fontWeight: "500",
@@ -605,7 +659,7 @@ const S = {
     gap: "6px",
     padding: "10px 16px",
     borderRadius: "8px",
-    border: "1px solid #e9e5f8",
+    border: "1px solid #EBE6DF",
     backgroundColor: "transparent",
     color: "#6b7280",
     fontSize: "13px",
@@ -613,17 +667,18 @@ const S = {
     fontFamily: "inherit",
   },
   outputBlock: {
-    backgroundColor: "#F8F7FE",
+    backgroundColor: "#FAF7F3",
     borderRadius: "10px",
-    border: "1px solid #e9e5f8",
+    border: "1px solid #EBE6DF",
     padding: "16px",
     marginBottom: "12px",
   },
   outputLabel: {
+    fontFamily: MONO,
     fontSize: "11px",
     fontWeight: "600",
-    color: "#9ca3af",
-    letterSpacing: "0.07em",
+    color: "#8a8380",
+    letterSpacing: "0.06em",
     textTransform: "uppercase",
     marginBottom: "10px",
     display: "flex",
@@ -644,7 +699,7 @@ const S = {
     fontSize: "11px",
     padding: "3px 9px",
     borderRadius: "6px",
-    border: "1px solid #e9e5f8",
+    border: "1px solid #EBE6DF",
     backgroundColor: "white",
     color: "#6b7280",
     cursor: "pointer",
@@ -721,7 +776,7 @@ const S = {
     alignItems: "center",
     gap: "10px",
     padding: "10px 14px",
-    backgroundColor: "#EEEDFE",
+    backgroundColor: "#F0ECFB",
     borderRadius: "8px",
     marginBottom: "16px",
   },
@@ -729,7 +784,7 @@ const S = {
     width: "32px",
     height: "32px",
     borderRadius: "50%",
-    backgroundColor: "#4C3DB4",
+    backgroundColor: "#6C4BD8",
     color: "white",
     fontSize: "12px",
     fontWeight: "600",
@@ -748,7 +803,7 @@ const S = {
     alignItems: "center",
     gap: "8px",
     padding: "9px 13px",
-    background: "linear-gradient(135deg, #4C3DB4, #7b5ea7)",
+    background: "linear-gradient(135deg, #6C4BD8, #7b5ea7)",
     borderRadius: "8px",
     marginBottom: "14px",
     fontSize: "12px",
@@ -775,7 +830,7 @@ function ProgressBar({ step }) {
         return (
           <div key={num} style={{ display: "flex", alignItems: "center", gap: "6px", flex: i < steps.length - 1 ? 1 : "none" }}>
             <div style={S.progressDot(active, done)}>{done ? "✓" : num}</div>
-            <span style={{ fontSize: "12px", fontWeight: active ? "600" : "400", color: done || active ? "#4C3DB4" : "#9ca3af", whiteSpace: "nowrap" }}>{label}</span>
+            <span style={{ fontSize: "12px", fontWeight: active ? "600" : "400", color: done || active ? "#6C4BD8" : "#9ca3af", whiteSpace: "nowrap" }}>{label}</span>
             {i < steps.length - 1 && <div style={S.progressLine(done)} />}
           </div>
         );
@@ -852,7 +907,7 @@ function StepTools({ selectedTools, setSelectedTools, onNext }) {
           {[...selectedTools].map(t => (
             <span key={t} style={S.tag}>
               {t}
-              <button onClick={() => removeTag(t)} style={{ background: "none", border: "none", cursor: "pointer", color: "#4C3DB4", fontSize: "14px", lineHeight: 1, padding: 0 }}>×</button>
+              <button onClick={() => removeTag(t)} style={{ background: "none", border: "none", cursor: "pointer", color: "#6C4BD8", fontSize: "14px", lineHeight: 1, padding: 0 }}>×</button>
             </span>
           ))}
         </div>
@@ -951,7 +1006,7 @@ function StepUseCase({ contact, setContact, selectedUseCases, setSelectedUseCase
           <div style={S.contactCard}>
             <div style={S.avatar}>{initials}</div>
             <div>
-              <div style={{ fontSize: "13px", fontWeight: "600", color: "#3C3489" }}>{contact.name || "—"}</div>
+              <div style={{ fontSize: "13px", fontWeight: "600", color: "#4A2FA0" }}>{contact.name || "—"}</div>
               <div style={{ fontSize: "12px", color: "#534AB7" }}>{[contact.title, contact.company].filter(Boolean).join(" · ")}</div>
             </div>
           </div>
@@ -1001,13 +1056,13 @@ function StepUseCase({ contact, setContact, selectedUseCases, setSelectedUseCase
                 <div style={S.useCaseHeader}>
                   <span style={{ fontSize: "18px", marginTop: "1px" }}>{u.icon}</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "13px", fontWeight: "500", color: sel ? "#3C3489" : "#1a1523" }}>
+                    <div style={{ fontSize: "13px", fontWeight: "500", color: sel ? "#4A2FA0" : "#1a1523" }}>
                       {u.label}
                       <span style={{ fontSize: "11px", fontWeight: "400", color: "#9ca3af", marginLeft: "6px" }}>{u.persona}</span>
                     </div>
                     <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "2px" }}>{u.desc}</div>
                   </div>
-                  {sel && <span style={{ fontSize: "16px", color: "#4C3DB4", flexShrink: 0 }}>✓</span>}
+                  {sel && <span style={{ fontSize: "16px", color: "#6C4BD8", flexShrink: 0 }}>✓</span>}
                 </div>
                 {sel && (
                   <div style={{ padding: "0 14px 12px 44px" }}>
@@ -1025,7 +1080,7 @@ function StepUseCase({ contact, setContact, selectedUseCases, setSelectedUseCase
             {[...selectedUseCases].map(label => {
               const uc = USE_CASES.find(u => u.label === label);
               return (
-                <span key={label} style={{ ...S.tag, backgroundColor: uc?.agentBg || "#EEEDFE", color: uc?.agentColor || "#3C3489" }}>
+                <span key={label} style={{ ...S.tag, backgroundColor: uc?.agentBg || "#F0ECFB", color: uc?.agentColor || "#4A2FA0" }}>
                   {uc?.icon} {label}
                   <button onClick={(e) => { e.stopPropagation(); setSelectedUseCases(prev => { const next = new Set(prev); next.delete(label); return next; }); }} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: "14px", lineHeight: 1, padding: 0 }}>×</button>
                 </span>
@@ -1156,7 +1211,7 @@ function StepOutput({ results, contact, loading, loadingCount, onBack, onReset }
             {[0, 1, 2].map(i => (
               <div key={i} style={{
                 width: "8px", height: "8px", borderRadius: "50%",
-                backgroundColor: "#4C3DB4",
+                backgroundColor: "#6C4BD8",
                 animation: `bounce 1s ${i * 0.15}s infinite`,
               }} />
             ))}
@@ -1309,6 +1364,7 @@ export default function App() {
   const [results, setResults] = useState([]);
   const [rogContext, setRogContext] = useState("");
   const [language, setLanguage] = useState("English");
+  const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
     // Identify the session by the logged-in user's email. In production the
@@ -1318,6 +1374,7 @@ export default function App() {
       .then(r => r.json())
       .then(({ email }) => {
         if (email) {
+          setUserEmail(email);
           LogRocket.identify(email, { email, name: email.split('@')[0] });
         } else {
           LogRocket.identify('anonymous');
@@ -1366,19 +1423,29 @@ export default function App() {
         @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
         * { box-sizing: border-box; }
         body { margin: 0; }
-        input:focus, select:focus, textarea:focus { outline: 2px solid #4C3DB4; outline-offset: 1px; }
-        button:focus-visible { outline: 2px solid #4C3DB4; outline-offset: 2px; }
+        input:focus, select:focus, textarea:focus { outline: 2px solid #6C4BD8; outline-offset: 1px; }
+        button:focus-visible { outline: 2px solid #6C4BD8; outline-offset: 2px; }
       `}</style>
 
       {/* Header */}
       <header style={S.header}>
-        <span style={{ fontSize: "20px" }}>🚀</span>
-        <span style={S.headerTitle}>LogRocket · AI Prompt Generator</span>
-        <span style={S.headerSub}>Internal revenue tool</span>
+        <svg height="22" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 131 28" aria-label="LogRocket" style={{ color: "#171320", flexShrink: 0 }}><path fill="currentColor" fillRule="evenodd" d="M6.066 3.156A10.53 10.53 0 0 1 9.122 0a10.294 10.294 0 0 1 3.016 3.094 15.59 15.59 0 0 1 2.93 9.777c.637.513 1.293 1.006 1.918 1.53a3.46 3.46 0 0 1 1.104 3.189c-.302 1.457-.592 2.918-.911 4.372a1.214 1.214 0 0 1-1.848.61c-1.027-.825-2.027-1.678-3.05-2.504a4.684 4.684 0 0 1-2.891 1.255 4.678 4.678 0 0 1-3.385-1.22c-.735.541-1.419 1.191-2.138 1.772-.315.31-.666.58-1.046.806a1.215 1.215 0 0 1-1.603-.785c-.329-1.422-.672-2.839-.99-4.263a3.453 3.453 0 0 1 1.163-3.321c.559-.45 1.125-.893 1.694-1.331.159-.08.08-.261.087-.401a15.615 15.615 0 0 1 2.9-9.42m1.007 4.402a2.395 2.395 0 0 0 .21 3.173 2.636 2.636 0 0 0 3.603.075 2.398 2.398 0 0 0 .636-2.634 2.55 2.55 0 0 0-2.14-1.59 2.6 2.6 0 0 0-2.31.974" clipRule="evenodd"></path><path fill="currentColor" d="M5.712 23.082a.605.605 0 0 1 .896-.485 5.778 5.778 0 0 0 5.03 0 .61.61 0 0 1 .896.45c.005.89.005 1.78 0 2.67a.602.602 0 0 1-.94.436c-.267-.226-.508-.48-.764-.719-.407.762-.789 1.534-1.199 2.294a.61.61 0 0 1-1.012.006c-.41-.761-.79-1.538-1.206-2.299-.253.24-.494.494-.761.72a.603.603 0 0 1-.94-.442c-.007-.878 0-1.756 0-2.634M9.102 10.259a1.22 1.22 0 0 0 1.248-1.192v-.008a1.221 1.221 0 0 0-1.24-1.2h-.008A1.22 1.22 0 0 0 7.855 9.05v.008a1.22 1.22 0 0 0 1.24 1.2h.007Z"></path><path fill="currentColor" fillRule="evenodd" d="M22.79 6.163h1.953v13.186h8.156v1.776H22.787l.004-14.962Zm11.824 9.773a5.224 5.224 0 0 1 .476-2.229 5.588 5.588 0 0 1 1.29-1.776 5.9 5.9 0 0 1 4.14-1.584 5.746 5.746 0 0 1 4.068 1.51 5.135 5.135 0 0 1 1.649 3.941 5.142 5.142 0 0 1-1.765 3.961 5.899 5.899 0 0 1-4.141 1.576 5.74 5.74 0 0 1-4.082-1.5 5.086 5.086 0 0 1-1.638-3.898m2.005-.116a3.935 3.935 0 0 0 .296 1.531c.191.456.47.87.82 1.218a3.82 3.82 0 0 0 2.789 1.077 3.576 3.576 0 0 0 2.641-1.077 3.58 3.58 0 0 0 1.067-2.652 3.772 3.772 0 0 0-3.899-3.878 3.552 3.552 0 0 0-2.641 1.09 3.673 3.673 0 0 0-1.067 2.694m14.537.94a1.812 1.812 0 0 0-.507 1.133.8.8 0 0 0 .36.74c.3.168.623.29.959.36.402.09.857.168 1.363.232.507.063 1.028.126 1.564.19.528.07 1.046.161 1.553.274.474.093.935.242 1.373.444a2.043 2.043 0 0 1 1.322 1.88 3.753 3.753 0 0 1-1.656 3.107 5.943 5.943 0 0 1-3.624 1.151 6.751 6.751 0 0 1-3.318-.76 2.741 2.741 0 0 1-1.596-2.495 3.278 3.278 0 0 1 .785-2.017c.148-.19.31-.366.486-.529a2.005 2.005 0 0 1-1.532-1.892 3.761 3.761 0 0 1 1.394-2.894 2.957 2.957 0 0 1-.485-1.638 3.228 3.228 0 0 1 .37-1.574c.248-.451.59-.844 1.004-1.152a4.902 4.902 0 0 1 3.05-.972 4.742 4.742 0 0 1 3.022.972 4.064 4.064 0 0 1 2.18-.909 5.73 5.73 0 0 1 .824-.063l-.088 1.638a5.5 5.5 0 0 0-1.933.496c.238.464.362.979.359 1.5a2.961 2.961 0 0 1-.38 1.483 3.504 3.504 0 0 1-.994 1.142 4.839 4.839 0 0 1-2.968.95 5.13 5.13 0 0 1-2.885-.793m.507-3.707a1.87 1.87 0 0 0-.201.887c-.006.31.063.62.201.899.141.254.336.473.57.643a3.043 3.043 0 0 0 1.819.508c.907.099 1.79-.338 2.26-1.12.14-.27.21-.573.202-.877a1.856 1.856 0 0 0-.212-.898 1.857 1.857 0 0 0-.56-.655 3.006 3.006 0 0 0-1.817-.518 2.34 2.34 0 0 0-2.262 1.134m.021 7.796a2.75 2.75 0 0 0-.73 1.913 1.556 1.556 0 0 0 1.047 1.404 4.033 4.033 0 0 0 1.722.413 6.94 6.94 0 0 0 1.394-.117c.348-.064.683-.182.993-.349a1.693 1.693 0 0 0 1.025-1.542c0-.627-.606-1.047-1.817-1.258a24.982 24.982 0 0 0-1.913-.243 19.22 19.22 0 0 1-1.721-.221M75.27 10.78a4.594 4.594 0 0 1-3.064 4.597l2.843 5.758h-2.274l-2.567-5.21c-.725.108-1.456.161-2.188.16h-3.888v5.049h-1.954V6.173h6.14c1.7-.103 3.4.209 4.954.908a3.88 3.88 0 0 1 1.996 3.698m-6.984 3.529a7.267 7.267 0 0 0 3.508-.656 2.917 2.917 0 0 0 1.406-2.747c0-1.676-1.085-2.628-3.254-2.853a17.263 17.263 0 0 0-1.934-.105h-3.878v6.363l4.152-.002Zm9.328 1.638c-.007-.77.155-1.53.476-2.23a5.576 5.576 0 0 1 1.289-1.775 5.905 5.905 0 0 1 4.142-1.585 5.744 5.744 0 0 1 4.075 1.502 5.137 5.137 0 0 1 1.649 3.941 5.144 5.144 0 0 1-1.765 3.961 5.899 5.899 0 0 1-4.142 1.575 5.734 5.734 0 0 1-4.078-1.5 5.081 5.081 0 0 1-1.638-3.898m2.006-.116a3.815 3.815 0 0 0 1.11 2.747 3.82 3.82 0 0 0 2.789 1.076 3.572 3.572 0 0 0 2.641-1.076 3.582 3.582 0 0 0 1.067-2.653 3.769 3.769 0 0 0-1.11-2.779 3.782 3.782 0 0 0-2.789-1.098 3.552 3.552 0 0 0-2.642 1.088 3.673 3.673 0 0 0-1.066 2.695Zm20.35 3.043.369 1.49a6.46 6.46 0 0 1-3.888.983 4.995 4.995 0 0 1-3.846-1.5 5.592 5.592 0 0 1-1.363-3.974 5.43 5.43 0 0 1 1.532-3.93 5.207 5.207 0 0 1 3.878-1.585 5.61 5.61 0 0 1 3.4.96l-.698 1.572a4.719 4.719 0 0 0-2.896-.886 2.877 2.877 0 0 0-2.353 1.12 4.032 4.032 0 0 0-.856 2.62 4.2 4.2 0 0 0 .898 2.767 3.171 3.171 0 0 0 2.588 1.141 7.235 7.235 0 0 0 3.233-.784m2.673-14.232h2.005v10.577l4.744-4.65h2.344l-4.968 4.86 2.958 3.192a3.334 3.334 0 0 0 2.24 1.088l-.307 1.426a3.248 3.248 0 0 1-2.599-.591 5.742 5.742 0 0 1-.602-.581l-3.814-4.121v5.293h-2.005l.004-16.493Zm19.271 6.857c.392.403.691.886.878 1.416.219.57.33 1.175.327 1.786-.01.74-.081 1.479-.212 2.208h-7.354a3.507 3.507 0 0 0 1.036 2.018c.638.521 1.45.782 2.272.73a8.86 8.86 0 0 0 3.602-.72l.339 1.511a7.822 7.822 0 0 1-3.107.836c-.485.047-.971.068-1.457.063a5.49 5.49 0 0 1-1.881-.359 4.086 4.086 0 0 1-1.627-1.056 5.779 5.779 0 0 1-1.278-4.058 5.428 5.428 0 0 1 1.532-3.93 5.205 5.205 0 0 1 3.877-1.585 4.124 4.124 0 0 1 3.051 1.141m-.708 3.857.042-.57a2.513 2.513 0 0 0-1.447-2.568 2.895 2.895 0 0 0-1.162-.21 2.948 2.948 0 0 0-1.247.26 3.068 3.068 0 0 0-.971.72 3.816 3.816 0 0 0-.951 2.367l5.736.002Zm4.671-3.159h-1.134v-1.307l2.6-1.954h.539v1.638h3.021v1.626h-3.021v4.271a4.622 4.622 0 0 0 .454 2.451 2.393 2.393 0 0 0 1.774.794l-.305 1.426c-2.114.267-3.363-.567-3.749-2.504a9.235 9.235 0 0 1-.179-1.87v-4.57Z" clipRule="evenodd"></path></svg>
+        <span style={S.headerDivider} />
+        <span style={S.headerSubName}>AI Prompt Generator</span>
+        {userEmail && <span style={S.headerSub}>{userEmail}</span>}
       </header>
 
       {/* Main */}
       <main style={S.main}>
+        <div style={S.eyebrow}>
+          <span style={S.eyebrowDot} />
+          Internal · Revenue Tool
+        </div>
+        <h1 style={S.heroTitle}>Build a prompt</h1>
+        <p style={S.heroSub}>
+          Tailor LogRocket Galileo AI prompts to your customer's stack, team, and use case.
+        </p>
+
         <ProgressBar step={step} />
 
         {step === 1 && (
