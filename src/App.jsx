@@ -885,7 +885,6 @@ function StepTools({ selectedTools, setSelectedTools, onNext }) {
       <div style={S.toolsGrid}>
         {TOOLS.map(t => (
           <div key={t.name} style={S.toolChip(selectedTools.has(t.name))} onClick={() => toggle(t.name)}>
-            <span>{t.icon}</span>
             <span>{t.name}</span>
           </div>
         ))}
