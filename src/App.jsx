@@ -36,6 +36,7 @@ const LANGUAGES = [
   "Japanese",
   "Korean",
   "Chinese (Simplified)",
+  "Turkish",
 ];
 
 const TOOLS = [
