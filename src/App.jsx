@@ -1689,7 +1689,7 @@ async function fetchRogCustomerExamples({ industry, size, competitor }) {
   return data.answer || "";
 }
 
-async function generateCompetitorGuide({ competitor, company, industry, size, includeFeatureComparison, rogExamples }) {
+async function generateCompetitorGuide({ competitor, company, industry, size, includeFeatureComparison, featureFocus, rogExamples }) {
   const systemPrompt = `You are a competitive strategy expert at LogRocket helping a sales rep build a customized competitor guide to position LogRocket against ${competitor}.
 
 ${company ? `Prospect/customer: ${company}` : ""}
@@ -1708,7 +1708,7 @@ Respond ONLY as valid JSON, no markdown, in this exact shape:
   "overview": "2-3 sentence overview framing the comparison for this specific prospect",
   "ai_accuracy": "A paragraph making message #1 above concrete for this prospect. End by citing the independent study.",
   "unified_data": "A paragraph making message #2 above concrete for this prospect and industry",
-  ${includeFeatureComparison ? `"feature_comparison": [ { "feature": "Session Replay", "logrocket": "…", "competitor": "…" }, … 5-7 rows tailored to what matters for this buyer ],` : `"feature_comparison": [],`}
+  ${includeFeatureComparison ? `"feature_comparison": [ { "feature": "Session Replay", "logrocket": "…", "competitor": "…" }, … ${featureFocus && featureFocus.trim() ? `one row for EACH of these rep-specified capabilities (in this order), plus any that are clearly essential to a fair comparison: ${featureFocus.trim()}` : "5-7 rows covering the capabilities that matter most to this buyer"} ],` : `"feature_comparison": [],`}
   "customer_examples": [ { "name": "Company name or anonymized profile", "profile": "industry + size", "outcome": "the result/win" }, … ],
   "objection_handling": "1-2 common objections a ${competitor} rep raises, each with a crisp LogRocket response",
   "discovery_questions": ["3-5 discovery questions that expose ${competitor} gaps and surface LogRocket value"]
@@ -2010,6 +2010,7 @@ function CompetitorGuide() {
   const [industry, setIndustry] = useState("");
   const [size, setSize] = useState("");
   const [includeFeatureComparison, setIncludeFeatureComparison] = useState(true);
+  const [featureFocus, setFeatureFocus] = useState("");
   const [rogExamples, setRogExamples] = useState("");
   const [rogLoading, setRogLoading] = useState(false);
   const [rogError, setRogError] = useState("");
@@ -2031,7 +2032,7 @@ function CompetitorGuide() {
   const generate = async () => {
     setLoading(true); setError(""); setGuide(null);
     try {
-      const g = await generateCompetitorGuide({ competitor, company, industry, size, includeFeatureComparison, rogExamples });
+      const g = await generateCompetitorGuide({ competitor, company, industry, size, includeFeatureComparison, featureFocus, rogExamples });
       setGuide(g);
       if (company && !pdfCustomer) setPdfCustomer(company);
       LogRocket.track("Competitor Guide Generated", { competitor, industry, size });
@@ -2112,10 +2113,23 @@ function CompetitorGuide() {
           {rogError && <div style={{ fontSize: "12px", color: "#b91c1c", marginTop: "6px" }}>⚠️ Rog error: {rogError}</div>}
         </div>
 
-        <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "13px", color: "#374151", marginBottom: "20px" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "13px", color: "#374151", marginBottom: includeFeatureComparison ? "10px" : "20px" }}>
           <input type="checkbox" checked={includeFeatureComparison} onChange={e => setIncludeFeatureComparison(e.target.checked)} style={{ accentColor: ACCENT, width: "15px", height: "15px" }} />
           Include a feature comparison table (optional)
         </label>
+
+        {includeFeatureComparison && (
+          <div style={{ marginBottom: "20px" }}>
+            <label style={S.fieldLabel}>Which capabilities to compare? (optional)</label>
+            <textarea
+              style={S.textarea}
+              value={featureFocus}
+              onChange={e => setFeatureFocus(e.target.value)}
+              placeholder="Comma-separated — e.g. session replay, error tracking, product analytics, funnels, AI insights, data retention. Leave blank and we'll pick the most relevant."
+              rows={2}
+            />
+          </div>
+        )}
 
         <button style={S.btnPrimary(loading || !competitor)} onClick={generate} disabled={loading || !competitor}>
           {loading ? "Generating…" : `✦ Generate guide${competitor ? ` vs ${competitor}` : ""}`}
