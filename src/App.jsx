@@ -1696,6 +1696,19 @@ ${company ? `Prospect/customer: ${company}` : ""}
 ${industry ? `Industry: ${industry}` : ""}
 ${size ? `Company size: ${size}` : ""}
 
+ACCURACY IS CRITICAL — this guide is customer-facing. Use the web_search tool to verify every factual claim BEFORE writing it. Research, at minimum:
+- ${competitor}'s own website (features, capabilities, pricing, positioning)
+- logrocket.com (LogRocket's own features and capabilities)
+- Independent review sites: G2, TrustRadius, Capterra (ratings, strengths/weaknesses, verified reviews for both products)
+- Public customer feedback (Reddit, Hacker News, blog posts) where relevant
+Run multiple searches. Prefer primary sources (the vendors' own sites and dated reviews).
+
+Hard rules:
+- Do NOT state any feature, pricing, rating, or capability claim you have not verified via search. If you cannot verify something, either omit it or explicitly hedge (e.g. "as of the competitor's public docs…").
+- Never invent statistics, customer names, ratings, or quotes.
+- For each factual/comparative claim, attach a source. Populate the "sources" array with the URLs you actually used.
+- Keep the two required messages below persuasive but truthful and defensible.
+
 Non-negotiable messages this guide MUST land:
 1. AI ACCURACY: LogRocket's Galileo AI returns more accurate, trustworthy answers than ${competitor}'s AI. Reference this independent evaluation (Aakash Gupta evaluated LogRocket vs PostHog): ${AI_STUDY_URL}. Explain why accuracy matters for the buyer and what inaccurate AI answers cost a team.
 2. UNIFIED DATA: LogRocket is more effective at surfacing issues because it correlates every data point across the entire stack together — errors, session replay, releases/deploys, and user feedback — in one place, whereas ${competitor} typically leaves these siloed. Make this concrete for the ${industry || "customer's"} context.
@@ -1711,25 +1724,33 @@ Respond ONLY as valid JSON, no markdown, in this exact shape:
   ${includeFeatureComparison ? `"feature_comparison": [ { "feature": "Session Replay", "logrocket": "…", "competitor": "…" }, … ${featureFocus && featureFocus.trim() ? `one row for EACH of these rep-specified capabilities (in this order), plus any that are clearly essential to a fair comparison: ${featureFocus.trim()}` : "5-7 rows covering the capabilities that matter most to this buyer"} ],` : `"feature_comparison": [],`}
   "customer_examples": [ { "name": "Company name or anonymized profile", "profile": "industry + size", "outcome": "the result/win" }, … ],
   "objection_handling": "1-2 common objections a ${competitor} rep raises, each with a crisp LogRocket response",
-  "discovery_questions": ["3-5 discovery questions that expose ${competitor} gaps and surface LogRocket value"]
-}`;
+  "discovery_questions": ["3-5 discovery questions that expose ${competitor} gaps and surface LogRocket value"],
+  "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
+}
+
+After finishing your research, output ONLY the JSON object — no preamble, no markdown fences.`;
 
   const res = await fetch("/api/anthropic", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 4000,
+      max_tokens: 6000,
       system: systemPrompt,
-      messages: [{ role: "user", content: "Generate the competitor guide." }],
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 8 }],
+      messages: [{ role: "user", content: "Research and generate the competitor guide." }],
     }),
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error?.message || `API error ${res.status}`);
-  const raw = data.content?.find(b => b.type === "text")?.text || "";
-  if (!raw) throw new Error("Empty response from API");
-  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-  return JSON.parse(cleaned);
+  // With the web_search tool the response has multiple content blocks; the JSON
+  // lives in the text blocks. Concatenate them and extract the JSON object.
+  const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
+  if (!text) throw new Error("Empty response from API");
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end < 0) throw new Error("No JSON found in response");
+  return JSON.parse(text.slice(start, end + 1));
 }
 
 async function exportGuideToPdf({ guide, competitor, customer }) {
@@ -1867,7 +1888,41 @@ async function exportGuideToPdf({ guide, competitor, customer }) {
       doc.splitTextToSize(`•  ${q}`, CW).forEach(l => { ensureSpace(16); doc.text(l, MX, y); y += 15; });
       y += 4;
     });
+    y += 8;
   }
+
+  if (Array.isArray(guide.sources) && guide.sources.length) {
+    ensureSpace(50);
+    doc.setDrawColor(...PURPLE); doc.setLineWidth(2); doc.line(MX, y - 9, MX, y + 4);
+    doc.setTextColor(...DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(14);
+    doc.text("Sources", MX + 10, y); y += 18;
+    doc.setFontSize(9);
+    guide.sources.forEach(s => {
+      ensureSpace(16);
+      const label = s.label ? `${s.label} — ` : "";
+      doc.setFont("helvetica", "normal"); doc.setTextColor(...MUTED);
+      const lines = doc.splitTextToSize(`${label}${s.url || ""}`, CW);
+      lines.forEach((l, i) => {
+        ensureSpace(12);
+        if (i === lines.length - 1 && s.url) doc.textWithLink(l, MX, y, { url: s.url });
+        else doc.text(l, MX, y);
+        y += 12;
+      });
+      y += 4;
+    });
+    y += 8;
+  }
+
+  // Verify-before-sharing note
+  ensureSpace(46);
+  doc.setFillColor(255, 251, 234); doc.setDrawColor(253, 230, 138); doc.setLineWidth(0.5);
+  const noteLines = doc.splitTextToSize(`Verify before sharing: this guide is AI-generated with web research and citations, but claims about ${competitor} (features, pricing, ratings) can change or be misstated. Confirm against the sources above before sending externally.`, CW - 24);
+  const noteH = noteLines.length * 12 + 20;
+  doc.roundedRect(MX, y - 4, CW, noteH, 6, 6, "FD");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(120, 96, 10);
+  doc.text("⚠ Verify before sharing", MX + 12, y + 12);
+  doc.setFont("helvetica", "normal");
+  noteLines.forEach((l, i) => doc.text(l, MX + 12, y + 26 + i * 12));
 
   const safe = (customer && customer.trim() ? customer.trim() : `logrocket-vs-${competitor}`).replace(/[^a-z0-9]+/gi, "-").toLowerCase();
   doc.save(`${safe}-competitor-guide.pdf`);
@@ -2205,6 +2260,23 @@ function CompetitorGuide() {
                 </ul>
               </GuideSection>
             )}
+
+            {Array.isArray(guide.sources) && guide.sources.length > 0 && (
+              <GuideSection title="Sources">
+                <ul style={{ margin: 0, paddingLeft: "18px" }}>
+                  {guide.sources.map((s, i) => (
+                    <li key={i} style={{ fontSize: "12px", color: "#6b7280", marginBottom: "5px", lineHeight: "1.5" }}>
+                      {s.label ? `${s.label} — ` : ""}
+                      <a href={s.url} target="_blank" rel="noreferrer" style={{ color: ACCENT, wordBreak: "break-all" }}>{s.url}</a>
+                    </li>
+                  ))}
+                </ul>
+              </GuideSection>
+            )}
+
+            <div style={{ ...S.tipBox, marginTop: "8px" }}>
+              <strong>⚠️ Verify before sharing:</strong> this guide is AI-generated with web research and citations, but claims about {competitor} (features, pricing, ratings) can change or be misstated. Confirm the facts against the sources above before sending externally.
+            </div>
           </div>
 
           <div style={{ ...S.card, borderColor: "#d9cff5", backgroundColor: "#FBFAFF" }}>
