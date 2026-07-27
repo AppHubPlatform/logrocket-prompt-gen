@@ -2058,6 +2058,100 @@ function GuideSection({ title, children }) {
   );
 }
 
+// Editable form for a generated guide — every field maps back into guide state,
+// so the PDF export (which reads the same state) picks up all corrections.
+function GuideEditor({ guide, setGuide, competitor }) {
+  const setField = (k, v) => setGuide(g => ({ ...g, [k]: v }));
+  const setItem = (k, i, v) => setGuide(g => ({ ...g, [k]: g[k].map((it, idx) => idx === i ? v : it) }));
+  const addItem = (k, blank) => setGuide(g => ({ ...g, [k]: [...(Array.isArray(g[k]) ? g[k] : []), blank] }));
+  const removeItem = (k, i) => setGuide(g => ({ ...g, [k]: g[k].filter((_, idx) => idx !== i) }));
+
+  const removeBtn = (onClick) => (
+    <button onClick={onClick} style={{ ...S.btnGhost, padding: "4px 8px", fontSize: "12px", borderColor: "#f0c8c8", color: "#b91c1c" }}>Remove</button>
+  );
+  const addBtn = (label, onClick) => (
+    <button onClick={onClick} style={{ ...S.btnGhost, padding: "6px 12px", fontSize: "12px", marginTop: "6px" }}>+ {label}</button>
+  );
+
+  return (
+    <div>
+      <GuideSection title="Headline">
+        <input style={S.input} value={guide.headline || ""} onChange={e => setField("headline", e.target.value)} />
+      </GuideSection>
+      <GuideSection title="Overview">
+        <textarea style={S.textarea} rows={3} value={guide.overview || ""} onChange={e => setField("overview", e.target.value)} />
+      </GuideSection>
+      <GuideSection title="AI accuracy you can trust">
+        <textarea style={S.textarea} rows={5} value={guide.ai_accuracy || ""} onChange={e => setField("ai_accuracy", e.target.value)} />
+      </GuideSection>
+      <GuideSection title="One connected picture of every issue">
+        <textarea style={S.textarea} rows={5} value={guide.unified_data || ""} onChange={e => setField("unified_data", e.target.value)} />
+      </GuideSection>
+
+      {Array.isArray(guide.feature_comparison) && (
+        <GuideSection title="Feature comparison">
+          {guide.feature_comparison.map((row, i) => (
+            <div key={i} style={{ border: `1px solid ${BORDER}`, borderRadius: "10px", padding: "10px", marginBottom: "8px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "6px" }}>
+                <input style={S.input} placeholder="Capability" value={row.feature || ""} onChange={e => setItem("feature_comparison", i, { ...row, feature: e.target.value })} />
+                <input style={S.input} placeholder="LogRocket" value={row.logrocket || ""} onChange={e => setItem("feature_comparison", i, { ...row, logrocket: e.target.value })} />
+                <input style={S.input} placeholder={competitor} value={row.competitor || ""} onChange={e => setItem("feature_comparison", i, { ...row, competitor: e.target.value })} />
+              </div>
+              {removeBtn(() => removeItem("feature_comparison", i))}
+            </div>
+          ))}
+          {addBtn("Add row", () => addItem("feature_comparison", { feature: "", logrocket: "", competitor: "" }))}
+        </GuideSection>
+      )}
+
+      {Array.isArray(guide.customer_examples) && (
+        <GuideSection title="Customer examples">
+          {guide.customer_examples.map((ex, i) => (
+            <div key={i} style={{ border: `1px solid ${BORDER}`, borderRadius: "10px", padding: "10px", marginBottom: "8px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "6px" }}>
+                <input style={S.input} placeholder="Name / profile" value={ex.name || ""} onChange={e => setItem("customer_examples", i, { ...ex, name: e.target.value })} />
+                <input style={S.input} placeholder="Industry + size" value={ex.profile || ""} onChange={e => setItem("customer_examples", i, { ...ex, profile: e.target.value })} />
+              </div>
+              <textarea style={{ ...S.textarea, marginBottom: "6px" }} rows={2} placeholder="Outcome" value={ex.outcome || ""} onChange={e => setItem("customer_examples", i, { ...ex, outcome: e.target.value })} />
+              {removeBtn(() => removeItem("customer_examples", i))}
+            </div>
+          ))}
+          {addBtn("Add example", () => addItem("customer_examples", { name: "", profile: "", outcome: "" }))}
+        </GuideSection>
+      )}
+
+      <GuideSection title="Handling objections">
+        <textarea style={S.textarea} rows={4} value={guide.objection_handling || ""} onChange={e => setField("objection_handling", e.target.value)} />
+      </GuideSection>
+
+      {Array.isArray(guide.discovery_questions) && (
+        <GuideSection title="Discovery questions">
+          {guide.discovery_questions.map((q, i) => (
+            <div key={i} style={{ display: "flex", gap: "8px", marginBottom: "6px" }}>
+              <input style={{ ...S.input, flex: 1 }} value={q} onChange={e => setItem("discovery_questions", i, e.target.value)} />
+              {removeBtn(() => removeItem("discovery_questions", i))}
+            </div>
+          ))}
+          {addBtn("Add question", () => addItem("discovery_questions", ""))}
+        </GuideSection>
+      )}
+
+      {Array.isArray(guide.sources) && (
+        <GuideSection title="Sources">
+          {guide.sources.map((s, i) => (
+            <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr auto", gap: "8px", marginBottom: "6px", alignItems: "center" }}>
+              <input style={S.input} placeholder="Label" value={s.label || ""} onChange={e => setItem("sources", i, { ...s, label: e.target.value })} />
+              <input style={S.input} placeholder="https://…" value={s.url || ""} onChange={e => setItem("sources", i, { ...s, url: e.target.value })} />
+              {removeBtn(() => removeItem("sources", i))}
+            </div>
+          ))}
+          {addBtn("Add source", () => addItem("sources", { label: "", url: "" }))}
+        </GuideSection>
+      )}
+    </div>
+  );
+}
+
 function CompetitorGuide() {
   const [preset, setPreset] = useState("PostHog");
   const [customCompetitor, setCustomCompetitor] = useState("");
@@ -2074,6 +2168,7 @@ function CompetitorGuide() {
   const [error, setError] = useState("");
   const [pdfCustomer, setPdfCustomer] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const competitor = (preset === "Other" ? customCompetitor.trim() : preset);
 
@@ -2197,9 +2292,21 @@ function CompetitorGuide() {
           <div style={S.card}>
             <div style={S.lrBanner}>
               ◆ <strong>LogRocket vs {competitor}</strong>
-              {industry && <span style={{ marginLeft: "auto", opacity: 0.75, fontWeight: 400 }}>{industry}</span>}
+              <button
+                onClick={() => setEditing(e => !e)}
+                style={{ marginLeft: "auto", padding: "3px 12px", borderRadius: "100px", border: "1px solid rgba(255,255,255,0.5)", backgroundColor: editing ? "white" : "transparent", color: editing ? ACCENT_DARK : "white", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" }}
+              >
+                {editing ? "✓ Done editing" : "✎ Edit"}
+              </button>
             </div>
 
+            {editing ? (
+              <>
+                <div style={{ ...S.sectionSub, marginTop: "4px" }}>Fix anything the AI got wrong. Your edits are saved to the guide and used in the PDF.</div>
+                <GuideEditor guide={guide} setGuide={setGuide} competitor={competitor} />
+              </>
+            ) : (
+            <>
             {guide.headline && (
               <p style={{ fontSize: "16px", fontWeight: "600", color: ACCENT_DARK, lineHeight: "1.5", marginBottom: "16px" }}>{guide.headline}</p>
             )}
@@ -2272,6 +2379,8 @@ function CompetitorGuide() {
                   ))}
                 </ul>
               </GuideSection>
+            )}
+            </>
             )}
 
             <div style={{ ...S.tipBox, marginTop: "8px" }}>
