@@ -20,7 +20,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import LogRocket from 'logrocket';
 import { jsPDF } from "jspdf";
 import { buildGuideHtml } from "./guideTemplate";
@@ -2162,6 +2162,61 @@ function GuideEditor({ guide, setGuide, competitor }) {
   );
 }
 
+// Live, scaled preview of the exact branded one-pager that the PDF will produce.
+// Renders buildGuideHtml in an iframe and scales it to fit the column width.
+function GuidePreview({ guide, competitor, customer }) {
+  const wrapRef = useRef(null);
+  const frameRef = useRef(null);
+  const RENDER_W = 1180;
+  const html = useMemo(
+    () => buildGuideHtml({ guide, competitor, customer, dateStamp: "" }),
+    [guide, competitor, customer]
+  );
+  const [scale, setScale] = useState(0.55);
+  const [contentH, setContentH] = useState(1400);
+
+  // Track the wrapper's real width (reliable, fires after layout).
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect?.width || 0;
+      if (w > 0) setScale(w / RENDER_W);
+    });
+    ro.observe(wrap);
+    return () => ro.disconnect();
+  }, []);
+
+  // Measure the rendered document height (after load + font settle).
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el) return;
+    const measure = () => {
+      try {
+        const h = el.contentWindow.document.documentElement.scrollHeight;
+        if (h > 0) setContentH(h);
+      } catch { /* same-origin srcDoc — safe */ }
+    };
+    el.addEventListener("load", measure);
+    const timers = [300, 900, 1600].map(t => setTimeout(measure, t));
+    return () => { el.removeEventListener("load", measure); timers.forEach(clearTimeout); };
+  }, [html]);
+
+  return (
+    <div ref={wrapRef} style={{ width: "100%", overflow: "hidden", borderRadius: "12px", border: `1px solid ${BORDER}`, background: "#F9F6F5" }}>
+      <div style={{ height: Math.ceil(contentH * scale) }}>
+        <iframe
+          ref={frameRef}
+          srcDoc={html}
+          title="Branded PDF preview"
+          scrolling="no"
+          style={{ width: `${RENDER_W}px`, height: `${contentH}px`, border: "none", display: "block", transformOrigin: "top left", transform: `scale(${scale})` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function CompetitorGuide() {
   const [preset, setPreset] = useState("PostHog");
   const [customCompetitor, setCustomCompetitor] = useState("");
@@ -2193,6 +2248,10 @@ function CompetitorGuide() {
     setLoading(true); setError(""); setGuide(null);
     try {
       const g = await generateCompetitorGuide({ competitor, company, industry, size, includeFeatureComparison, featureFocus, rogExamples });
+      // Hard-guarantee the toggle: if the rep opted out, drop the comparison so
+      // it's absent from both the on-screen preview and the PDF, regardless of
+      // what the model returned.
+      if (!includeFeatureComparison) g.feature_comparison = [];
       setGuide(g);
       if (company && !pdfCustomer) setPdfCustomer(company);
       LogRocket.track("Competitor Guide Generated", { competitor, industry, size });
@@ -2321,83 +2380,27 @@ function CompetitorGuide() {
 
             {editing ? (
               <>
-                <div style={{ ...S.sectionSub, marginTop: "4px" }}>Fix anything the AI got wrong. Your edits are saved to the guide and used in the PDF.</div>
+                <div style={{ ...S.sectionSub, marginTop: "4px" }}>Fix anything the AI got wrong. Your edits update the preview and the PDF.</div>
                 <GuideEditor guide={guide} setGuide={setGuide} competitor={competitor} />
               </>
             ) : (
             <>
-            {guide.headline && (
-              <p style={{ fontSize: "16px", fontWeight: "600", color: ACCENT_DARK, lineHeight: "1.5", marginBottom: "16px" }}>{guide.headline}</p>
-            )}
-
-            {guide.overview && <GuideSection title="Overview"><p style={S.outputText}>{guide.overview}</p></GuideSection>}
-
-            {guide.ai_accuracy && (
-              <GuideSection title="AI accuracy you can trust">
-                <p style={S.outputText}>{guide.ai_accuracy}</p>
-                <a href={AI_STUDY_URL} target="_blank" rel="noreferrer" style={{ display: "inline-block", marginTop: "8px", fontSize: "13px", color: ACCENT, fontWeight: "600" }}>
-                  → Read the independent LogRocket vs PostHog AI evaluation
-                </a>
-              </GuideSection>
-            )}
-
-            {guide.unified_data && <GuideSection title="One connected picture of every issue"><p style={S.outputText}>{guide.unified_data}</p></GuideSection>}
-
-            {Array.isArray(guide.feature_comparison) && guide.feature_comparison.length > 0 && (
-              <GuideSection title="Feature comparison">
-                <div style={{ border: `1px solid ${BORDER}`, borderRadius: "10px", overflow: "hidden" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.3fr 1.3fr", backgroundColor: "#FAF7F3", fontFamily: MONO, fontSize: "10px", fontWeight: "600", letterSpacing: "0.05em", color: "#8a8380", textTransform: "uppercase" }}>
-                    <div style={{ padding: "8px 10px" }}>Capability</div>
-                    <div style={{ padding: "8px 10px" }}>LogRocket</div>
-                    <div style={{ padding: "8px 10px" }}>{competitor}</div>
-                  </div>
-                  {guide.feature_comparison.map((row, i) => (
-                    <div key={i} style={{ display: "grid", gridTemplateColumns: "1.2fr 1.3fr 1.3fr", borderTop: `1px solid ${BORDER}`, fontSize: "12px" }}>
-                      <div style={{ padding: "9px 10px", fontWeight: "600", color: "#171320" }}>{row.feature}</div>
-                      <div style={{ padding: "9px 10px", color: ACCENT_DARK }}>{row.logrocket}</div>
-                      <div style={{ padding: "9px 10px", color: "#6b7280" }}>{row.competitor}</div>
-                    </div>
-                  ))}
-                </div>
-              </GuideSection>
-            )}
-
-            {Array.isArray(guide.customer_examples) && guide.customer_examples.length > 0 && (
-              <GuideSection title="Customer examples">
-                {guide.customer_examples.map((ex, i) => (
-                  <div key={i} style={{ ...S.outputBlock, marginBottom: "10px" }}>
-                    <div style={{ fontSize: "13px", fontWeight: "600", color: "#171320" }}>
-                      {ex.name}{ex.profile ? <span style={{ color: "#6b7280", fontWeight: 400 }}> — {ex.profile}</span> : null}
-                    </div>
-                    {ex.outcome && <p style={{ ...S.outputText, fontSize: "12px", marginTop: "4px" }}>{ex.outcome}</p>}
-                  </div>
-                ))}
-              </GuideSection>
-            )}
-
-            {guide.objection_handling && <GuideSection title="Handling objections"><p style={S.outputText}>{guide.objection_handling}</p></GuideSection>}
-
-            {Array.isArray(guide.discovery_questions) && guide.discovery_questions.length > 0 && (
-              <GuideSection title="Discovery questions">
-                <ul style={{ margin: 0, paddingLeft: "18px" }}>
-                  {guide.discovery_questions.map((q, i) => (
-                    <li key={i} style={{ ...S.outputText, marginBottom: "6px" }}>{q}</li>
-                  ))}
-                </ul>
-              </GuideSection>
-            )}
+            <div style={{ ...S.sectionSub, marginTop: "4px", marginBottom: "12px" }}>Live preview — exactly what the PDF will contain. Use <strong>Edit</strong> to make corrections, then open the PDF.</div>
+            <GuidePreview guide={guide} competitor={competitor} customer={pdfCustomer || company} />
 
             {Array.isArray(guide.sources) && guide.sources.length > 0 && (
-              <GuideSection title="Sources">
-                <ul style={{ margin: 0, paddingLeft: "18px" }}>
-                  {guide.sources.map((s, i) => (
-                    <li key={i} style={{ fontSize: "12px", color: "#6b7280", marginBottom: "5px", lineHeight: "1.5" }}>
-                      {s.label ? `${s.label} — ` : ""}
-                      <a href={s.url} target="_blank" rel="noreferrer" style={{ color: ACCENT, wordBreak: "break-all" }}>{s.url}</a>
-                    </li>
-                  ))}
-                </ul>
-              </GuideSection>
+              <div style={{ marginTop: "18px" }}>
+                <GuideSection title="Sources (on-screen only — not in the PDF)">
+                  <ul style={{ margin: 0, paddingLeft: "18px" }}>
+                    {guide.sources.map((s, i) => (
+                      <li key={i} style={{ fontSize: "12px", color: "#6b7280", marginBottom: "5px", lineHeight: "1.5" }}>
+                        {s.label ? `${s.label} — ` : ""}
+                        <a href={s.url} target="_blank" rel="noreferrer" style={{ color: ACCENT, wordBreak: "break-all" }}>{s.url}</a>
+                      </li>
+                    ))}
+                  </ul>
+                </GuideSection>
+              </div>
             )}
             </>
             )}
