@@ -23,6 +23,7 @@
 import { useState, useCallback, useEffect } from "react";
 import LogRocket from 'logrocket';
 import { jsPDF } from "jspdf";
+import { buildGuideHtml } from "./guideTemplate";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -1717,16 +1718,25 @@ ${rogExamples ? `Customer examples grounding (from LogRocket's Rog data — use 
 
 Respond ONLY as valid JSON, no markdown, in this exact shape:
 {
-  "headline": "One-line positioning statement for LogRocket vs ${competitor}",
+  "headline": "One-line positioning statement — LogRocket's core promise vs ${competitor}",
   "overview": "2-3 sentence overview framing the comparison for this specific prospect",
-  "ai_accuracy": "A paragraph making message #1 above concrete for this prospect. End by citing the independent study.",
-  "unified_data": "A paragraph making message #2 above concrete for this prospect and industry",
-  ${includeFeatureComparison ? `"feature_comparison": [ { "feature": "Session Replay", "logrocket": "…", "competitor": "…" }, … ${featureFocus && featureFocus.trim() ? `one row for EACH of these rep-specified capabilities (in this order), plus any that are clearly essential to a fair comparison: ${featureFocus.trim()}` : "5-7 rows covering the capabilities that matter most to this buyer"} ],` : `"feature_comparison": [],`}
-  "customer_examples": [ { "name": "Company name or anonymized profile", "profile": "industry + size", "outcome": "the result/win" }, … ],
+  "lede_logrocket": "1-2 sentence 'the full picture' pitch for LogRocket (hero left column)",
+  "lede_competitor": "1-2 sentence honest summary of what ${competitor} is good at AND where it stops short (hero right column)",
+  "ai_accuracy": "A paragraph making message #1 (AI accuracy) concrete for this prospect. End by citing the independent study.",
+  "ai_bullets": ["3 short bullets on why LogRocket's Galileo AI answers are more accurate/actionable"],
+  "competitor_ai_summary": "1-2 sentences on what ${competitor}'s AI does and where it stops (behavior only, no code/errors, etc.)",
+  "competitor_ai_bullets": ["2-3 short bullets on ${competitor} AI limitations, plus 1 fair strength"],
+  "unified_data": "A paragraph making message #2 (unified data across the stack) concrete for this prospect and industry",
+  "data_sources": [ { "name": "Errors", "note": "one line", "logrocket": true, "competitor": false }, { "name": "Sessions", "note": "…", "logrocket": true, "competitor": true }, { "name": "Releases", "note": "…", "logrocket": true, "competitor": false }, { "name": "Feedback", "note": "…", "logrocket": true, "competitor": false } ],
+  ${includeFeatureComparison ? `"feature_comparison": [ { "feature": "Session Replay", "logrocket": "short text", "logrocket_mark": "full|partial|none", "competitor": "short text", "competitor_mark": "full|partial|none" }, … ${featureFocus && featureFocus.trim() ? `one row for EACH of these rep-specified capabilities (in this order), plus any clearly essential: ${featureFocus.trim()}` : "5-7 rows covering the capabilities that matter most to this buyer"} ],` : `"feature_comparison": [],`}
+  "customer_examples": [ { "name": "Company name (only if in the Rog data or a public reference) or anonymized profile", "profile": "industry + size", "quote": "a real customer quote ONLY if present in the Rog data, else empty string", "outcome": "the result/win", "stats": [ { "num": "e.g. 30%", "label": "what it measures" } ], "replaced": "competitor they replaced, if stated in Rog data, else empty" } ],
+  "tldr": "One punchy sentence verdict on why LogRocket wins for this buyer",
   "objection_handling": "1-2 common objections a ${competitor} rep raises, each with a crisp LogRocket response",
   "discovery_questions": ["3-5 discovery questions that expose ${competitor} gaps and surface LogRocket value"],
   "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
 }
+
+CRITICAL for "customer_examples": the "quote", "stats", and "replaced" fields must be populated ONLY from facts present in the Rog customer data above. Never invent a quote, a statistic/number, or a "replaced competitor". If the Rog data has no number for an example, use an empty "stats" array. If no quote, use "". Anonymized profiles must have empty quote/stats/replaced.
 
 After finishing your research, output ONLY the JSON object — no preamble, no markdown fences.`;
 
@@ -1735,7 +1745,7 @@ After finishing your research, output ONLY the JSON object — no preamble, no m
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 6000,
+      max_tokens: 8000,
       system: systemPrompt,
       tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 8 }],
       messages: [{ role: "user", content: "Research and generate the competitor guide." }],
@@ -2192,11 +2202,20 @@ function CompetitorGuide() {
     } finally { setLoading(false); }
   };
 
-  const downloadPdf = async () => {
-    setExporting(true);
-    try { await exportGuideToPdf({ guide, competitor, customer: pdfCustomer || company }); }
-    catch (e) { LogRocket.captureException(e, { tags: { source: "guide-pdf" } }); alert(`Could not generate PDF: ${e.message}`); }
-    finally { setExporting(false); }
+  const openPdf = () => {
+    try {
+      const dateStamp = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+      const html = buildGuideHtml({ guide, competitor, customer: pdfCustomer || company, dateStamp });
+      const w = window.open("", "_blank");
+      if (!w) { alert("Please allow pop-ups to open the branded PDF view."); return; }
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      LogRocket.track("Competitor Guide PDF Opened", { competitor });
+    } catch (e) {
+      LogRocket.captureException(e, { tags: { source: "guide-pdf" } });
+      alert(`Could not open the PDF view: ${e.message}`);
+    }
   };
 
   return (
@@ -2390,13 +2409,13 @@ function CompetitorGuide() {
 
           <div style={{ ...S.card, borderColor: "#d9cff5", backgroundColor: "#FBFAFF" }}>
             <div style={S.sectionTitle}>Export to PDF</div>
-            <div style={S.sectionSub}>Download a branded, uniform PDF of this guide to share.</div>
+            <div style={S.sectionSub}>Opens a branded one-pager in a new tab — click <strong>Save as PDF</strong> in the print dialog. Reflects any edits above; sources are omitted from the PDF.</div>
             <div style={{ marginBottom: "16px" }}>
               <label style={S.fieldLabel}>Customer name (shown on the PDF)</label>
               <input style={S.input} value={pdfCustomer} onChange={e => setPdfCustomer(e.target.value)} placeholder="e.g. Acme Corp" />
             </div>
-            <button style={S.btnPrimary(exporting)} onClick={downloadPdf} disabled={exporting}>
-              {exporting ? "Generating…" : "⬇ Download guide PDF"}
+            <button style={S.btnPrimary(false)} onClick={openPdf}>
+              ⬇ Open branded PDF
             </button>
           </div>
         </>
