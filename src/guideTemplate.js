@@ -230,7 +230,6 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
     </div>`;
   }).join("");
 
-  const sampleQ = "Why did our key conversion flow drop last week?";
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <title>LogRocket vs ${comp} — Competitive Brief</title>
@@ -271,15 +270,11 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
     <div class="ai">
       <div class="ai-card lr">
         <div class="ai-head"><div class="ai-glyph">✦</div><div class="ai-name"><small>LogRocket</small>Ask Galileo</div></div>
-        <div class="ai-prompt"><span class="you">you ›</span>${esc(sampleQ)}</div>
-        <div class="ai-answer">${esc(g.ai_accuracy || "")}</div>
         <div class="ai-bullets"><ul>${aiBullets}</ul></div>
         <div class="ai-foot">→ <a href="${esc("https://www.linkedin.com/posts/matthew-arbesfeld-04b5429b_aakash-gupta-evaluated-logrocket-vs-posthog-share-7462578059741859840-yt4l/")}">See the independent AI-accuracy evaluation</a></div>
       </div>
       <div class="ai-card them">
         <div class="ai-head"><div class="ai-glyph">●</div><div class="ai-name"><small>${comp}</small>${comp} AI</div></div>
-        <div class="ai-prompt"><span class="you">you ›</span>${esc(sampleQ)}</div>
-        <div class="ai-answer">${esc(g.competitor_ai_summary || "")}</div>
         <div class="ai-bullets"><ul>${compAiBullets}</ul></div>
       </div>
     </div>

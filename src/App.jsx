@@ -2388,6 +2388,29 @@ function CompetitorGuide() {
             <div style={{ ...S.sectionSub, marginTop: "4px", marginBottom: "12px" }}>Live preview — exactly what the PDF will contain. Use <strong>Edit</strong> to make corrections, then open the PDF.</div>
             <GuidePreview guide={guide} competitor={competitor} customer={pdfCustomer || company} />
 
+            {(guide.ai_accuracy || guide.competitor_ai_summary) && (
+              <div style={{ marginTop: "18px" }}>
+                <GuideSection title="AI comparison — key takeaways (on-screen only)">
+                  <div style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "10px" }}>Background reading on how the two AIs compare. Not included in the PDF.</div>
+                  {guide.ai_accuracy && (
+                    <div style={{ ...S.outputBlock, marginBottom: "10px" }}>
+                      <div style={{ fontSize: "12px", fontWeight: "700", color: ACCENT_DARK, marginBottom: "5px" }}>LogRocket · Ask Galileo</div>
+                      <p style={{ ...S.outputText, fontSize: "13px" }}>{guide.ai_accuracy}</p>
+                      <a href={AI_STUDY_URL} target="_blank" rel="noreferrer" style={{ display: "inline-block", marginTop: "8px", fontSize: "12px", color: ACCENT, fontWeight: "600" }}>
+                        → Read the independent AI-accuracy evaluation
+                      </a>
+                    </div>
+                  )}
+                  {guide.competitor_ai_summary && (
+                    <div style={S.outputBlock}>
+                      <div style={{ fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "5px" }}>{competitor} AI</div>
+                      <p style={{ ...S.outputText, fontSize: "13px" }}>{guide.competitor_ai_summary}</p>
+                    </div>
+                  )}
+                </GuideSection>
+              </div>
+            )}
+
             {Array.isArray(guide.sources) && guide.sources.length > 0 && (
               <div style={{ marginTop: "18px" }}>
                 <GuideSection title="Sources (on-screen only — not in the PDF)">
