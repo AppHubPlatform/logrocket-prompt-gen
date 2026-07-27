@@ -1722,6 +1722,9 @@ Respond ONLY as valid JSON, no markdown, in this exact shape:
   "overview": "2-3 sentence overview framing the comparison for this specific prospect",
   "lede_logrocket": "1-2 sentence 'the full picture' pitch for LogRocket (hero left column)",
   "lede_competitor": "1-2 sentence honest summary of what ${competitor} is good at AND where it stops short (hero right column)",
+  "ai_example_question": "A short, realistic question a ${industry || "product"} team would ask their AI assistant (e.g. 'Why did checkout drop 18% on Tuesday?'). This is an ILLUSTRATIVE demo scenario, not a claim about the real prospect.",
+  "ai_example_lr_answer": "How Ask Galileo would answer that question — 2-3 sentences, specific and code-aware: names the likely root cause, the affected browser/flow, ties behavior to the exact code/release, and mentions replays. ILLUSTRATIVE/hypothetical example (a realistic scenario, not real data about this prospect).",
+  "ai_example_competitor_answer": "How ${competitor}'s AI would answer the SAME question — accurate but shallower: describes the behavioral symptoms (rage clicks, drop-off, which page) without the underlying code/root cause. Same illustrative scenario.",
   "ai_accuracy": "A paragraph making message #1 (AI accuracy) concrete for this prospect. End by citing the independent study.",
   "ai_bullets": ["3 short bullets on why LogRocket's Galileo AI answers are more accurate/actionable"],
   "competitor_ai_summary": "1-2 sentences on what ${competitor}'s AI does and where it stops (behavior only, no code/errors, etc.)",
@@ -2091,7 +2094,15 @@ function GuideEditor({ guide, setGuide, competitor }) {
       <GuideSection title="Overview">
         <textarea style={S.textarea} rows={3} value={guide.overview || ""} onChange={e => setField("overview", e.target.value)} />
       </GuideSection>
-      <GuideSection title="AI accuracy you can trust">
+      <GuideSection title="AI example (shown in the cards)">
+        <label style={S.fieldLabel}>Example question</label>
+        <input style={{ ...S.input, marginBottom: "10px" }} value={guide.ai_example_question || ""} onChange={e => setField("ai_example_question", e.target.value)} />
+        <label style={S.fieldLabel}>Ask Galileo — example answer</label>
+        <textarea style={{ ...S.textarea, marginBottom: "10px" }} rows={3} value={guide.ai_example_lr_answer || ""} onChange={e => setField("ai_example_lr_answer", e.target.value)} />
+        <label style={S.fieldLabel}>{competitor} AI — example answer</label>
+        <textarea style={S.textarea} rows={3} value={guide.ai_example_competitor_answer || ""} onChange={e => setField("ai_example_competitor_answer", e.target.value)} />
+      </GuideSection>
+      <GuideSection title="AI accuracy — key takeaway (on-screen only)">
         <textarea style={S.textarea} rows={5} value={guide.ai_accuracy || ""} onChange={e => setField("ai_accuracy", e.target.value)} />
       </GuideSection>
       <GuideSection title="One connected picture of every issue">

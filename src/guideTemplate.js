@@ -181,6 +181,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
 
   const ledeLr = g.lede_logrocket || g.headline || g.overview || "";
   const ledeThem = g.lede_competitor || "";
+  const exampleQ = g.ai_example_question || "";
 
   const aiBullets = (Array.isArray(g.ai_bullets) ? g.ai_bullets : []).map(b =>
     `<li><span class="pt">${PIP_CHECK}</span><span>${esc(b)}</span></li>`).join("");
@@ -270,11 +271,15 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
     <div class="ai">
       <div class="ai-card lr">
         <div class="ai-head"><div class="ai-glyph">✦</div><div class="ai-name"><small>LogRocket</small>Ask Galileo</div></div>
+        ${exampleQ ? `<div class="ai-prompt"><span class="you">you ›</span>${esc(exampleQ)}</div>` : ""}
+        ${g.ai_example_lr_answer ? `<div class="ai-answer">${esc(g.ai_example_lr_answer)}</div>` : ""}
         <div class="ai-bullets"><ul>${aiBullets}</ul></div>
         <div class="ai-foot">→ <a href="${esc("https://www.linkedin.com/posts/matthew-arbesfeld-04b5429b_aakash-gupta-evaluated-logrocket-vs-posthog-share-7462578059741859840-yt4l/")}">See the independent AI-accuracy evaluation</a></div>
       </div>
       <div class="ai-card them">
         <div class="ai-head"><div class="ai-glyph">●</div><div class="ai-name"><small>${comp}</small>${comp} AI</div></div>
+        ${exampleQ ? `<div class="ai-prompt"><span class="you">you ›</span>${esc(exampleQ)}</div>` : ""}
+        ${g.ai_example_competitor_answer ? `<div class="ai-answer">${esc(g.ai_example_competitor_answer)}</div>` : ""}
         <div class="ai-bullets"><ul>${compAiBullets}</ul></div>
       </div>
     </div>
