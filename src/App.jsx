@@ -23,7 +23,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import LogRocket from 'logrocket';
 import { jsPDF } from "jspdf";
-import { buildGuideHtml } from "./guideTemplate";
+import { buildGuideHtml, downloadGuidePdf } from "./guideTemplate";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -2273,19 +2273,45 @@ function CompetitorGuide() {
     } finally { setLoading(false); }
   };
 
+  const dateStamp = () => new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const pdfFileName = () => {
+    const base = (pdfCustomer || company || `logrocket-vs-${competitor}`).trim().replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+    return `${base}-competitor-guide.pdf`;
+  };
+
+  // Primary: build and download the branded PDF directly (no print dialog).
+  const downloadPdf = async () => {
+    setExporting(true);
+    try {
+      const { pages } = await downloadGuidePdf({
+        guide,
+        competitor,
+        customer: pdfCustomer || company,
+        dateStamp: dateStamp(),
+        fileName: pdfFileName(),
+      });
+      LogRocket.track("Competitor Guide PDF Downloaded", { competitor, pages });
+    } catch (e) {
+      LogRocket.captureException(e, { tags: { source: "guide-pdf-download" } });
+      alert(`Could not build the PDF: ${e.message}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Secondary: open the print view (vector text, uses the browser's Save as PDF).
   const openPdf = () => {
     try {
-      const dateStamp = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-      const html = buildGuideHtml({ guide, competitor, customer: pdfCustomer || company, dateStamp });
+      const html = buildGuideHtml({ guide, competitor, customer: pdfCustomer || company, dateStamp: dateStamp() });
       const w = window.open("", "_blank");
-      if (!w) { alert("Please allow pop-ups to open the branded PDF view."); return; }
+      if (!w) { alert("Please allow pop-ups to open the print view."); return; }
       w.document.open();
       w.document.write(html);
       w.document.close();
       LogRocket.track("Competitor Guide PDF Opened", { competitor });
     } catch (e) {
       LogRocket.captureException(e, { tags: { source: "guide-pdf" } });
-      alert(`Could not open the PDF view: ${e.message}`);
+      alert(`Could not open the print view: ${e.message}`);
     }
   };
 
@@ -2453,14 +2479,22 @@ function CompetitorGuide() {
 
           <div style={{ ...S.card, borderColor: "#d9cff5", backgroundColor: "#FBFAFF" }}>
             <div style={S.sectionTitle}>Export to PDF</div>
-            <div style={S.sectionSub}>Opens a branded one-pager in a new tab — click <strong>Save as PDF</strong> in the print dialog. Reflects any edits above; sources are omitted from the PDF.</div>
+            <div style={S.sectionSub}>Downloads the branded one-pager above. Reflects any edits; sources are omitted from the PDF.</div>
             <div style={{ marginBottom: "16px" }}>
               <label style={S.fieldLabel}>Customer name (shown on the PDF)</label>
               <input style={S.input} value={pdfCustomer} onChange={e => setPdfCustomer(e.target.value)} placeholder="e.g. Acme Corp" />
             </div>
-            <button style={S.btnPrimary(false)} onClick={openPdf}>
-              ⬇ Open branded PDF
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              <button style={S.btnPrimary(exporting)} onClick={downloadPdf} disabled={exporting}>
+                {exporting ? "Building PDF…" : "⬇ Download PDF"}
+              </button>
+              <button style={S.btnGhost} onClick={openPdf} disabled={exporting}>
+                Open print view
+              </button>
+            </div>
+            <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "8px" }}>
+              Print view is an alternative that uses your browser's Save as PDF — selectable text, slightly sharper.
+            </div>
           </div>
         </>
       )}

@@ -1,8 +1,11 @@
 // Branded competitor-guide one-pager, adapted from the Claude Design project
 // "LogRocket vs FullStory". Produces a full HTML document (design tokens +
-// component CSS + markup) populated from the generated guide, meant to be opened
-// in a print-ready view and saved as PDF by the browser for pixel fidelity.
-// Sources are intentionally omitted from this print output.
+// component CSS + markup) populated from the generated guide, plus a one-click
+// PDF download that renders that document and packages it into a paginated PDF.
+// Sources are intentionally omitted from this output.
+
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas-pro";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -326,4 +329,109 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   </div>
 </div>
 </body></html>`;
+}
+
+// ─── One-click PDF download ───────────────────────────────────────────────────
+
+const RENDER_W = 1240;   // matches .page max-width so layout is identical to print
+const CAPTURE_SCALE = 2; // 2x for crisp text on retina / when zoomed
+
+// Pack the one-pager's top-level blocks into page-sized slices, breaking between
+// blocks rather than through them so cards/sections never split across pages.
+function computePageSlices(blocks, pageH, totalH) {
+  const slices = [];
+  let cursor = 0;
+  let i = 0;
+  while (cursor < totalH - 2) {
+    let end = -1;
+    while (i < blocks.length && blocks[i].bottom - cursor <= pageH) {
+      end = blocks[i].bottom;
+      i += 1;
+    }
+    if (end <= cursor) {
+      // A single block is taller than one page — hard-cut it.
+      end = Math.min(cursor + pageH, totalH);
+      while (i < blocks.length && blocks[i].bottom <= end) i += 1;
+    }
+    if (i >= blocks.length) end = totalH; // let the last page run to the end
+    slices.push([cursor, Math.min(end, totalH)]);
+    cursor = end;
+  }
+  return slices.length ? slices : [[0, totalH]];
+}
+
+export async function downloadGuidePdf({ guide, competitor, customer, dateStamp, fileName }) {
+  const html = buildGuideHtml({ guide, competitor, customer, dateStamp });
+
+  // Render the exact print document offscreen at full width.
+  const frame = document.createElement("iframe");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.cssText = `position:fixed;left:-20000px;top:0;width:${RENDER_W}px;height:600px;border:0;opacity:0;pointer-events:none;`;
+  document.body.appendChild(frame);
+
+  try {
+    await new Promise((resolve) => {
+      frame.addEventListener("load", resolve, { once: true });
+      frame.srcdoc = html;
+    });
+
+    const doc = frame.contentDocument;
+    // Drop the on-screen toolbar (position:fixed confuses capture anyway).
+    doc.querySelectorAll(".no-print").forEach(el => el.remove());
+
+    // Let web fonts and layout settle before measuring/capturing.
+    try { await doc.fonts.ready; } catch { /* fonts API unavailable */ }
+    await new Promise(r => setTimeout(r, 350));
+
+    const totalH = Math.ceil(doc.documentElement.scrollHeight);
+    frame.style.height = `${totalH}px`;
+    await new Promise(r => setTimeout(r, 150));
+
+    const canvas = await html2canvas(doc.body, {
+      scale: CAPTURE_SCALE,
+      width: RENDER_W,
+      height: totalH,
+      windowWidth: RENDER_W,
+      windowHeight: totalH,
+      backgroundColor: "#F9F6F5",
+      useCORS: true,
+      logging: false,
+    });
+
+    const pdf = new jsPDF({ unit: "pt", format: "letter" });
+    const pw = pdf.internal.pageSize.getWidth();
+    const ph = pdf.internal.pageSize.getHeight();
+    const margin = 18;
+    const imgW = pw - margin * 2;
+    const cssToPt = imgW / RENDER_W;                     // css px → pdf pt
+    const pageHcss = Math.floor((ph - margin * 2) / cssToPt);
+
+    // Block boundaries (css px) for clean page breaks.
+    const blocks = [...doc.querySelectorAll(".page > *")].map(el => {
+      const r = el.getBoundingClientRect();
+      return { top: Math.round(r.top), bottom: Math.ceil(r.bottom) };
+    });
+
+    const slices = computePageSlices(blocks, pageHcss, totalH);
+    const pxPerCss = canvas.height / totalH;             // ≈ CAPTURE_SCALE
+
+    slices.forEach(([startCss, endCss], idx) => {
+      const sy = Math.round(startCss * pxPerCss);
+      const sh = Math.max(1, Math.round((endCss - startCss) * pxPerCss));
+      const slice = document.createElement("canvas");
+      slice.width = canvas.width;
+      slice.height = sh;
+      const ctx = slice.getContext("2d");
+      ctx.fillStyle = "#F9F6F5";
+      ctx.fillRect(0, 0, slice.width, slice.height);
+      ctx.drawImage(canvas, 0, sy, canvas.width, sh, 0, 0, canvas.width, sh);
+      if (idx > 0) pdf.addPage();
+      pdf.addImage(slice.toDataURL("image/jpeg", 0.93), "JPEG", margin, margin, imgW, sh / pxPerCss * cssToPt);
+    });
+
+    pdf.save(fileName);
+    return { pages: slices.length };
+  } finally {
+    frame.remove();
+  }
 }
