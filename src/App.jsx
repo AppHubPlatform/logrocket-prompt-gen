@@ -1700,6 +1700,7 @@ ${size ? `Company size: ${size}` : ""}
 ACCURACY IS CRITICAL — this guide is customer-facing. Use the web_search tool to verify every factual claim BEFORE writing it. Research, at minimum:
 - ${competitor}'s own website (features, capabilities, pricing, positioning)
 - logrocket.com (LogRocket's own features and capabilities)
+- logrocket.com/customers and LogRocket case studies (real, named customer references — needed for the customer_examples section)
 - Independent review sites: G2, TrustRadius, Capterra (ratings, strengths/weaknesses, verified reviews for both products)
 - Public customer feedback (Reddit, Hacker News, blog posts) where relevant
 Run multiple searches. Prefer primary sources (the vendors' own sites and dated reviews).
@@ -1716,7 +1717,14 @@ Non-negotiable messages this guide MUST land:
 1. AI ACCURACY: LogRocket's Galileo AI returns more accurate, trustworthy answers than ${competitor}'s AI. Reference this independent evaluation (Aakash Gupta evaluated LogRocket vs PostHog): ${AI_STUDY_URL}. Explain why accuracy matters for the buyer and what inaccurate AI answers cost a team.
 2. UNIFIED DATA: LogRocket is more effective at surfacing issues because it correlates every data point across the entire stack together — errors, session replay, releases/deploys, and user feedback — in one place, whereas ${competitor} typically leaves these siloed. Make this concrete for the ${industry || "customer's"} context.
 
-${rogExamples ? `Customer examples grounding (from LogRocket's Rog data — use ONLY the named customers and facts present here; do not invent customer names):\n${rogExamples}` : `No Rog customer data was provided. For "customer_examples", produce anonymized example PROFILES by industry/size (e.g. "A mid-market fintech…") — do NOT invent specific named companies.`}
+${rogExamples ? `Customer examples grounding (from LogRocket's Rog data — prefer these named customers and their facts):\n${rogExamples}` : `No Rog customer data was provided.`}
+
+CUSTOMER EXAMPLES — must be REAL, NAMED customers. Never output an anonymized profile like "A mid-market fintech". Draw on BOTH of these sources together:
+  (a) the Rog data above (LogRocket's internal customer intelligence), and
+  (b) LogRocket's publicly documented customers found via web search — search logrocket.com/customers, logrocket.com case studies, and published testimonials/reviews.
+Prefer companies${industry ? ` in or adjacent to ${industry}` : ""}${size ? ` of a similar size to ${size}` : ""}, and especially any that switched from or evaluated against ${competitor}. If a customer appears in both sources, combine the facts (public quote/stats plus Rog context).
+Every named customer must be verifiable — include the page you found them on in "sources". Only use quotes, numbers, and "replaced" values that actually appear in the Rog data or the public source; never invent them (a real customer with no published stats simply has an empty "stats" array).
+If you cannot verify ANY real named customer, return "customer_examples": [] — an empty section is better than anonymized filler.
 
 Respond ONLY as valid JSON, no markdown, in this exact shape:
 {
@@ -1734,7 +1742,7 @@ Respond ONLY as valid JSON, no markdown, in this exact shape:
   "unified_data": "2-3 sentences making message #2 (unified data across the stack) concrete for this prospect and industry",
   "data_sources": [ { "name": "Errors", "note": "one line", "logrocket": true, "competitor": false }, { "name": "Sessions", "note": "…", "logrocket": true, "competitor": true }, { "name": "Releases", "note": "…", "logrocket": true, "competitor": false }, { "name": "Feedback", "note": "…", "logrocket": true, "competitor": false } ],
   ${includeFeatureComparison ? `"feature_comparison": [ { "feature": "Session Replay", "logrocket": "short text", "logrocket_mark": "full|partial|none", "competitor": "short text", "competitor_mark": "full|partial|none" }, … ${featureFocus && featureFocus.trim() ? `one row for EACH of these rep-specified capabilities (in this order), plus any clearly essential: ${featureFocus.trim()}` : "5-7 rows covering the capabilities that matter most to this buyer"} ],` : `"feature_comparison": [],`}
-  "customer_examples": [ { "name": "Company name (only if in the Rog data or a public reference) or anonymized profile", "profile": "industry + size", "quote": "a real customer quote ONLY if present in the Rog data, else empty string — trim to 1-2 sentences", "outcome": "the result/win in ONE sentence", "stats": [ { "num": "e.g. 30%", "label": "what it measures" } ], "replaced": "competitor they replaced, if stated in Rog data, else empty" } ],
+  "customer_examples": [ { "name": "REAL company name — from the Rog data or a public LogRocket case study/testimonial. Never an anonymized profile.", "profile": "industry + size", "quote": "a real customer quote ONLY if it appears in the Rog data or the public source, else empty string — trim to 1-2 sentences", "outcome": "the result/win in ONE sentence", "stats": [ { "num": "e.g. 30%", "label": "what it measures" } ], "replaced": "competitor they replaced, only if the source states it, else empty" } ],
   "tldr": "One punchy sentence verdict on why LogRocket wins for this buyer",
   "objection_handling": "2-3 sentences total: the single most common objection a ${competitor} rep raises, plus a crisp LogRocket response",
   "discovery_questions": ["3-5 discovery questions, each ONE sentence, that expose ${competitor} gaps and surface LogRocket value"],
@@ -2244,6 +2252,7 @@ function CompetitorGuide() {
   const [rogExamples, setRogExamples] = useState("");
   const [rogLoading, setRogLoading] = useState(false);
   const [rogError, setRogError] = useState("");
+  const [rogStatus, setRogStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [guide, setGuide] = useState(null);
   const [error, setError] = useState("");
@@ -2263,7 +2272,21 @@ function CompetitorGuide() {
   const generate = async () => {
     setLoading(true); setError(""); setGuide(null);
     try {
-      const g = await generateCompetitorGuide({ competitor, company, industry, size, includeFeatureComparison, featureFocus, rogExamples });
+      // Always ground customer examples in Rog. Pull automatically if the rep
+      // hasn't already — a Rog failure shouldn't block the guide, since public
+      // case studies are the other source.
+      let rog = rogExamples;
+      if (!rog.trim()) {
+        setRogStatus("Pulling customer examples from Rog…");
+        try {
+          rog = await fetchRogCustomerExamples({ industry, size, competitor });
+          setRogExamples(rog);
+        } catch (e) {
+          setRogError(`Rog unavailable — using public case studies only (${e.message})`);
+        }
+      }
+      setRogStatus("Researching and writing the guide…");
+      const g = await generateCompetitorGuide({ competitor, company, industry, size, includeFeatureComparison, featureFocus, rogExamples: rog });
       // Hard-guarantee the toggle: if the rep opted out, drop the comparison so
       // it's absent from both the on-screen preview and the PDF, regardless of
       // what the model returned.
@@ -2274,7 +2297,7 @@ function CompetitorGuide() {
     } catch (e) {
       LogRocket.captureException(e, { tags: { source: "competitor-guide" } });
       setError(e.message);
-    } finally { setLoading(false); }
+    } finally { setLoading(false); setRogStatus(""); }
   };
 
   const dateStamp = () => new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
@@ -2368,16 +2391,16 @@ function CompetitorGuide() {
 
         <div style={{ marginBottom: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-            <label style={{ ...S.fieldLabel, marginBottom: 0 }}>Customer examples (from Rog)</label>
+            <label style={{ ...S.fieldLabel, marginBottom: 0 }}>Customer examples — Rog (pulled automatically)</label>
             <button style={S.rogBtn(rogLoading)} onClick={pullRog} disabled={rogLoading}>
-              {rogLoading ? "Pulling…" : "✦ Pull from Rog"}
+              {rogLoading ? "Pulling…" : "✦ Preview Rog data"}
             </button>
           </div>
           <textarea
             style={S.textarea}
             value={rogExamples}
             onChange={e => setRogExamples(e.target.value)}
-            placeholder="Optional — pull LogRocket customer examples by industry/size from Rog, or paste your own. Used to ground the examples in the guide."
+            placeholder="Leave blank — Rog is pulled automatically when you generate. Preview or paste your own here to override what the guide is grounded in."
             rows={4}
           />
           {rogError && <div style={{ fontSize: "12px", color: "#b91c1c", marginTop: "6px" }}>⚠️ Rog error: {rogError}</div>}
@@ -2404,6 +2427,9 @@ function CompetitorGuide() {
         <button style={S.btnPrimary(loading || !competitor)} onClick={generate} disabled={loading || !competitor}>
           {loading ? "Generating…" : `✦ Generate guide${competitor ? ` vs ${competitor}` : ""}`}
         </button>
+        {loading && rogStatus && (
+          <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "10px" }}>{rogStatus}</div>
+        )}
         {error && <div style={{ fontSize: "13px", color: "#b91c1c", marginTop: "12px" }}>⚠️ {error}</div>}
       </div>
 
