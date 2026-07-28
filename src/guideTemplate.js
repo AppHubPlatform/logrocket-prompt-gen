@@ -71,8 +71,11 @@ p{margin:0}
 .section-eyebrow .num{width:22px;height:22px;border-radius:9999px;background:var(--lr-indigo-0);color:#fff;font-size:11px;display:grid;place-items:center;letter-spacing:0}
 .section-title{font-family:var(--font-display);font-size:30px;line-height:1.08;letter-spacing:-.025em;color:var(--lr-ink);max-width:820px;margin-bottom:20px}
 .section-title em{font-style:normal;color:var(--lr-matter-0)}
-.ai{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:stretch}
-.ai-card{background:#fff;border-radius:18px;padding:26px;border:1px solid rgba(0,0,0,.06);display:flex;flex-direction:column;gap:14px;position:relative;overflow:hidden}
+/* Shared row track so both cards' head / prompt / answer / bullets / foot line
+   up horizontally: each card is a subgrid spanning the same 5 rows, so every row
+   takes the height of the taller column. */
+.ai{display:grid;grid-template-columns:1fr 1fr;gap:24px;grid-template-rows:auto auto auto 1fr auto;align-items:stretch}
+.ai-card{background:#fff;border-radius:18px;padding:26px;border:1px solid rgba(0,0,0,.06);display:grid;grid-template-rows:subgrid;grid-row:span 5;gap:14px;position:relative;overflow:hidden}
 .ai-card.lr{background:linear-gradient(180deg,#1A1126 0%,#0D0716 100%);color:#fff;border:1px solid rgba(170,130,255,.20)}
 .ai-card.lr::before{content:"";position:absolute;right:-90px;bottom:-90px;width:280px;height:280px;background:radial-gradient(circle,rgba(170,88,160,.45) 0%,transparent 60%);pointer-events:none}
 .ai-head{display:flex;align-items:center;gap:12px}
@@ -99,7 +102,10 @@ p{margin:0}
 .ai-bullets .pt{width:14px;height:14px;border-radius:9999px;flex-shrink:0;margin-top:2px;display:grid;place-items:center;background:var(--lr-galaxy);color:#fff}
 .ai-card.lr .pt{background:var(--lr-illusion-0)}
 .ai-card.them .pt.no{background:var(--lr-danger-3);color:var(--lr-danger-1)}
-.ai-foot{margin-top:auto;padding-top:14px;border-top:1px solid rgba(0,0,0,.06);font-family:var(--font-display);font-size:13px;color:var(--lr-matter-0)}
+.ai-foot{align-self:end;padding-top:14px;border-top:1px solid rgba(0,0,0,.06);font-family:var(--font-display);font-size:13px;color:var(--lr-matter-0)}
+/* Keeps the competitor card's row count matching the LogRocket card so the
+   subgrid rows stay in step; occupies row 5 without drawing anything. */
+.ai-foot.is-spacer{border-top:0;padding-top:0;min-height:0}
 .ai-card.lr .ai-foot{border-top-color:rgba(255,255,255,.10);color:var(--lr-illusion-1)}
 .ai-foot a{color:inherit;text-decoration:underline}
 .sources-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
@@ -282,16 +288,17 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
     <div class="ai">
       <div class="ai-card lr">
         <div class="ai-head"><div class="ai-glyph">✦</div><div class="ai-name"><small>LogRocket</small>Ask Galileo</div></div>
-        ${exampleQ ? `<div class="ai-prompt"><span class="you">you ›</span>${esc(exampleQ)}</div>` : ""}
-        ${g.ai_example_lr_answer ? `<div class="ai-answer">${escBold(g.ai_example_lr_answer)}</div>` : ""}
+        <div class="ai-prompt">${exampleQ ? `<span class="you">you ›</span>${esc(exampleQ)}` : ""}</div>
+        <div class="ai-answer">${escBold(g.ai_example_lr_answer || "")}</div>
         <div class="ai-bullets"><ul>${aiBullets}</ul></div>
         <div class="ai-foot">→ <a href="${esc("https://www.linkedin.com/posts/matthew-arbesfeld-04b5429b_aakash-gupta-evaluated-logrocket-vs-posthog-share-7462578059741859840-yt4l/")}">See the independent AI-accuracy evaluation</a></div>
       </div>
       <div class="ai-card them">
         <div class="ai-head"><div class="ai-glyph">●</div><div class="ai-name"><small>${comp}</small>${comp} AI</div></div>
-        ${exampleQ ? `<div class="ai-prompt"><span class="you">you ›</span>${esc(exampleQ)}</div>` : ""}
-        ${g.ai_example_competitor_answer ? `<div class="ai-answer">${escBold(g.ai_example_competitor_answer)}</div>` : ""}
+        <div class="ai-prompt">${exampleQ ? `<span class="you">you ›</span>${esc(exampleQ)}` : ""}</div>
+        <div class="ai-answer">${escBold(g.ai_example_competitor_answer || "")}</div>
         <div class="ai-bullets"><ul>${compAiBullets}</ul></div>
+        <div class="ai-foot is-spacer"></div>
       </div>
     </div>
   </section>
