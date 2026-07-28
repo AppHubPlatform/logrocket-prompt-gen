@@ -1690,90 +1690,118 @@ async function fetchRogCustomerExamples({ industry, size, competitor }) {
   return data.answer || "";
 }
 
-async function generateCompetitorGuide({ competitor, company, industry, size, includeFeatureComparison, featureFocus, rogExamples }) {
-  const systemPrompt = `You are a competitive strategy expert at LogRocket helping a sales rep build a customized competitor guide to position LogRocket against ${competitor}.
+// ── Guide generation ────────────────────────────────────────────────────────
+// Split into two calls that run in PARALLEL:
+//   • research  — needs web_search to verify competitor facts (the slow half)
+//   • messaging — pure positioning/copy, no tool calls (fast)
+// Wall time ≈ the research call alone, instead of research + writing serially.
 
-${company ? `Prospect/customer: ${company}` : ""}
-${industry ? `Industry: ${industry}` : ""}
-${size ? `Company size: ${size}` : ""}
-
-ACCURACY IS CRITICAL — this guide is customer-facing. Use the web_search tool to verify every factual claim BEFORE writing it. Research, at minimum:
-- ${competitor}'s own website (features, capabilities, pricing, positioning)
-- logrocket.com (LogRocket's own features and capabilities)
-- logrocket.com/customers and LogRocket case studies (real, named customer references — needed for the customer_examples section)
-- Independent review sites: G2, TrustRadius, Capterra (ratings, strengths/weaknesses, verified reviews for both products)
-- Public customer feedback (Reddit, Hacker News, blog posts) where relevant
-Run multiple searches. Prefer primary sources (the vendors' own sites and dated reviews).
-
-Hard rules:
-- LENGTH LIMIT — this is a scannable one-pager, not a doc. EVERY prose field in the JSON below must be at most 2-3 sentences. Bullets and table cells must be ONE short sentence or phrase. Never write a long paragraph, and never exceed the per-field guidance. Be punchy: cut qualifiers rather than running long.
+const LENGTH_RULES = `Hard rules:
+- LENGTH LIMIT — this is a scannable one-pager, not a doc. EVERY prose field must be at most 2-3 sentences. Bullets and table cells must be ONE short sentence or phrase. Never write a long paragraph. Be punchy: cut qualifiers rather than running long.
 - WORD CAPS ARE ABSOLUTE. Where a field states a MAX word count, count the words and stay under it — bolding or adding detail is never a reason to exceed it. If you need room for the bolded differentiator, delete other words.
-- Do NOT state any feature, pricing, rating, or capability claim you have not verified via search. If you cannot verify something, either omit it or explicitly hedge (e.g. "as of the competitor's public docs…").
 - Never invent statistics, customer names, ratings, or quotes.
-- For each factual/comparative claim, attach a source. Populate the "sources" array with the URLs you actually used.
-- Keep the two required messages below persuasive but truthful and defensible.
+- Respond ONLY with the JSON object — no preamble, no markdown fences.`;
 
-Non-negotiable messages this guide MUST land:
-1. AI ACCURACY: LogRocket's Galileo AI returns more accurate, trustworthy answers than ${competitor}'s AI. Reference this independent evaluation (Aakash Gupta evaluated LogRocket vs PostHog): ${AI_STUDY_URL}. Explain why accuracy matters for the buyer and what inaccurate AI answers cost a team.
-2. UNIFIED DATA: LogRocket is more effective at surfacing issues because it correlates every data point across the entire stack together — errors, session replay, releases/deploys, and user feedback — in one place, whereas ${competitor} typically leaves these siloed. Make this concrete for the ${industry || "customer's"} context.
-
-${rogExamples ? `Customer examples grounding (from LogRocket's Rog data — prefer these named customers and their facts):\n${rogExamples}` : `No Rog customer data was provided.`}
-
-CUSTOMER EXAMPLES — must be REAL, NAMED customers. Never output an anonymized profile like "A mid-market fintech". Draw on BOTH of these sources together:
-  (a) the Rog data above (LogRocket's internal customer intelligence), and
-  (b) LogRocket's publicly documented customers found via web search — search logrocket.com/customers, logrocket.com case studies, and published testimonials/reviews.
-Prefer companies${industry ? ` in or adjacent to ${industry}` : ""}${size ? ` of a similar size to ${size}` : ""}, and especially any that switched from or evaluated against ${competitor}. If a customer appears in both sources, combine the facts (public quote/stats plus Rog context).
-Every named customer must be verifiable — include the page you found them on in "sources". Only use quotes, numbers, and "replaced" values that actually appear in the Rog data or the public source; never invent them (a real customer with no published stats simply has an empty "stats" array).
-If you cannot verify ANY real named customer, return "customer_examples": [] — an empty section is better than anonymized filler.
-
-Respond ONLY as valid JSON, no markdown, in this exact shape:
-{
-  "headline": "One-line positioning statement — LogRocket's core promise vs ${competitor}",
-  "overview": "2-3 sentence overview framing the comparison for this specific prospect",
-  "lede_logrocket": "1-2 sentence 'the full picture' pitch for LogRocket (hero left column)",
-  "lede_competitor": "1-2 sentence honest summary of what ${competitor} is good at AND where it stops short (hero right column)",
-  "ai_example_question": "A short, realistic question a ${industry || "product"} team would ask their AI assistant (e.g. 'Why did checkout drop 18% on Tuesday?'). This is an ILLUSTRATIVE demo scenario, not a claim about the real prospect.",
-  "ai_example_lr_answer": "How Ask Galileo would answer — MAX 30 WORDS, 1-2 clipped sentences. Name the root cause + the release or code detail. Terse and telegraphic, like a real AI answer summary; no preamble, no hedging. ILLUSTRATIVE example, not real prospect data. Wrap the specific details ${competitor} could NOT surface (e.g. the release/deploy, the source-mapped error, the code-level cause) in **double asterisks** for bold.",
-  "ai_example_competitor_answer": "How ${competitor}'s AI would answer the SAME question — MAX 30 WORDS, 1-2 clipped sentences. Behavioral symptoms only (drop-off, rage clicks, which page), no root cause. Terse; no preamble. Wrap the explicit gap (e.g. **No root cause identified**) in **double asterisks** for bold.",
-  "ai_accuracy": "2-3 sentences making message #1 (AI accuracy) concrete for this prospect. End by citing the independent study.",
-  "ai_bullets": ["3 bullets on why LogRocket's Galileo AI answers are more accurate/actionable — each ONE sentence, MAX 14 WORDS, filler cut. In each, wrap the capability ${competitor} lacks in **double asterisks** for bold"],
-  "competitor_ai_summary": "2-3 sentences on what ${competitor}'s AI does and where it stops (behavior only, no code/errors, etc.)",
-  "competitor_ai_bullets": ["3 bullets on ${competitor} AI limitations plus 1 fair strength — each ONE sentence, MAX 14 WORDS, filler cut. In the limitation bullets, wrap the specific missing capability in **double asterisks** for bold"],
-  "unified_data": "2-3 sentences making message #2 (unified data across the stack) concrete for this prospect and industry",
-  "data_sources": [ { "name": "Errors", "note": "one line", "logrocket": true, "competitor": false }, { "name": "Sessions", "note": "…", "logrocket": true, "competitor": true }, { "name": "Releases", "note": "…", "logrocket": true, "competitor": false }, { "name": "Feedback", "note": "…", "logrocket": true, "competitor": false } ],
-  ${includeFeatureComparison ? `"feature_comparison": [ { "feature": "Session Replay", "logrocket": "short text", "logrocket_mark": "full|partial|none", "competitor": "short text", "competitor_mark": "full|partial|none" }, … ${featureFocus && featureFocus.trim() ? `one row for EACH of these rep-specified capabilities (in this order), plus any clearly essential: ${featureFocus.trim()}` : "5-7 rows covering the capabilities that matter most to this buyer"} ],` : `"feature_comparison": [],`}
-  "customer_examples": [ { "name": "REAL company name — from the Rog data or a public LogRocket case study/testimonial. Never an anonymized profile.", "profile": "industry + size", "quote": "a real customer quote ONLY if it appears in the Rog data or the public source, else empty string — trim to 1-2 sentences", "outcome": "the result/win in ONE sentence", "stats": [ { "num": "e.g. 30%", "label": "what it measures" } ], "replaced": "competitor they replaced, only if the source states it, else empty" } ],
-  "tldr": "One punchy sentence verdict on why LogRocket wins for this buyer",
-  "objection_handling": "2-3 sentences total: the single most common objection a ${competitor} rep raises, plus a crisp LogRocket response",
-  "discovery_questions": ["3-5 discovery questions, each ONE sentence, that expose ${competitor} gaps and surface LogRocket value"],
-  "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
-}
-
-CRITICAL for "customer_examples": the "quote", "stats", and "replaced" fields must be populated ONLY from facts present in the Rog customer data above. Never invent a quote, a statistic/number, or a "replaced competitor". If the Rog data has no number for an example, use an empty "stats" array. If no quote, use "". Anonymized profiles must have empty quote/stats/replaced.
-
-After finishing your research, output ONLY the JSON object — no preamble, no markdown fences.`;
-
+async function callAnthropic({ system, tools, maxTokens, userMessage }) {
   const res = await fetch("/api/anthropic", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 8000,
-      system: systemPrompt,
-      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 8 }],
-      messages: [{ role: "user", content: "Research and generate the competitor guide." }],
+      max_tokens: maxTokens,
+      system,
+      ...(tools ? { tools } : {}),
+      messages: [{ role: "user", content: userMessage }],
     }),
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error?.message || `API error ${res.status}`);
-  // With the web_search tool the response has multiple content blocks; the JSON
-  // lives in the text blocks. Concatenate them and extract the JSON object.
   const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
   if (!text) throw new Error("Empty response from API");
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start < 0 || end < 0) throw new Error("No JSON found in response");
   return JSON.parse(text.slice(start, end + 1));
+}
+
+async function generateCompetitorGuide({ competitor, company, industry, size, includeFeatureComparison, featureFocus, rogExamples }) {
+  const audience = [
+    company ? `Prospect/customer: ${company}` : "",
+    industry ? `Industry: ${industry}` : "",
+    size ? `Company size: ${size}` : "",
+  ].filter(Boolean).join("\n");
+
+  // ── Call 1: verified competitor facts (web search) ──────────────────────
+  const researchPrompt = `You are a competitive strategy expert at LogRocket. Research ${competitor} and return verified, citable facts comparing it to LogRocket.
+
+${audience}
+
+ACCURACY IS CRITICAL — this is customer-facing. Verify claims with web_search before writing them. Be efficient: run 3-5 targeted searches, then write. Cover:
+- ${competitor}'s own site (capabilities, positioning) and logrocket.com
+- logrocket.com/customers + LogRocket case studies (real named customers)
+- G2/TrustRadius/Capterra if a rating or strength/weakness is needed
+
+- Do NOT state any feature, pricing, rating, or capability claim you have not verified. Omit or hedge instead.
+- Populate "sources" with the URLs you actually used.
+
+${rogExamples ? `Rog data (LogRocket's internal customer intelligence — prefer these named customers and their facts):\n${rogExamples}` : `No Rog customer data was provided.`}
+
+CUSTOMER EXAMPLES — must be REAL, NAMED customers. Never output an anonymized profile like "A mid-market fintech". Draw on BOTH the Rog data above and LogRocket's publicly documented customers (logrocket.com/customers, case studies, testimonials). Prefer companies${industry ? ` in or adjacent to ${industry}` : ""}${size ? ` of a similar size to ${size}` : ""}, especially any that switched from or evaluated ${competitor}. Only use quotes, numbers and "replaced" values that actually appear in a source — never invent them (a real customer with no published stats gets an empty "stats" array). If you cannot verify ANY real named customer, return [].
+
+${LENGTH_RULES}
+
+JSON shape:
+{
+  "lede_competitor": "1-2 sentence honest summary of what ${competitor} is good at AND where it stops short (hero right column)",
+  "competitor_ai_summary": "2-3 sentences on what ${competitor}'s AI does and where it stops (behavior only, no code/errors, etc.)",
+  "competitor_ai_bullets": ["3 bullets on ${competitor} AI limitations plus 1 fair strength — each ONE sentence, MAX 14 WORDS. In the limitation bullets, wrap the specific missing capability in **double asterisks** for bold"],
+  "data_sources": [ { "name": "Errors", "note": "one line", "logrocket": true, "competitor": false }, { "name": "Sessions", "note": "…", "logrocket": true, "competitor": true }, { "name": "Releases", "note": "…", "logrocket": true, "competitor": false }, { "name": "Feedback", "note": "…", "logrocket": true, "competitor": false } ],
+  ${includeFeatureComparison ? `"feature_comparison": [ { "feature": "Session Replay", "logrocket": "short text", "logrocket_mark": "full|partial|none", "competitor": "short text", "competitor_mark": "full|partial|none" }, … ${featureFocus && featureFocus.trim() ? `one row for EACH of these rep-specified capabilities (in this order), plus any clearly essential: ${featureFocus.trim()}` : "5-7 rows covering the capabilities that matter most to this buyer"} ],` : `"feature_comparison": [],`}
+  "customer_examples": [ { "name": "REAL company name", "profile": "industry + size", "quote": "real quote if present in a source, else empty string", "outcome": "the result/win in ONE sentence", "stats": [ { "num": "e.g. 30%", "label": "what it measures" } ], "replaced": "competitor they replaced, only if a source states it, else empty" } ],
+  "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
+}`;
+
+  // ── Call 2: positioning + copy (no tools, so no search latency) ─────────
+  const messagingPrompt = `You are a competitive strategy expert at LogRocket writing the positioning copy for a one-pager against ${competitor}.
+
+${audience}
+
+Two messages this copy MUST land:
+1. AI ACCURACY: LogRocket's Galileo AI returns more accurate, trustworthy answers than ${competitor}'s AI. Cite this independent evaluation (Aakash Gupta evaluated LogRocket vs PostHog): ${AI_STUDY_URL}. Say why accuracy matters and what a wrong AI answer costs a team.
+2. UNIFIED DATA: LogRocket surfaces issues better because it correlates every data point across the stack — errors, session replay, releases/deploys, and user feedback — in one place, where ${competitor} leaves these siloed. Make it concrete for the ${industry || "customer's"} context.
+
+Scope: write persuasive positioning only. Do NOT assert specific ${competitor} feature, pricing, or rating facts (a separate verified research pass covers those). Keep competitor references to the well-established gap above.
+
+${LENGTH_RULES}
+
+JSON shape:
+{
+  "headline": "One-line positioning statement — LogRocket's core promise vs ${competitor}",
+  "overview": "2-3 sentence overview framing the comparison for this specific prospect",
+  "lede_logrocket": "1-2 sentence 'the full picture' pitch for LogRocket (hero left column)",
+  "ai_example_question": "A short, realistic question a ${industry || "product"} team would ask their AI assistant (e.g. 'Why did checkout drop 18% on Tuesday?'). ILLUSTRATIVE demo scenario, not a claim about the real prospect.",
+  "ai_example_lr_answer": "How Ask Galileo would answer — MAX 30 WORDS, 1-2 clipped sentences. Name the root cause + the release or code detail. Terse and telegraphic; no preamble, no hedging. ILLUSTRATIVE example. Wrap the specific details ${competitor} could NOT surface (release/deploy, source-mapped error, code-level cause) in **double asterisks** for bold.",
+  "ai_example_competitor_answer": "How ${competitor}'s AI would answer the SAME question — MAX 30 WORDS, 1-2 clipped sentences. Behavioral symptoms only (drop-off, rage clicks, which page), no root cause. Terse. Wrap the explicit gap (e.g. **No root cause identified**) in **double asterisks** for bold.",
+  "ai_accuracy": "2-3 sentences making message #1 concrete for this prospect. End by citing the independent study.",
+  "ai_bullets": ["3 bullets on why LogRocket's Galileo AI answers are more accurate/actionable — each ONE sentence, MAX 14 WORDS. In each, wrap the capability ${competitor} lacks in **double asterisks** for bold"],
+  "unified_data": "2-3 sentences making message #2 concrete for this prospect and industry",
+  "tldr": "One punchy sentence verdict on why LogRocket wins for this buyer",
+  "objection_handling": "2-3 sentences total: the single most common objection a ${competitor} rep raises, plus a crisp LogRocket response",
+  "discovery_questions": ["3-5 discovery questions, each ONE sentence, that expose ${competitor} gaps and surface LogRocket value"]
+}`;
+
+  const [messaging, research] = await Promise.all([
+    callAnthropic({ system: messagingPrompt, maxTokens: 2500, userMessage: "Write the positioning copy." }),
+    callAnthropic({
+      system: researchPrompt,
+      maxTokens: 4000,
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
+      userMessage: "Research and return the verified comparison facts.",
+    }),
+  ]);
+
+  // Research wins on any overlapping key — it's the verified half.
+  return { ...messaging, ...research };
 }
 
 async function exportGuideToPdf({ guide, competitor, customer }) {
