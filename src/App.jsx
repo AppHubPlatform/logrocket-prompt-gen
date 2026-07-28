@@ -1706,6 +1706,7 @@ Run multiple searches. Prefer primary sources (the vendors' own sites and dated 
 
 Hard rules:
 - LENGTH LIMIT — this is a scannable one-pager, not a doc. EVERY prose field in the JSON below must be at most 2-3 sentences. Bullets and table cells must be ONE short sentence or phrase. Never write a long paragraph, and never exceed the per-field guidance. Be punchy: cut qualifiers rather than running long.
+- WORD CAPS ARE ABSOLUTE. Where a field states a MAX word count, count the words and stay under it — bolding or adding detail is never a reason to exceed it. If you need room for the bolded differentiator, delete other words.
 - Do NOT state any feature, pricing, rating, or capability claim you have not verified via search. If you cannot verify something, either omit it or explicitly hedge (e.g. "as of the competitor's public docs…").
 - Never invent statistics, customer names, ratings, or quotes.
 - For each factual/comparative claim, attach a source. Populate the "sources" array with the URLs you actually used.
@@ -1724,12 +1725,12 @@ Respond ONLY as valid JSON, no markdown, in this exact shape:
   "lede_logrocket": "1-2 sentence 'the full picture' pitch for LogRocket (hero left column)",
   "lede_competitor": "1-2 sentence honest summary of what ${competitor} is good at AND where it stops short (hero right column)",
   "ai_example_question": "A short, realistic question a ${industry || "product"} team would ask their AI assistant (e.g. 'Why did checkout drop 18% on Tuesday?'). This is an ILLUSTRATIVE demo scenario, not a claim about the real prospect.",
-  "ai_example_lr_answer": "How Ask Galileo would answer — MAX 30 WORDS, 1-2 clipped sentences. Name the root cause + the release or code detail. Terse and telegraphic, like a real AI answer summary; no preamble, no hedging. ILLUSTRATIVE example, not real prospect data.",
-  "ai_example_competitor_answer": "How ${competitor}'s AI would answer the SAME question — MAX 30 WORDS, 1-2 clipped sentences. Behavioral symptoms only (drop-off, rage clicks, which page), no root cause. Terse; no preamble.",
+  "ai_example_lr_answer": "How Ask Galileo would answer — MAX 30 WORDS, 1-2 clipped sentences. Name the root cause + the release or code detail. Terse and telegraphic, like a real AI answer summary; no preamble, no hedging. ILLUSTRATIVE example, not real prospect data. Wrap the specific details ${competitor} could NOT surface (e.g. the release/deploy, the source-mapped error, the code-level cause) in **double asterisks** for bold.",
+  "ai_example_competitor_answer": "How ${competitor}'s AI would answer the SAME question — MAX 30 WORDS, 1-2 clipped sentences. Behavioral symptoms only (drop-off, rage clicks, which page), no root cause. Terse; no preamble. Wrap the explicit gap (e.g. **No root cause identified**) in **double asterisks** for bold.",
   "ai_accuracy": "2-3 sentences making message #1 (AI accuracy) concrete for this prospect. End by citing the independent study.",
-  "ai_bullets": ["3 bullets on why LogRocket's Galileo AI answers are more accurate/actionable — each ONE sentence, MAX 14 WORDS, filler cut"],
+  "ai_bullets": ["3 bullets on why LogRocket's Galileo AI answers are more accurate/actionable — each ONE sentence, MAX 14 WORDS, filler cut. In each, wrap the capability ${competitor} lacks in **double asterisks** for bold"],
   "competitor_ai_summary": "2-3 sentences on what ${competitor}'s AI does and where it stops (behavior only, no code/errors, etc.)",
-  "competitor_ai_bullets": ["3 bullets on ${competitor} AI limitations plus 1 fair strength — each ONE sentence, MAX 14 WORDS, filler cut"],
+  "competitor_ai_bullets": ["3 bullets on ${competitor} AI limitations plus 1 fair strength — each ONE sentence, MAX 14 WORDS, filler cut. In the limitation bullets, wrap the specific missing capability in **double asterisks** for bold"],
   "unified_data": "2-3 sentences making message #2 (unified data across the stack) concrete for this prospect and industry",
   "data_sources": [ { "name": "Errors", "note": "one line", "logrocket": true, "competitor": false }, { "name": "Sessions", "note": "…", "logrocket": true, "competitor": true }, { "name": "Releases", "note": "…", "logrocket": true, "competitor": false }, { "name": "Feedback", "note": "…", "logrocket": true, "competitor": false } ],
   ${includeFeatureComparison ? `"feature_comparison": [ { "feature": "Session Replay", "logrocket": "short text", "logrocket_mark": "full|partial|none", "competitor": "short text", "competitor_mark": "full|partial|none" }, … ${featureFocus && featureFocus.trim() ? `one row for EACH of these rep-specified capabilities (in this order), plus any clearly essential: ${featureFocus.trim()}` : "5-7 rows covering the capabilities that matter most to this buyer"} ],` : `"feature_comparison": [],`}
@@ -2096,6 +2097,9 @@ function GuideEditor({ guide, setGuide, competitor }) {
         <textarea style={S.textarea} rows={3} value={guide.overview || ""} onChange={e => setField("overview", e.target.value)} />
       </GuideSection>
       <GuideSection title="AI example (shown in the cards)">
+        <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "8px" }}>
+          Wrap text in **double asterisks** to bold it — use this to highlight what {competitor} can't do.
+        </div>
         <label style={S.fieldLabel}>Example question</label>
         <input style={{ ...S.input, marginBottom: "10px" }} value={guide.ai_example_question || ""} onChange={e => setField("ai_example_question", e.target.value)} />
         <label style={S.fieldLabel}>Ask Galileo — example answer</label>
