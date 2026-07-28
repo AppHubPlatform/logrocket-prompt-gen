@@ -1705,6 +1705,7 @@ ACCURACY IS CRITICAL — this guide is customer-facing. Use the web_search tool 
 Run multiple searches. Prefer primary sources (the vendors' own sites and dated reviews).
 
 Hard rules:
+- LENGTH LIMIT — this is a scannable one-pager, not a doc. EVERY prose field in the JSON below must be at most 2-3 sentences. Bullets and table cells must be ONE short sentence or phrase. Never write a long paragraph, and never exceed the per-field guidance. Be punchy: cut qualifiers rather than running long.
 - Do NOT state any feature, pricing, rating, or capability claim you have not verified via search. If you cannot verify something, either omit it or explicitly hedge (e.g. "as of the competitor's public docs…").
 - Never invent statistics, customer names, ratings, or quotes.
 - For each factual/comparative claim, attach a source. Populate the "sources" array with the URLs you actually used.
@@ -1724,18 +1725,18 @@ Respond ONLY as valid JSON, no markdown, in this exact shape:
   "lede_competitor": "1-2 sentence honest summary of what ${competitor} is good at AND where it stops short (hero right column)",
   "ai_example_question": "A short, realistic question a ${industry || "product"} team would ask their AI assistant (e.g. 'Why did checkout drop 18% on Tuesday?'). This is an ILLUSTRATIVE demo scenario, not a claim about the real prospect.",
   "ai_example_lr_answer": "How Ask Galileo would answer that question — 2-3 sentences, specific and code-aware: names the likely root cause, the affected browser/flow, ties behavior to the exact code/release, and mentions replays. ILLUSTRATIVE/hypothetical example (a realistic scenario, not real data about this prospect).",
-  "ai_example_competitor_answer": "How ${competitor}'s AI would answer the SAME question — accurate but shallower: describes the behavioral symptoms (rage clicks, drop-off, which page) without the underlying code/root cause. Same illustrative scenario.",
-  "ai_accuracy": "A paragraph making message #1 (AI accuracy) concrete for this prospect. End by citing the independent study.",
-  "ai_bullets": ["3 short bullets on why LogRocket's Galileo AI answers are more accurate/actionable"],
-  "competitor_ai_summary": "1-2 sentences on what ${competitor}'s AI does and where it stops (behavior only, no code/errors, etc.)",
-  "competitor_ai_bullets": ["2-3 short bullets on ${competitor} AI limitations, plus 1 fair strength"],
-  "unified_data": "A paragraph making message #2 (unified data across the stack) concrete for this prospect and industry",
+  "ai_example_competitor_answer": "How ${competitor}'s AI would answer the SAME question — 2-3 sentences, accurate but shallower: describes the behavioral symptoms (rage clicks, drop-off, which page) without the underlying code/root cause. Same illustrative scenario.",
+  "ai_accuracy": "2-3 sentences making message #1 (AI accuracy) concrete for this prospect. End by citing the independent study.",
+  "ai_bullets": ["3 bullets, each ONE sentence max, on why LogRocket's Galileo AI answers are more accurate/actionable"],
+  "competitor_ai_summary": "2-3 sentences on what ${competitor}'s AI does and where it stops (behavior only, no code/errors, etc.)",
+  "competitor_ai_bullets": ["3 bullets, each ONE sentence max, on ${competitor} AI limitations, plus 1 fair strength"],
+  "unified_data": "2-3 sentences making message #2 (unified data across the stack) concrete for this prospect and industry",
   "data_sources": [ { "name": "Errors", "note": "one line", "logrocket": true, "competitor": false }, { "name": "Sessions", "note": "…", "logrocket": true, "competitor": true }, { "name": "Releases", "note": "…", "logrocket": true, "competitor": false }, { "name": "Feedback", "note": "…", "logrocket": true, "competitor": false } ],
   ${includeFeatureComparison ? `"feature_comparison": [ { "feature": "Session Replay", "logrocket": "short text", "logrocket_mark": "full|partial|none", "competitor": "short text", "competitor_mark": "full|partial|none" }, … ${featureFocus && featureFocus.trim() ? `one row for EACH of these rep-specified capabilities (in this order), plus any clearly essential: ${featureFocus.trim()}` : "5-7 rows covering the capabilities that matter most to this buyer"} ],` : `"feature_comparison": [],`}
-  "customer_examples": [ { "name": "Company name (only if in the Rog data or a public reference) or anonymized profile", "profile": "industry + size", "quote": "a real customer quote ONLY if present in the Rog data, else empty string", "outcome": "the result/win", "stats": [ { "num": "e.g. 30%", "label": "what it measures" } ], "replaced": "competitor they replaced, if stated in Rog data, else empty" } ],
+  "customer_examples": [ { "name": "Company name (only if in the Rog data or a public reference) or anonymized profile", "profile": "industry + size", "quote": "a real customer quote ONLY if present in the Rog data, else empty string — trim to 1-2 sentences", "outcome": "the result/win in ONE sentence", "stats": [ { "num": "e.g. 30%", "label": "what it measures" } ], "replaced": "competitor they replaced, if stated in Rog data, else empty" } ],
   "tldr": "One punchy sentence verdict on why LogRocket wins for this buyer",
-  "objection_handling": "1-2 common objections a ${competitor} rep raises, each with a crisp LogRocket response",
-  "discovery_questions": ["3-5 discovery questions that expose ${competitor} gaps and surface LogRocket value"],
+  "objection_handling": "2-3 sentences total: the single most common objection a ${competitor} rep raises, plus a crisp LogRocket response",
+  "discovery_questions": ["3-5 discovery questions, each ONE sentence, that expose ${competitor} gaps and surface LogRocket value"],
   "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
 }
 
