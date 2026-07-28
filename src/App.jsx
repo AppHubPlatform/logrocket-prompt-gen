@@ -2400,10 +2400,10 @@ function CompetitorGuide() {
             <div style={{ ...S.sectionSub, marginTop: "4px", marginBottom: "12px" }}>Live preview — exactly what the PDF will contain. Use <strong>Edit</strong> to make corrections, then open the PDF.</div>
             <GuidePreview guide={guide} competitor={competitor} customer={pdfCustomer || company} />
 
-            {(guide.ai_accuracy || guide.competitor_ai_summary) && (
+            {(guide.ai_accuracy || guide.competitor_ai_summary || guide.unified_data) && (
               <div style={{ marginTop: "18px" }}>
-                <GuideSection title="AI comparison — key takeaways (on-screen only)">
-                  <div style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "10px" }}>Background reading on how the two AIs compare. Not included in the PDF.</div>
+                <GuideSection title="Key takeaways (on-screen only)">
+                  <div style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "10px" }}>Background reading on how LogRocket compares. Not included in the PDF.</div>
                   {guide.ai_accuracy && (
                     <div style={{ ...S.outputBlock, marginBottom: "10px" }}>
                       <div style={{ fontSize: "12px", fontWeight: "700", color: ACCENT_DARK, marginBottom: "5px" }}>LogRocket · Ask Galileo</div>
@@ -2414,9 +2414,15 @@ function CompetitorGuide() {
                     </div>
                   )}
                   {guide.competitor_ai_summary && (
-                    <div style={S.outputBlock}>
+                    <div style={{ ...S.outputBlock, marginBottom: guide.unified_data ? "10px" : 0 }}>
                       <div style={{ fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "5px" }}>{competitor} AI</div>
                       <p style={{ ...S.outputText, fontSize: "13px" }}>{guide.competitor_ai_summary}</p>
+                    </div>
+                  )}
+                  {guide.unified_data && (
+                    <div style={S.outputBlock}>
+                      <div style={{ fontSize: "12px", fontWeight: "700", color: ACCENT_DARK, marginBottom: "5px" }}>One reasoning layer — all data sources</div>
+                      <p style={{ ...S.outputText, fontSize: "13px" }}>{guide.unified_data}</p>
                     </div>
                   )}
                 </GuideSection>

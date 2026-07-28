@@ -288,7 +288,6 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   ${dataTiles ? `<section>
     <div class="section-eyebrow"><span class="num">02</span>One Reasoning Layer</div>
     <h2 class="section-title">Galileo reasons across <em>every</em> data source. ${comp} sees a slice.</h2>
-    <p style="color:var(--text-regular);font-size:14px;line-height:1.6;max-width:820px;margin-bottom:18px">${esc(g.unified_data || "")}</p>
     <div class="sources-grid">${dataTiles}</div>
   </section>` : ""}
 
