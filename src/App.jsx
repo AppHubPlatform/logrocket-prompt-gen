@@ -1724,7 +1724,7 @@ async function callAnthropic({ system, tools, maxTokens, userMessage }) {
   return JSON.parse(text.slice(start, end + 1));
 }
 
-async function generateCompetitorGuide({ competitor, company, industry, size, includeFeatureComparison, featureFocus, rogExamples }) {
+async function generateCompetitorGuide({ competitor, company, industry, size, includeFeatureComparison, featureFocus, integrations = "", rogExamples }) {
   const audience = [
     company ? `Prospect/customer: ${company}` : "",
     industry ? `Industry: ${industry}` : "",
@@ -1756,6 +1756,24 @@ JSON shape:
   "data_sources": [ { "name": "Errors", "note": "one line", "logrocket": true, "competitor": false }, { "name": "Sessions", "note": "…", "logrocket": true, "competitor": true }, { "name": "Backend", "note": "one line on server-side/API data — e.g. network requests, backend errors, server logs correlated to the same session", "logrocket": true, "competitor": false }, { "name": "Releases", "note": "…", "logrocket": true, "competitor": false }, { "name": "Feedback", "note": "…", "logrocket": true, "competitor": false } ],
   (return exactly these five data_sources rows, in this order; set each "logrocket"/"competitor" boolean from what you actually verified)
   "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
+}`;
+
+  // ── Call 1d: LogRocket integration coverage for the customer's stack ─────
+  const integrationsPrompt = `You are a LogRocket solutions engineer. The customer needs these technologies to integrate with LogRocket:
+${integrations}
+
+Verify against LogRocket's own documentation which of these LogRocket actually integrates with. Be efficient: 2 targeted searches of logrocket.com/integrations and docs.logrocket.com, then write.
+
+Rules:
+- One entry per technology the rep listed, in the order given. Do not add or drop any.
+- "supported": true only if you found a real LogRocket integration (native, plugin, SDK, or documented API path). If you genuinely cannot confirm one, set false — never guess true.
+- "note": MAX 10 WORDS on what the integration does (e.g. "Link sessions to Jira issues"). For unsupported ones, a brief honest note.
+- Populate "sources" with the LogRocket docs/integration pages you used.
+
+JSON shape:
+{
+  "integrations": [ { "name": "Jira", "supported": true, "note": "Attach session replays to Jira tickets" } ],
+  "sources": [ { "label": "What this source backs up", "url": "https://…" } ]
 }`;
 
   // ── Call 1c: feature matrix only (web search, runs alongside 1a/1b) ──────
@@ -1828,7 +1846,7 @@ JSON shape:
   // All passes run concurrently; wall time is the slowest one, not the sum.
   // The matrix pass is skipped entirely when the rep opted out of the table.
   const searchTool = (maxUses) => [{ type: "web_search_20250305", name: "web_search", max_uses: maxUses }];
-  const [messaging, competitorFacts, customerProof, matrix] = await Promise.all([
+  const [messaging, competitorFacts, customerProof, matrix, integrationCoverage] = await Promise.all([
     callAnthropic({ system: messagingPrompt, maxTokens: 2500, userMessage: "Write the positioning copy." }),
     callAnthropic({
       system: competitorPrompt,
@@ -1850,17 +1868,32 @@ JSON shape:
           userMessage: "Build the verified capability comparison table.",
         })
       : Promise.resolve({ feature_comparison: [], sources: [] }),
+    integrations.trim()
+      ? callAnthropic({
+          system: integrationsPrompt,
+          maxTokens: 1200,
+          tools: searchTool(2),
+          userMessage: "Verify LogRocket's integration coverage for these technologies.",
+        })
+      : Promise.resolve({ integrations: [], sources: [] }),
   ]);
 
   // Merge every searched pass's citations, de-duped by URL.
   const sources = [];
   const seen = new Set();
-  [...(competitorFacts.sources || []), ...(customerProof.sources || []), ...(matrix.sources || [])].forEach(s => {
+  [...(competitorFacts.sources || []), ...(customerProof.sources || []), ...(matrix.sources || []), ...(integrationCoverage.sources || [])].forEach(s => {
     if (s?.url && !seen.has(s.url)) { seen.add(s.url); sources.push(s); }
   });
 
   // Searched results win over messaging on any overlapping key — they're verified.
-  return { ...messaging, ...competitorFacts, ...customerProof, feature_comparison: matrix.feature_comparison || [], sources };
+  return {
+    ...messaging,
+    ...competitorFacts,
+    ...customerProof,
+    feature_comparison: matrix.feature_comparison || [],
+    integrations: integrationCoverage.integrations || [],
+    sources,
+  };
 }
 
 async function exportGuideToPdf({ guide, competitor, customer }) {
@@ -2225,6 +2258,23 @@ function GuideEditor({ guide, setGuide, competitor }) {
         </GuideSection>
       )}
 
+      {Array.isArray(guide.integrations) && guide.integrations.length > 0 && (
+        <GuideSection title="Integrations shown in section 02">
+          {guide.integrations.map((it, i) => (
+            <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr auto auto", gap: "8px", marginBottom: "6px", alignItems: "center" }}>
+              <input style={S.input} placeholder="Technology" value={it.name || ""} onChange={e => setItem("integrations", i, { ...it, name: e.target.value })} />
+              <input style={S.input} placeholder="Short note" value={it.note || ""} onChange={e => setItem("integrations", i, { ...it, note: e.target.value })} />
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#374151", whiteSpace: "nowrap", cursor: "pointer" }}>
+                <input type="checkbox" checked={!!it.supported} onChange={e => setItem("integrations", i, { ...it, supported: e.target.checked })} style={{ accentColor: ACCENT, width: "15px", height: "15px" }} />
+                Supported
+              </label>
+              {removeBtn(() => removeItem("integrations", i))}
+            </div>
+          ))}
+          {addBtn("Add integration", () => addItem("integrations", { name: "", note: "", supported: true }))}
+        </GuideSection>
+      )}
+
       {Array.isArray(guide.customer_examples) && (
         <GuideSection title="Customer examples">
           {guide.customer_examples.map((ex, i) => (
@@ -2336,6 +2386,7 @@ function CompetitorGuide() {
   const [size, setSize] = useState("");
   const [includeFeatureComparison, setIncludeFeatureComparison] = useState(true);
   const [featureFocus, setFeatureFocus] = useState("");
+  const [integrations, setIntegrations] = useState("");
   const [rogExamples, setRogExamples] = useState("");
   const [rogLoading, setRogLoading] = useState(false);
   const [rogError, setRogError] = useState("");
@@ -2373,7 +2424,7 @@ function CompetitorGuide() {
         }
       }
       setRogStatus("Researching and writing the guide…");
-      const g = await generateCompetitorGuide({ competitor, company, industry, size, includeFeatureComparison, featureFocus, rogExamples: rog });
+      const g = await generateCompetitorGuide({ competitor, company, industry, size, includeFeatureComparison, featureFocus, integrations, rogExamples: rog });
       // Hard-guarantee the toggle: if the rep opted out, drop the comparison so
       // it's absent from both the on-screen preview and the PDF, regardless of
       // what the model returned.
@@ -2458,6 +2509,19 @@ function CompetitorGuide() {
             <option value="">Select size…</option>
             {COMPANY_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
+        </div>
+
+        <div style={{ marginBottom: "16px" }}>
+          <label style={S.fieldLabel}>Which technologies does the customer need to integrate?</label>
+          <input
+            style={S.input}
+            value={integrations}
+            onChange={e => setIntegrations(e.target.value)}
+            placeholder="Comma-separated — e.g. Jira, Segment, Datadog, Slack, Salesforce, Sentry"
+          />
+          <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "6px" }}>
+            The guide will confirm which of these LogRocket integrates with and show them in "One reasoning layer".
+          </div>
         </div>
 
         <div style={{ marginBottom: "16px" }}>

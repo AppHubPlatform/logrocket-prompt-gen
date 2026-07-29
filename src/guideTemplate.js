@@ -119,6 +119,16 @@ p{margin:0}
 .source-tile .cover .no{color:var(--text-muted)}
 .source-tile .cover .pip{width:14px;height:14px;border-radius:9999px;display:grid;place-items:center;flex-shrink:0;font-size:9px}
 .source-tile .cover .yes .pip{background:var(--lr-galaxy);color:#fff}
+.integrations{margin-top:16px;padding-top:16px;border-top:1px solid rgba(0,0,0,.08)}
+.integrations h5{font-family:var(--font-display);font-size:12px;font-weight:450;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin:0 0 10px}
+.integ-chips{display:flex;flex-wrap:wrap;gap:8px}
+.integ-chip{display:inline-flex;align-items:center;gap:7px;font-family:var(--font-display);font-size:12.5px;padding:7px 13px;border-radius:9999px;border:1px solid}
+.integ-chip .pip{width:15px;height:15px;border-radius:9999px;display:grid;place-items:center;font-size:9px;flex-shrink:0}
+.integ-chip .note{font-family:var(--font-body);font-size:11px;opacity:.75}
+.integ-chip.yes{background:var(--lr-indigo-2);color:var(--lr-galaxy);border-color:rgba(99,63,160,.22)}
+.integ-chip.yes .pip{background:var(--lr-galaxy);color:#fff}
+.integ-chip.no{background:var(--lr-gray-5);color:var(--text-muted);border-color:var(--lr-gray-4)}
+.integ-chip.no .pip{background:#fff;color:var(--lr-gray-2);border:1px solid var(--lr-gray-4)}
 .source-tile .cover .no .pip{background:var(--lr-gray-5);color:var(--lr-gray-2);border:1px solid var(--lr-gray-4)}
 .matrix{background:#fff;border-radius:20px;overflow:hidden;border:1px solid rgba(0,0,0,.08)}
 .matrix table{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -199,6 +209,14 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
     `<li><span class="pt">${PIP_CHECK}</span><span>${escBold(b)}</span></li>`).join("");
   const compAiBullets = (Array.isArray(g.competitor_ai_bullets) ? g.competitor_ai_bullets : []).map((b, i) =>
     `<li><span class="pt ${i < 2 ? "no" : ""}">${i < 2 ? PIP_X : PIP_CHECK}</span><span>${escBold(b)}</span></li>`).join("");
+
+  const integrationList = Array.isArray(g.integrations) ? g.integrations : [];
+  const integrationChips = integrationList.map(i => `
+    <span class="integ-chip ${i.supported ? "yes" : "no"}">
+      <span class="pip">${i.supported ? PIP_CHECK : PIP_X}</span>
+      <span>${esc(i.name)}</span>
+      ${i.note ? `<span class="note">${esc(i.note)}</span>` : ""}
+    </span>`).join("");
 
   const dataSourceList = Array.isArray(g.data_sources) ? g.data_sources : [];
   const dataTiles = dataSourceList.map(d => `
@@ -299,6 +317,10 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
     <div class="section-eyebrow"><span class="num">02</span>One Reasoning Layer</div>
     <h2 class="section-title">Galileo reasons across <em>every</em> data source. ${comp} sees a slice.</h2>
     <div class="sources-grid" style="grid-template-columns:repeat(${Math.min(Math.max(dataSourceList.length, 1), 5)},1fr)">${dataTiles}</div>
+    ${integrationChips ? `<div class="integrations">
+      <h5>Integrated with your stack</h5>
+      <div class="integ-chips">${integrationChips}</div>
+    </div>` : ""}
   </section>` : ""}
 
   ${rows ? `<section>
