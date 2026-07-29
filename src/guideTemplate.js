@@ -165,13 +165,8 @@ p{margin:0}
 @media print{
   body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .page{max-width:100%;padding:0;gap:14px}
-  .no-print{display:none!important}
   section,.hero,.tldr,.wins,.ai{break-inside:avoid}
 }
-.toolbar{position:fixed;top:14px;right:14px;z-index:100;display:flex;gap:8px}
-.toolbar button{font-family:var(--font-body);font-size:13px;font-weight:600;padding:9px 16px;border-radius:9999px;border:none;cursor:pointer;box-shadow:var(--shadow-modal)}
-.toolbar .primary{background:var(--lr-galaxy);color:#fff}
-.toolbar .ghost{background:#fff;color:var(--lr-ink);border:1px solid var(--lr-gray-4)}
 `;
 
 const PIP_CHECK = "✓";
@@ -253,10 +248,6 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
 <title>LogRocket vs ${comp} — Competitive Brief</title>
 <style>${TOKENS}${COMPONENT_CSS}</style>
 </head><body>
-<div class="toolbar no-print">
-  <button class="ghost" onclick="window.close()">Close</button>
-  <button class="primary" onclick="window.print()">Save as PDF</button>
-</div>
 <div class="page">
   <div class="meta">
     <div class="lockup">${LOGO_SVG}<span class="pipe"></span><span class="label">Competitive Brief</span></div>
@@ -391,8 +382,6 @@ export async function downloadGuidePdf({ guide, competitor, customer, dateStamp,
     });
 
     const doc = frame.contentDocument;
-    // Drop the on-screen toolbar (position:fixed confuses capture anyway).
-    doc.querySelectorAll(".no-print").forEach(el => el.remove());
 
     // Let web fonts and layout settle before measuring/capturing.
     try { await doc.fonts.ready; } catch { /* fonts API unavailable */ }

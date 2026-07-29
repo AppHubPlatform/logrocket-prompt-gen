@@ -2354,22 +2354,6 @@ function CompetitorGuide() {
     }
   };
 
-  // Secondary: open the print view (vector text, uses the browser's Save as PDF).
-  const openPdf = () => {
-    try {
-      const html = buildGuideHtml({ guide, competitor, customer: pdfCustomer || company, dateStamp: dateStamp() });
-      const w = window.open("", "_blank");
-      if (!w) { alert("Please allow pop-ups to open the print view."); return; }
-      w.document.open();
-      w.document.write(html);
-      w.document.close();
-      LogRocket.track("Competitor Guide PDF Opened", { competitor });
-    } catch (e) {
-      LogRocket.captureException(e, { tags: { source: "guide-pdf" } });
-      alert(`Could not open the print view: ${e.message}`);
-    }
-  };
-
   return (
     <>
       <div style={S.eyebrow}>
@@ -2542,17 +2526,9 @@ function CompetitorGuide() {
               <label style={S.fieldLabel}>Customer name (shown on the PDF)</label>
               <input style={S.input} value={pdfCustomer} onChange={e => setPdfCustomer(e.target.value)} placeholder="e.g. Acme Corp" />
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-              <button style={S.btnPrimary(exporting)} onClick={downloadPdf} disabled={exporting}>
-                {exporting ? "Building PDF…" : "⬇ Download PDF"}
-              </button>
-              <button style={S.btnGhost} onClick={openPdf} disabled={exporting}>
-                Open print view
-              </button>
-            </div>
-            <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "8px" }}>
-              Print view is an alternative that uses your browser's Save as PDF — selectable text, slightly sharper.
-            </div>
+            <button style={S.btnPrimary(exporting)} onClick={downloadPdf} disabled={exporting}>
+              {exporting ? "Building PDF…" : "⬇ Download PDF"}
+            </button>
           </div>
         </>
       )}
