@@ -1721,6 +1721,16 @@ const COMPANY_SIZES = [
 // Independent AI-accuracy study referenced in every guide.
 const AI_STUDY_URL = "https://www.linkedin.com/posts/matthew-arbesfeld-04b5429b_aakash-gupta-evaluated-logrocket-vs-posthog-share-7462578059741859840-yt4l/";
 
+// Ask Galileo's autonomy milestones — LogRocket's own internal figures, so these
+// are fixed rather than researched. Percentages are autonomous-accuracy.
+const LOGROCKET_AI_TIMELINE = [
+  { date: "Jan '25", label: "Human-in-the-Loop", sub: "", pct: 0 },
+  { date: "May '25", label: "Analytics Only", sub: "", pct: 30 },
+  { date: "Jul '25", label: "+Sessions & Issues", sub: "", pct: 60 },
+  { date: "Dec '25", label: "Context Layer", sub: "Gemini 3", pct: 80 },
+  { date: "Mar '26", label: "Model Orchestration", sub: "Opus 4.6", pct: 90 },
+];
+
 async function fetchRogCustomerExamples({ industry, size, competitor }) {
   const bits = [
     industry && `in the ${industry} industry`,
@@ -1793,6 +1803,8 @@ ACCURACY IS CRITICAL — this is customer-facing. Verify with web_search first. 
 - G2/TrustRadius/Capterra if a strength or weakness needs backing
 Do NOT research customer references or build a full feature matrix — separate passes cover those.
 
+For "competitor_ai_timeline": find 2-4 DATED milestones in ${competitor}'s AI/assistant history (launch, major releases, acquisitions that added AI) with approximate month+year, oldest first. Use only dates you can verify — if you can only confirm one milestone, return one; if none, return []. Never invent a date, and never assign ${competitor} an accuracy or autonomy percentage — no such comparable public figure exists.
+
 ${VERIFY_RULES}
 
 ${LENGTH_RULES}
@@ -1802,6 +1814,7 @@ JSON shape:
   "lede_competitor": "1-2 sentence honest summary of what ${competitor} is good at AND where it stops short (hero right column)",
   "competitor_ai_summary": "2-3 sentences on what ${competitor}'s AI does and where it stops (behavior only, no code/errors, etc.)",
   "competitor_ai_bullets": ["3 bullets on ${competitor} AI limitations plus 1 fair strength — each ONE sentence, MAX 14 WORDS. In the limitation bullets, wrap the specific missing capability in **double asterisks** for bold"],
+  "competitor_ai_timeline": [ { "date": "e.g. Mar '25", "label": "the AI capability or product shipped, MAX 4 WORDS", "note": "MAX 8 WORDS on what it does / still cannot do" } ],
   "data_sources": [ { "name": "Errors", "note": "one line", "logrocket": true, "competitor": false }, { "name": "Sessions", "note": "…", "logrocket": true, "competitor": true }, { "name": "Backend", "note": "one line on server-side/API data — e.g. network requests, backend errors, server logs correlated to the same session", "logrocket": true, "competitor": false }, { "name": "Releases", "note": "…", "logrocket": true, "competitor": false }, { "name": "Feedback", "note": "…", "logrocket": true, "competitor": false } ],
   (return exactly these five data_sources rows, in this order; set each "logrocket"/"competitor" boolean from what you actually verified)
   "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
@@ -1947,6 +1960,8 @@ JSON shape:
     ...customerProof,
     feature_comparison: matrix.feature_comparison || [],
     integrations: integrationCoverage.integrations || [],
+    // LogRocket's own autonomy milestones — fixed data, not researched.
+    ai_timeline: LOGROCKET_AI_TIMELINE,
     sources,
   };
 }

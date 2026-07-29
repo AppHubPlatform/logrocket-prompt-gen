@@ -108,6 +108,21 @@ p{margin:0}
 .ai-foot.is-spacer{border-top:0;padding-top:0;min-height:0}
 .ai-card.lr .ai-foot{border-top-color:rgba(255,255,255,.10);color:var(--lr-illusion-1)}
 .ai-foot a{color:inherit;text-decoration:underline}
+/* ── AI evolution timeline ── */
+.evo{background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:20px;padding:26px 28px;box-shadow:var(--shadow-marketing)}
+.evo-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:6px}
+.evo-kicker{font-family:var(--font-display);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--lr-galaxy)}
+.evo-title{font-family:var(--font-display);font-size:22px;letter-spacing:-.02em;color:var(--lr-ink);margin-bottom:14px}
+.evo-title em{font-style:normal;color:var(--lr-matter-0)}
+.evo-chart{width:100%;display:block}
+.evo-track{margin-top:18px;padding-top:16px;border-top:1px solid rgba(0,0,0,.08)}
+.evo-track h5{font-family:var(--font-display);font-size:11.5px;font-weight:450;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin:0 0 10px}
+.evo-steps{display:flex;gap:10px;align-items:stretch}
+.evo-step{flex:1;background:var(--lr-gray-5);border:1px solid var(--lr-gray-4);border-radius:12px;padding:11px 13px}
+.evo-step .when{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.04em;color:var(--text-muted);display:block;margin-bottom:3px}
+.evo-step .what{font-family:var(--font-display);font-size:13.5px;color:var(--lr-ink);line-height:1.2;display:block}
+.evo-step .why{font-size:11.5px;color:var(--text-regular);line-height:1.35;margin-top:4px;display:block}
+.evo-none{font-size:12.5px;color:var(--text-muted)}
 .sources-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 .source-tile{background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:10px}
 .source-tile .glyph{width:40px;height:40px;border-radius:12px;background:var(--lr-indigo-2);color:var(--lr-galaxy);display:grid;place-items:center;font-size:20px}
@@ -189,6 +204,69 @@ function markCell(mark, text, isLr) {
   return `<div class="mark ${cls}"><span class="pip">${MARK_LABEL[cls]}</span><span>${esc(text || "")}</span></div>`;
 }
 
+// Ask Galileo autonomy chart. Deterministic inline SVG (no chart library) so it
+// renders identically in the preview and in the html2canvas capture.
+function buildEvolutionChart(points) {
+  if (!points.length) return "";
+  const W = 1080, H = 300;
+  const L = 52, R = 24, T = 54, B = 42;          // margins
+  const pw = W - L - R, ph = H - T - B;
+  const x = (i) => L + (pw * i) / Math.max(points.length - 1, 1);
+  const y = (pct) => T + ph - (ph * pct) / 100;
+
+  // Smooth the line with mid-point cubic control points.
+  const pts = points.map((p, i) => [x(i), y(p.pct)]);
+  let path = `M ${pts[0][0]} ${pts[0][1]}`;
+  for (let i = 1; i < pts.length; i++) {
+    const [px, py] = pts[i - 1];
+    const [cx, cy] = pts[i];
+    const mx = (px + cx) / 2;
+    path += ` C ${mx} ${py}, ${mx} ${cy}, ${cx} ${cy}`;
+  }
+  const area = `${path} L ${pts[pts.length - 1][0]} ${y(0)} L ${pts[0][0]} ${y(0)} Z`;
+
+  const gridlines = [0, 20, 40, 60, 80, 100].map(v => `
+    <line x1="${L}" y1="${y(v)}" x2="${W - R}" y2="${y(v)}" stroke="#E6DEF3" stroke-width="1" stroke-dasharray="${v === 0 ? "0" : "3 4"}"/>
+    <text x="${L - 10}" y="${y(v) + 4}" text-anchor="end" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#AA82FF">${v}%</text>`).join("");
+
+  const dots = pts.map(([cx, cy], i) => {
+    const last = i === pts.length - 1;
+    return `
+    <circle cx="${cx}" cy="${cy}" r="${last ? 8 : 5}" fill="${last ? "#430A6D" : "#fff"}" stroke="${last ? "#AA82FF" : "#633FA0"}" stroke-width="${last ? 3 : 2.5}"/>`;
+  }).join("");
+
+  // Alternate label heights so adjacent callouts never collide.
+  const labels = points.map((p, i) => {
+    const [cx, cy] = pts[i];
+    const last = i === points.length - 1;
+    const lift = 34 + (i % 2 === 0 ? 18 : 0);
+    const ly = Math.max(14, cy - lift);
+    const boxW = Math.max(96, (p.label.length * 6.4) + 22);
+    const boxH = p.sub ? 46 : 34;
+    const bx = Math.min(Math.max(cx - boxW / 2, 4), W - boxW - 4);
+    return `
+    <line x1="${cx}" y1="${cy - (last ? 9 : 6)}" x2="${cx}" y2="${ly + boxH}" stroke="#8E86A0" stroke-width="1"/>
+    <rect x="${bx}" y="${ly}" width="${boxW}" height="${boxH}" rx="7" fill="${last ? "#3B0A63" : "#2A2733"}"/>
+    <text x="${bx + boxW / 2}" y="${ly + 14}" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="${last ? "#7DE2D1" : "#fff"}">${esc(p.label)}</text>
+    ${p.sub ? `<text x="${bx + boxW / 2}" y="${ly + 27}" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#C9BFE0">${esc(p.sub)}</text>` : ""}
+    <text x="${bx + boxW / 2}" y="${ly + boxH - 7}" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="${last ? "#7DE2D1" : "#fff"}">${p.pct}%</text>`;
+  }).join("");
+
+  const xlabels = points.map((p, i) => `
+    <text x="${x(i)}" y="${H - 12}" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="#633FA0">${esc(p.date)}</text>`).join("");
+
+  return `<svg class="evo-chart" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ask Galileo autonomous accuracy over time">
+    <defs><linearGradient id="evoFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8548FF" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#8548FF" stop-opacity="0.02"/>
+    </linearGradient></defs>
+    ${gridlines}
+    <path d="${area}" fill="url(#evoFill)"/>
+    <path d="${path}" fill="none" stroke="#5B2BC4" stroke-width="3.5" stroke-linecap="round"/>
+    ${dots}${labels}${xlabels}
+  </svg>`;
+}
+
 const TEAMS = [
   { role: "Engineering", glyph: "&lt;/&gt;", title: "Fix the actual bug", p: "Source-mapped errors, console, and network in the same replay." },
   { role: "Product", glyph: "◱", title: "See what converts", p: "Funnels, cohorts, and feature adoption tied to real sessions." },
@@ -209,6 +287,16 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
     `<li><span class="pt">${PIP_CHECK}</span><span>${escBold(b)}</span></li>`).join("");
   const compAiBullets = (Array.isArray(g.competitor_ai_bullets) ? g.competitor_ai_bullets : []).map((b, i) =>
     `<li><span class="pt ${i < 2 ? "no" : ""}">${i < 2 ? PIP_X : PIP_CHECK}</span><span>${escBold(b)}</span></li>`).join("");
+
+  const evoChart = buildEvolutionChart(Array.isArray(g.ai_timeline) ? g.ai_timeline : []);
+  const competitorSteps = (Array.isArray(g.competitor_ai_timeline) ? g.competitor_ai_timeline : [])
+    .slice(0, 4)
+    .map(s => `
+    <div class="evo-step">
+      <span class="when">${esc(s.date || "")}</span>
+      <span class="what">${esc(s.label || "")}</span>
+      ${s.note ? `<span class="why">${esc(s.note)}</span>` : ""}
+    </div>`).join("");
 
   const integrationList = Array.isArray(g.integrations) ? g.integrations : [];
   const integrationChips = integrationList.map(i => `
@@ -313,8 +401,24 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
     </div>
   </section>
 
+  <section>
+    <div class="section-eyebrow"><span class="num">02</span>AI Evolution</div>
+    <h2 class="section-title">LogRocket shipped autonomy while ${comp} shipped summaries.</h2>
+    <div class="evo">
+      <div class="evo-head"><span class="evo-kicker">Ask Galileo · Agent Intelligence</span></div>
+      <div class="evo-title">From human-in-loop to <em>90% autonomous accuracy</em></div>
+      ${evoChart}
+      <div class="evo-track">
+        <h5>${comp} — AI milestones</h5>
+        ${competitorSteps
+          ? `<div class="evo-steps">${competitorSteps}</div>`
+          : `<p class="evo-none">No comparable dated AI milestones published by ${comp}.</p>`}
+      </div>
+    </div>
+  </section>
+
   ${dataTiles ? `<section>
-    <div class="section-eyebrow"><span class="num">02</span>One Reasoning Layer</div>
+    <div class="section-eyebrow"><span class="num">03</span>One Reasoning Layer</div>
     <h2 class="section-title">Galileo reasons across <em>every</em> data source. ${comp} sees a slice.</h2>
     <div class="sources-grid" style="grid-template-columns:repeat(${Math.min(Math.max(dataSourceList.length, 1), 5)},1fr)">${dataTiles}</div>
     ${integrationChips ? `<div class="integrations">
@@ -324,7 +428,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   </section>` : ""}
 
   ${rows ? `<section>
-    <div class="section-eyebrow"><span class="num">03</span>Capability Matrix</div>
+    <div class="section-eyebrow"><span class="num">04</span>Capability Matrix</div>
     <h2 class="section-title">Side by side, where it counts.</h2>
     <div class="matrix"><table>
       <thead><tr><th>Capability</th><th class="lr-col">LogRocket</th><th>${comp}</th></tr></thead>
@@ -333,13 +437,13 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   </section>` : ""}
 
   <section>
-    <div class="section-eyebrow"><span class="num">04</span>Built for every team</div>
+    <div class="section-eyebrow"><span class="num">05</span>Built for every team</div>
     <h2 class="section-title">One tool the whole team actually uses.</h2>
     <div class="teams-row">${teams}</div>
   </section>
 
   ${wins ? `<section>
-    <div class="section-eyebrow"><span class="num">05</span>Customer proof</div>
+    <div class="section-eyebrow"><span class="num">06</span>Customer proof</div>
     <h2 class="section-title">Teams that chose LogRocket.</h2>
     <div class="wins">${wins}</div>
   </section>` : ""}
