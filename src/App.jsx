@@ -1655,6 +1655,25 @@ async function fetchRogContext(company) {
 
 // ─── Competitor Guide ─────────────────────────────────────────────────────────
 
+// LogRocket's published integration catalogue, by category.
+// Source of truth: https://logrocket.com/products/integrations
+// Used as ground truth so known integrations resolve correctly without relying
+// on a web search to rediscover them.
+const LOGROCKET_INTEGRATIONS = {
+  "A/B & Feature Flags": ["AB Tasty", "Google Optimize", "LaunchDarkly", "Optimizely"],
+  "Analytics": ["Adobe Analytics", "Amplitude", "Firebase", "Google Analytics", "Heap", "Mixpanel", "Pendo", "Segment"],
+  "Customer Support": ["Drift", "FreshDesk", "Gladly", "Gorgias", "HubSpot", "Intercom", "Kustomer", "RingCentral", "Salesforce", "ServiceNow", "TalkDesk", "Zendesk", "HelpScout"],
+  "Data Warehouse": ["BigQuery", "Databricks", "Google Cloud Storage", "MySQL", "Postgres", "Redshift", "S3", "Snowflake"],
+  "Error Reporting": ["Airbrake", "BugHerd", "Bugsnag", "Errorception", "GitHub", "Jam", "Jira", "Linear", "PagerDuty", "Raygun", "Rollbar", "Sentry", "TrackJS", "Trello"],
+  "Observability": ["AppDynamics", "Datadog", "Dynatrace", "Honeybadger", "Kibana", "New Relic", "Solarwinds", "Splunk", "Sumo Logic"],
+  "Voice of Customer": ["Alchemer", "Apple App Store", "Bazaarvoice", "Canny", "Chorus.ai", "Delighted", "Doorbell", "G2", "Gong", "Google Play Store", "Jotform", "Medallia", "NiCE", "Productboard", "Qualtrics", "Survicate", "UserVoice", "Wootric"],
+  "Other": ["Google Tag Manager"],
+};
+
+const INTEGRATION_CATALOGUE_TEXT = Object.entries(LOGROCKET_INTEGRATIONS)
+  .map(([cat, names]) => `${cat}: ${names.join(", ")}`)
+  .join("\n");
+
 const COMPETITORS = [
   "PostHog", "FullStory", "Hotjar", "Datadog", "Sentry", "Pendo",
   "Amplitude", "Heap", "Glassbox", "Contentsquare", "Microsoft Clarity", "Other",
@@ -1762,17 +1781,19 @@ JSON shape:
   const integrationsPrompt = `You are a LogRocket solutions engineer. The customer needs these technologies to integrate with LogRocket:
 ${integrations}
 
-Verify against LogRocket's own documentation which of these LogRocket actually integrates with. Be efficient: 2 targeted searches of logrocket.com/integrations and docs.logrocket.com, then write.
+GROUND TRUTH — LogRocket's published integration catalogue (https://logrocket.com/products/integrations), grouped by category:
+${INTEGRATION_CATALOGUE_TEXT}
 
 Rules:
 - One entry per technology the rep listed, in the order given. Do not add or drop any.
-- "supported": true only if you found a real LogRocket integration (native, plugin, SDK, or documented API path). If you genuinely cannot confirm one, set false — never guess true.
-- "note": MAX 10 WORDS on what the integration does (e.g. "Link sessions to Jira issues"). For unsupported ones, a brief honest note.
-- Populate "sources" with the LogRocket docs/integration pages you used.
+- If the technology appears in the catalogue above (match generously — ignore case, punctuation and obvious variants such as "Github"/"GitHub", "New Relic"/"NewRelic"), set "supported": true and "category" to its catalogue category. Do NOT search for these; the catalogue is authoritative.
+- Only if a technology is NOT in the catalogue, run at most 1 web search of logrocket.com/products/integrations or docs.logrocket.com to check for a documented integration. If you still cannot confirm one, set "supported": false — never guess true.
+- "note": MAX 10 WORDS on what the integration does for this customer (e.g. "Link sessions to Jira issues", "Tie survey responses to replays"). For unsupported ones, a brief honest note.
+- Cite https://logrocket.com/products/integrations in "sources" whenever you relied on the catalogue.
 
 JSON shape:
 {
-  "integrations": [ { "name": "Jira", "supported": true, "note": "Attach session replays to Jira tickets" } ],
+  "integrations": [ { "name": "Jira", "supported": true, "category": "Error Reporting", "note": "Attach session replays to Jira tickets" } ],
   "sources": [ { "label": "What this source backs up", "url": "https://…" } ]
 }`;
 
@@ -1872,7 +1893,7 @@ JSON shape:
       ? callAnthropic({
           system: integrationsPrompt,
           maxTokens: 1200,
-          tools: searchTool(2),
+          tools: searchTool(1),
           userMessage: "Verify LogRocket's integration coverage for these technologies.",
         })
       : Promise.resolve({ integrations: [], sources: [] }),
@@ -2517,7 +2538,7 @@ function CompetitorGuide() {
             style={S.input}
             value={integrations}
             onChange={e => setIntegrations(e.target.value)}
-            placeholder="Comma-separated — e.g. Jira, Segment, Datadog, Slack, Salesforce, Sentry"
+            placeholder="Comma-separated — e.g. Qualtrics, G2, Jira, Segment, Datadog, Zendesk"
           />
           <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "6px" }}>
             The guide will confirm which of these LogRocket integrates with and show them in "One reasoning layer".
