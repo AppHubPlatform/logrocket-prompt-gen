@@ -1803,7 +1803,13 @@ ACCURACY IS CRITICAL — this is customer-facing. Verify with web_search first. 
 - G2/TrustRadius/Capterra if a strength or weakness needs backing
 Do NOT research customer references or build a full feature matrix — separate passes cover those.
 
-For "competitor_ai_timeline": find 2-4 DATED milestones in ${competitor}'s AI/assistant history (launch, major releases, acquisitions that added AI) with approximate month+year, oldest first. Use only dates you can verify — if you can only confirm one milestone, return one; if none, return []. Never invent a date, and never assign ${competitor} an accuracy or autonomy percentage — no such comparable public figure exists.
+For "competitor_ai_timeline": find 2-4 DATED milestones in ${competitor}'s AI/assistant history (launch, major releases, acquisitions that added AI) with approximate month+year, oldest first. Use only dates you can verify — if you can only confirm one milestone, return one; if none, return []. Never invent a date.
+
+Each milestone also needs "pct" — an autonomy level on the same 0-100 scale LogRocket uses (0 = human must do the analysis, 100 = the AI reaches a correct root-cause answer unaided). This is plotted against LogRocket's line, so it must be defensible, not flattering or punitive:
+- If a published head-to-head benchmark exists (e.g. the Aakash Gupta LogRocket-vs-PostHog evaluation scored Galileo 47/50 and PostHog Max 28/50 — that is 56%), convert and use it for the nearest milestone.
+- Otherwise infer conservatively from what the release can verifiably do: behavioural summaries only ≈ 20-35; adds error/code context ≈ 40-60; genuine unaided root-cause ≈ 70+.
+- Keep it monotonic or flat over time unless a release genuinely regressed.
+Also set "pct_basis": "benchmark" when a published figure backed it, otherwise "capability" — the guide labels the line as indicative so the estimate is never passed off as the competitor's own published metric.
 
 ${VERIFY_RULES}
 
@@ -1814,7 +1820,7 @@ JSON shape:
   "lede_competitor": "1-2 sentence honest summary of what ${competitor} is good at AND where it stops short (hero right column)",
   "competitor_ai_summary": "2-3 sentences on what ${competitor}'s AI does and where it stops (behavior only, no code/errors, etc.)",
   "competitor_ai_bullets": ["3 bullets on ${competitor} AI limitations plus 1 fair strength — each ONE sentence, MAX 14 WORDS. In the limitation bullets, wrap the specific missing capability in **double asterisks** for bold"],
-  "competitor_ai_timeline": [ { "date": "e.g. Mar '25", "label": "the AI capability or product shipped, MAX 4 WORDS", "note": "MAX 8 WORDS on what it does / still cannot do" } ],
+  "competitor_ai_timeline": [ { "date": "e.g. Mar '25", "label": "the AI capability or product shipped, MAX 4 WORDS", "note": "MAX 8 WORDS on what it does / still cannot do", "pct": 30, "pct_basis": "benchmark|capability" } ],
   "data_sources": [ { "name": "Errors", "note": "one line", "logrocket": true, "competitor": false }, { "name": "Sessions", "note": "…", "logrocket": true, "competitor": true }, { "name": "Backend", "note": "one line on server-side/API data — e.g. network requests, backend errors, server logs correlated to the same session", "logrocket": true, "competitor": false }, { "name": "Releases", "note": "…", "logrocket": true, "competitor": false }, { "name": "Feedback", "note": "…", "logrocket": true, "competitor": false } ],
   (return exactly these five data_sources rows, in this order; set each "logrocket"/"competitor" boolean from what you actually verified)
   "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]

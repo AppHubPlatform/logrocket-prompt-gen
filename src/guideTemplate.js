@@ -110,19 +110,8 @@ p{margin:0}
 .ai-foot a{color:inherit;text-decoration:underline}
 /* ── AI evolution timeline ── */
 .evo{background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:20px;padding:26px 28px;box-shadow:var(--shadow-marketing)}
-.evo-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-bottom:6px}
-.evo-kicker{font-family:var(--font-display);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--lr-galaxy)}
-.evo-title{font-family:var(--font-display);font-size:22px;letter-spacing:-.02em;color:var(--lr-ink);margin-bottom:14px}
-.evo-title em{font-style:normal;color:var(--lr-matter-0)}
 .evo-chart{width:100%;display:block}
-.evo-track{margin-top:18px;padding-top:16px;border-top:1px solid rgba(0,0,0,.08)}
-.evo-track h5{font-family:var(--font-display);font-size:11.5px;font-weight:450;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin:0 0 10px}
-.evo-steps{display:flex;gap:10px;align-items:stretch}
-.evo-step{flex:1;background:var(--lr-gray-5);border:1px solid var(--lr-gray-4);border-radius:12px;padding:11px 13px}
-.evo-step .when{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.04em;color:var(--text-muted);display:block;margin-bottom:3px}
-.evo-step .what{font-family:var(--font-display);font-size:13.5px;color:var(--lr-ink);line-height:1.2;display:block}
-.evo-step .why{font-size:11.5px;color:var(--text-regular);line-height:1.35;margin-top:4px;display:block}
-.evo-none{font-size:12.5px;color:var(--text-muted)}
+.evo-foot{margin-top:12px;padding-top:12px;border-top:1px solid rgba(0,0,0,.07);font-size:11px;color:var(--text-muted);line-height:1.45}
 .sources-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 .source-tile{background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:10px}
 .source-tile .glyph{width:40px;height:40px;border-radius:12px;background:var(--lr-indigo-2);color:var(--lr-galaxy);display:grid;place-items:center;font-size:20px}
@@ -206,64 +195,126 @@ function markCell(mark, text, isLr) {
 
 // Ask Galileo autonomy chart. Deterministic inline SVG (no chart library) so it
 // renders identically in the preview and in the html2canvas capture.
-function buildEvolutionChart(points) {
-  if (!points.length) return "";
-  const W = 1080, H = 300;
-  const L = 52, R = 24, T = 54, B = 42;          // margins
-  const pw = W - L - R, ph = H - T - B;
-  const x = (i) => L + (pw * i) / Math.max(points.length - 1, 1);
-  const y = (pct) => T + ph - (ph * pct) / 100;
+// Autonomy chart: LogRocket's verified milestones plus the competitor's
+// indicative line on a shared time axis. Deterministic inline SVG (no chart
+// library) so it renders identically in the preview and the html2canvas capture.
+function buildEvolutionChart(lrPoints, compPoints, competitorName) {
+  if (!lrPoints.length) return "";
 
-  // Smooth the line with mid-point cubic control points.
-  const pts = points.map((p, i) => [x(i), y(p.pct)]);
-  let path = `M ${pts[0][0]} ${pts[0][1]}`;
-  for (let i = 1; i < pts.length; i++) {
-    const [px, py] = pts[i - 1];
-    const [cx, cy] = pts[i];
-    const mx = (px + cx) / 2;
-    path += ` C ${mx} ${py}, ${mx} ${cy}, ${cx} ${cy}`;
-  }
-  const area = `${path} L ${pts[pts.length - 1][0]} ${y(0)} L ${pts[0][0]} ${y(0)} Z`;
+  const W = 1080, H = 340;
+  const L = 52, R = 26, T = 58, B = 46;
+  const pw = W - L - R, ph = H - T - B;
+
+  // Shared time axis: parse "Mon 'YY" into a sortable month index so both
+  // series sit at their true positions relative to each other.
+  const MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+  const toIndex = (label) => {
+    const m = String(label || "").match(/([A-Za-z]{3})[a-z]*\s*'?(\d{2,4})/);
+    if (!m) return null;
+    const yr = Number(m[2].length === 2 ? `20${m[2]}` : m[2]);
+    return yr * 12 + (MONTHS[m[1].toLowerCase()] ?? 0);
+  };
+
+  const lr = lrPoints.map(p => ({ ...p, t: toIndex(p.date) })).filter(p => p.t !== null);
+  const comp = (compPoints || []).map(p => ({ ...p, t: toIndex(p.date) }))
+    .filter(p => p.t !== null && Number.isFinite(Number(p.pct)))
+    .sort((a, b) => a.t - b.t);
+  if (!lr.length) return "";
+
+  const all = [...lr, ...comp];
+  const minT = Math.min(...all.map(p => p.t));
+  const maxT = Math.max(...all.map(p => p.t));
+  const span = Math.max(maxT - minT, 1);
+  const x = (t) => L + (pw * (t - minT)) / span;
+  const y = (pct) => T + ph - (ph * Math.max(0, Math.min(100, Number(pct)))) / 100;
+
+  // Smooth a series with mid-point cubics.
+  const linePath = (pts) => {
+    if (!pts.length) return "";
+    let d = `M ${pts[0][0]} ${pts[0][1]}`;
+    for (let i = 1; i < pts.length; i++) {
+      const [px, py] = pts[i - 1], [cx, cy] = pts[i];
+      const mx = (px + cx) / 2;
+      d += ` C ${mx} ${py}, ${mx} ${cy}, ${cx} ${cy}`;
+    }
+    return d;
+  };
+
+  const lrPts = lr.map(p => [x(p.t), y(p.pct)]);
+  const compPts = comp.map(p => [x(p.t), y(p.pct)]);
+  const lrPath = linePath(lrPts);
+  const lrArea = `${lrPath} L ${lrPts[lrPts.length - 1][0]} ${y(0)} L ${lrPts[0][0]} ${y(0)} Z`;
+  const compPath = linePath(compPts);
 
   const gridlines = [0, 20, 40, 60, 80, 100].map(v => `
     <line x1="${L}" y1="${y(v)}" x2="${W - R}" y2="${y(v)}" stroke="#E6DEF3" stroke-width="1" stroke-dasharray="${v === 0 ? "0" : "3 4"}"/>
     <text x="${L - 10}" y="${y(v) + 4}" text-anchor="end" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#AA82FF">${v}%</text>`).join("");
 
-  const dots = pts.map(([cx, cy], i) => {
-    const last = i === pts.length - 1;
-    return `
-    <circle cx="${cx}" cy="${cy}" r="${last ? 8 : 5}" fill="${last ? "#430A6D" : "#fff"}" stroke="${last ? "#AA82FF" : "#633FA0"}" stroke-width="${last ? 3 : 2.5}"/>`;
+  // Legend, top-right inside the plot.
+  const legend = `
+    <g font-family="Inter, sans-serif" font-size="12" font-weight="600">
+      <line x1="${W - R - 250}" y1="26" x2="${W - R - 226}" y2="26" stroke="#5B2BC4" stroke-width="3.5" stroke-linecap="round"/>
+      <circle cx="${W - R - 238}" cy="26" r="4" fill="#fff" stroke="#633FA0" stroke-width="2.5"/>
+      <text x="${W - R - 219}" y="30" fill="#3B0A63">LogRocket</text>
+      <line x1="${W - R - 130}" y1="26" x2="${W - R - 106}" y2="26" stroke="#D97856" stroke-width="3" stroke-dasharray="6 4" stroke-linecap="round"/>
+      <circle cx="${W - R - 118}" cy="26" r="4" fill="#fff" stroke="#D97856" stroke-width="2.5"/>
+      <text x="${W - R - 99}" y="30" fill="#8a5a3f">${esc(competitorName)}${comp.length ? " (indicative)" : ""}</text>
+    </g>`;
+
+  // LogRocket callouts sit above its line; competitor labels below theirs.
+  const lrDots = lrPts.map(([cx, cy], i) => {
+    const last = i === lrPts.length - 1;
+    return `<circle cx="${cx}" cy="${cy}" r="${last ? 8 : 5}" fill="${last ? "#430A6D" : "#fff"}" stroke="${last ? "#AA82FF" : "#633FA0"}" stroke-width="${last ? 3 : 2.5}"/>`;
   }).join("");
 
-  // Alternate label heights so adjacent callouts never collide.
-  const labels = points.map((p, i) => {
-    const [cx, cy] = pts[i];
-    const last = i === points.length - 1;
-    const lift = 34 + (i % 2 === 0 ? 18 : 0);
-    const ly = Math.max(14, cy - lift);
-    const boxW = Math.max(96, (p.label.length * 6.4) + 22);
-    const boxH = p.sub ? 46 : 34;
-    const bx = Math.min(Math.max(cx - boxW / 2, 4), W - boxW - 4);
+  const lrLabels = lr.map((p, i) => {
+    const [cx, cy] = lrPts[i];
+    const last = i === lr.length - 1;
+    const lift = 32 + (i % 2 === 0 ? 17 : 0);
+    const ly = Math.max(46, cy - lift);
+    const boxW = Math.max(94, p.label.length * 6.3 + 20);
+    const boxH = p.sub ? 44 : 32;
+    const bx = Math.min(Math.max(cx - boxW / 2, L - 4), W - boxW - 4);
     return `
     <line x1="${cx}" y1="${cy - (last ? 9 : 6)}" x2="${cx}" y2="${ly + boxH}" stroke="#8E86A0" stroke-width="1"/>
     <rect x="${bx}" y="${ly}" width="${boxW}" height="${boxH}" rx="7" fill="${last ? "#3B0A63" : "#2A2733"}"/>
-    <text x="${bx + boxW / 2}" y="${ly + 14}" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="${last ? "#7DE2D1" : "#fff"}">${esc(p.label)}</text>
-    ${p.sub ? `<text x="${bx + boxW / 2}" y="${ly + 27}" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" fill="#C9BFE0">${esc(p.sub)}</text>` : ""}
-    <text x="${bx + boxW / 2}" y="${ly + boxH - 7}" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="${last ? "#7DE2D1" : "#fff"}">${p.pct}%</text>`;
+    <text x="${bx + boxW / 2}" y="${ly + 13}" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" font-weight="700" fill="${last ? "#7DE2D1" : "#fff"}">${esc(p.label)}</text>
+    ${p.sub ? `<text x="${bx + boxW / 2}" y="${ly + 25}" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="#C9BFE0">${esc(p.sub)}</text>` : ""}
+    <text x="${bx + boxW / 2}" y="${ly + boxH - 7}" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="${last ? "#7DE2D1" : "#fff"}">${p.pct}%</text>`;
   }).join("");
 
-  const xlabels = points.map((p, i) => `
-    <text x="${x(i)}" y="${H - 12}" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="#633FA0">${esc(p.date)}</text>`).join("");
+  const compDots = compPts.map(([cx, cy]) =>
+    `<circle cx="${cx}" cy="${cy}" r="5" fill="#fff" stroke="#D97856" stroke-width="2.5"/>`).join("");
 
-  return `<svg class="evo-chart" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ask Galileo autonomous accuracy over time">
+  const compLabels = comp.map((p, i) => {
+    const [cx, cy] = compPts[i];
+    const boxW = Math.max(88, p.label.length * 6 + 18);
+    const boxH = 30;
+    const drop = 16 + (i % 2 === 0 ? 0 : 14);
+    const by = Math.min(cy + drop, H - B - boxH - 2);
+    const bx = Math.min(Math.max(cx - boxW / 2, L - 4), W - boxW - 4);
+    return `
+    <line x1="${cx}" y1="${cy + 6}" x2="${cx}" y2="${by}" stroke="#D9A88F" stroke-width="1"/>
+    <rect x="${bx}" y="${by}" width="${boxW}" height="${boxH}" rx="6" fill="#FFF4F0" stroke="#EBC7B4" stroke-width="1"/>
+    <text x="${bx + boxW / 2}" y="${by + 12}" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" font-weight="700" fill="#8a5a3f">${esc(p.label)}</text>
+    <text x="${bx + boxW / 2}" y="${by + 23}" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" font-weight="700" fill="#D97856">${p.pct}%</text>`;
+  }).join("");
+
+  // Date ticks for every plotted milestone across both series.
+  const ticks = [...new Map(all.map(p => [p.t, p.date])).entries()].sort((a, b) => a[0] - b[0]);
+  const xlabels = ticks.map(([t, label]) => `
+    <text x="${x(t)}" y="${H - 12}" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="700" fill="#633FA0">${esc(label)}</text>`).join("");
+
+  return `<svg class="evo-chart" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Autonomous accuracy over time: LogRocket versus ${esc(competitorName)}">
     <defs><linearGradient id="evoFill" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#8548FF" stop-opacity="0.22"/>
       <stop offset="100%" stop-color="#8548FF" stop-opacity="0.02"/>
     </linearGradient></defs>
-    ${gridlines}
-    <path d="${area}" fill="url(#evoFill)"/>
-    <path d="${path}" fill="none" stroke="#5B2BC4" stroke-width="3.5" stroke-linecap="round"/>
-    ${dots}${labels}${xlabels}
+    ${gridlines}${legend}
+    <path d="${lrArea}" fill="url(#evoFill)"/>
+    ${compPath ? `<path d="${compPath}" fill="none" stroke="#D97856" stroke-width="3" stroke-dasharray="7 5" stroke-linecap="round"/>` : ""}
+    <path d="${lrPath}" fill="none" stroke="#5B2BC4" stroke-width="3.5" stroke-linecap="round"/>
+    ${compDots}${compLabels}${lrDots}${lrLabels}${xlabels}
   </svg>`;
 }
 
@@ -288,15 +339,13 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   const compAiBullets = (Array.isArray(g.competitor_ai_bullets) ? g.competitor_ai_bullets : []).map((b, i) =>
     `<li><span class="pt ${i < 2 ? "no" : ""}">${i < 2 ? PIP_X : PIP_CHECK}</span><span>${escBold(b)}</span></li>`).join("");
 
-  const evoChart = buildEvolutionChart(Array.isArray(g.ai_timeline) ? g.ai_timeline : []);
-  const competitorSteps = (Array.isArray(g.competitor_ai_timeline) ? g.competitor_ai_timeline : [])
-    .slice(0, 4)
-    .map(s => `
-    <div class="evo-step">
-      <span class="when">${esc(s.date || "")}</span>
-      <span class="what">${esc(s.label || "")}</span>
-      ${s.note ? `<span class="why">${esc(s.note)}</span>` : ""}
-    </div>`).join("");
+  const compTimeline = (Array.isArray(g.competitor_ai_timeline) ? g.competitor_ai_timeline : []).slice(0, 4);
+  const evoChart = buildEvolutionChart(
+    Array.isArray(g.ai_timeline) ? g.ai_timeline : [],
+    compTimeline,
+    comp
+  );
+  const evoPlotted = compTimeline.some(s => Number.isFinite(Number(s.pct)));
 
   const integrationList = Array.isArray(g.integrations) ? g.integrations : [];
   const integrationChips = integrationList.map(i => `
@@ -405,15 +454,8 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
     <div class="section-eyebrow"><span class="num">02</span>AI Evolution</div>
     <h2 class="section-title">LogRocket shipped autonomy while ${comp} shipped summaries.</h2>
     <div class="evo">
-      <div class="evo-head"><span class="evo-kicker">Ask Galileo · Agent Intelligence</span></div>
-      <div class="evo-title">From human-in-loop to <em>90% autonomous accuracy</em></div>
       ${evoChart}
-      <div class="evo-track">
-        <h5>${comp} — AI milestones</h5>
-        ${competitorSteps
-          ? `<div class="evo-steps">${competitorSteps}</div>`
-          : `<p class="evo-none">No comparable dated AI milestones published by ${comp}.</p>`}
-      </div>
+      <p class="evo-foot">Autonomous accuracy — the share of questions the assistant answers to a correct root cause unaided. LogRocket figures are measured internally.${evoPlotted ? ` ${comp} is indicative, inferred from its published AI capabilities at each release.` : ` No comparable dated AI milestones published by ${comp}.`}</p>
     </div>
   </section>
 
