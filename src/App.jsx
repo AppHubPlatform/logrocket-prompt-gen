@@ -1731,22 +1731,20 @@ async function generateCompetitorGuide({ competitor, company, industry, size, in
     size ? `Company size: ${size}` : "",
   ].filter(Boolean).join("\n");
 
-  // ── Call 1: verified competitor facts (web search) ──────────────────────
-  const researchPrompt = `You are a competitive strategy expert at LogRocket. Research ${competitor} and return verified, citable facts comparing it to LogRocket.
+  const VERIFY_RULES = `- Do NOT state any feature, pricing, rating, or capability claim you have not verified. Omit or hedge instead.
+- Populate "sources" with the URLs you actually used.`;
+
+  // ── Call 1a: competitor capabilities (web search) ────────────────────────
+  const competitorPrompt = `You are a competitive strategy expert at LogRocket. Research ${competitor}'s product and return verified, citable facts comparing its capabilities to LogRocket's.
 
 ${audience}
 
-ACCURACY IS CRITICAL — this is customer-facing. Verify claims with web_search before writing them. Be efficient: run 3-5 targeted searches, then write. Cover:
-- ${competitor}'s own site (capabilities, positioning) and logrocket.com
-- logrocket.com/customers + LogRocket case studies (real named customers)
+ACCURACY IS CRITICAL — this is customer-facing. Verify with web_search first. Be efficient: 2-3 targeted searches, then write. Search only:
+- ${competitor}'s own site (capabilities, AI features, positioning)
 - G2/TrustRadius/Capterra if a rating or strength/weakness is needed
+Do NOT research customer references — a separate pass covers those.
 
-- Do NOT state any feature, pricing, rating, or capability claim you have not verified. Omit or hedge instead.
-- Populate "sources" with the URLs you actually used.
-
-${rogExamples ? `Rog data (LogRocket's internal customer intelligence — prefer these named customers and their facts):\n${rogExamples}` : `No Rog customer data was provided.`}
-
-CUSTOMER EXAMPLES — must be REAL, NAMED customers. Never output an anonymized profile like "A mid-market fintech". Draw on BOTH the Rog data above and LogRocket's publicly documented customers (logrocket.com/customers, case studies, testimonials). Prefer companies${industry ? ` in or adjacent to ${industry}` : ""}${size ? ` of a similar size to ${size}` : ""}, especially any that switched from or evaluated ${competitor}. Only use quotes, numbers and "replaced" values that actually appear in a source — never invent them (a real customer with no published stats gets an empty "stats" array). If you cannot verify ANY real named customer, return [].
+${VERIFY_RULES}
 
 ${LENGTH_RULES}
 
@@ -1757,6 +1755,26 @@ JSON shape:
   "competitor_ai_bullets": ["3 bullets on ${competitor} AI limitations plus 1 fair strength — each ONE sentence, MAX 14 WORDS. In the limitation bullets, wrap the specific missing capability in **double asterisks** for bold"],
   "data_sources": [ { "name": "Errors", "note": "one line", "logrocket": true, "competitor": false }, { "name": "Sessions", "note": "…", "logrocket": true, "competitor": true }, { "name": "Releases", "note": "…", "logrocket": true, "competitor": false }, { "name": "Feedback", "note": "…", "logrocket": true, "competitor": false } ],
   ${includeFeatureComparison ? `"feature_comparison": [ { "feature": "Session Replay", "logrocket": "short text", "logrocket_mark": "full|partial|none", "competitor": "short text", "competitor_mark": "full|partial|none" }, … ${featureFocus && featureFocus.trim() ? `one row for EACH of these rep-specified capabilities (in this order), plus any clearly essential: ${featureFocus.trim()}` : "5-7 rows covering the capabilities that matter most to this buyer"} ],` : `"feature_comparison": [],`}
+  "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
+}`;
+
+  // ── Call 1b: real customer proof (web search, runs alongside 1a) ─────────
+  const customerPrompt = `You are a competitive strategy expert at LogRocket. Find REAL, NAMED LogRocket customers to use as proof points for a guide positioning LogRocket against ${competitor}.
+
+${audience}
+
+Be efficient: 2-3 targeted searches of logrocket.com/customers, LogRocket case studies, and published testimonials. Do NOT research ${competitor}'s feature set — a separate pass covers that.
+
+${rogExamples ? `Rog data (LogRocket's internal customer intelligence — prefer these named customers and their facts):\n${rogExamples}` : `No Rog customer data was provided.`}
+
+Must be REAL, NAMED customers. Never output an anonymized profile like "A mid-market fintech". Draw on BOTH the Rog data above and LogRocket's publicly documented customers. Prefer companies${industry ? ` in or adjacent to ${industry}` : ""}${size ? ` of a similar size to ${size}` : ""}, especially any that switched from or evaluated ${competitor}. Only use quotes, numbers and "replaced" values that actually appear in a source — never invent them (a real customer with no published stats gets an empty "stats" array). Return at most 2 customers. If you cannot verify ANY real named customer, return [].
+
+${VERIFY_RULES}
+
+${LENGTH_RULES}
+
+JSON shape:
+{
   "customer_examples": [ { "name": "REAL company name", "profile": "industry + size", "quote": "real quote if present in a source, else empty string", "outcome": "the result/win in ONE sentence", "stats": [ { "num": "e.g. 30%", "label": "what it measures" } ], "replaced": "competitor they replaced, only if a source states it, else empty" } ],
   "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
 }`;
@@ -1790,18 +1808,33 @@ JSON shape:
   "discovery_questions": ["3-5 discovery questions, each ONE sentence, that expose ${competitor} gaps and surface LogRocket value"]
 }`;
 
-  const [messaging, research] = await Promise.all([
+  // All three run concurrently; wall time is the slowest one, not the sum.
+  const searchTool = (maxUses) => [{ type: "web_search_20250305", name: "web_search", max_uses: maxUses }];
+  const [messaging, competitorFacts, customerProof] = await Promise.all([
     callAnthropic({ system: messagingPrompt, maxTokens: 2500, userMessage: "Write the positioning copy." }),
     callAnthropic({
-      system: researchPrompt,
-      maxTokens: 4000,
-      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
-      userMessage: "Research and return the verified comparison facts.",
+      system: competitorPrompt,
+      maxTokens: 3000,
+      tools: searchTool(3),
+      userMessage: "Research and return the verified capability comparison.",
+    }),
+    callAnthropic({
+      system: customerPrompt,
+      maxTokens: 1500,
+      tools: searchTool(3),
+      userMessage: "Find the real named customer proof points.",
     }),
   ]);
 
-  // Research wins on any overlapping key — it's the verified half.
-  return { ...messaging, ...research };
+  // Merge the two searched passes' citations, de-duped by URL.
+  const sources = [];
+  const seen = new Set();
+  [...(competitorFacts.sources || []), ...(customerProof.sources || [])].forEach(s => {
+    if (s?.url && !seen.has(s.url)) { seen.add(s.url); sources.push(s); }
+  });
+
+  // Searched results win over messaging on any overlapping key — they're verified.
+  return { ...messaging, ...competitorFacts, ...customerProof, sources };
 }
 
 async function exportGuideToPdf({ guide, competitor, customer }) {
