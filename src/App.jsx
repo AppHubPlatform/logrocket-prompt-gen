@@ -1734,15 +1734,15 @@ async function generateCompetitorGuide({ competitor, company, industry, size, in
   const VERIFY_RULES = `- Do NOT state any feature, pricing, rating, or capability claim you have not verified. Omit or hedge instead.
 - Populate "sources" with the URLs you actually used.`;
 
-  // ── Call 1a: competitor capabilities (web search) ────────────────────────
-  const competitorPrompt = `You are a competitive strategy expert at LogRocket. Research ${competitor}'s product and return verified, citable facts comparing its capabilities to LogRocket's.
+  // ── Call 1a: competitor AI + data-source coverage (web search) ───────────
+  const competitorPrompt = `You are a competitive strategy expert at LogRocket. Research ${competitor}'s AI assistant and what data it can reason over, versus LogRocket's.
 
 ${audience}
 
-ACCURACY IS CRITICAL — this is customer-facing. Verify with web_search first. Be efficient: 2-3 targeted searches, then write. Search only:
-- ${competitor}'s own site (capabilities, AI features, positioning)
-- G2/TrustRadius/Capterra if a rating or strength/weakness is needed
-Do NOT research customer references — a separate pass covers those.
+ACCURACY IS CRITICAL — this is customer-facing. Verify with web_search first. Be efficient: 2 targeted searches, then write. Search only:
+- ${competitor}'s own site (AI/assistant features, what data it covers)
+- G2/TrustRadius/Capterra if a strength or weakness needs backing
+Do NOT research customer references or build a full feature matrix — separate passes cover those.
 
 ${VERIFY_RULES}
 
@@ -1754,7 +1754,23 @@ JSON shape:
   "competitor_ai_summary": "2-3 sentences on what ${competitor}'s AI does and where it stops (behavior only, no code/errors, etc.)",
   "competitor_ai_bullets": ["3 bullets on ${competitor} AI limitations plus 1 fair strength — each ONE sentence, MAX 14 WORDS. In the limitation bullets, wrap the specific missing capability in **double asterisks** for bold"],
   "data_sources": [ { "name": "Errors", "note": "one line", "logrocket": true, "competitor": false }, { "name": "Sessions", "note": "…", "logrocket": true, "competitor": true }, { "name": "Releases", "note": "…", "logrocket": true, "competitor": false }, { "name": "Feedback", "note": "…", "logrocket": true, "competitor": false } ],
-  ${includeFeatureComparison ? `"feature_comparison": [ { "feature": "Session Replay", "logrocket": "short text", "logrocket_mark": "full|partial|none", "competitor": "short text", "competitor_mark": "full|partial|none" }, … ${featureFocus && featureFocus.trim() ? `one row for EACH of these rep-specified capabilities (in this order), plus any clearly essential: ${featureFocus.trim()}` : "5-7 rows covering the capabilities that matter most to this buyer"} ],` : `"feature_comparison": [],`}
+  "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
+}`;
+
+  // ── Call 1c: feature matrix only (web search, runs alongside 1a/1b) ──────
+  const matrixPrompt = `You are a competitive strategy expert at LogRocket. Build ONLY the capability comparison table for LogRocket vs ${competitor}.
+
+${audience}
+
+ACCURACY IS CRITICAL — this is customer-facing. Verify with web_search first: 2 targeted searches of ${competitor}'s own site (and logrocket.com if needed), then write. Nothing else — other passes handle the AI comparison and customer proof.
+
+${VERIFY_RULES}
+
+${LENGTH_RULES}
+
+JSON shape:
+{
+  "feature_comparison": [ { "feature": "Session Replay", "logrocket": "short text", "logrocket_mark": "full|partial|none", "competitor": "short text", "competitor_mark": "full|partial|none" }, … ${featureFocus && featureFocus.trim() ? `one row for EACH of these rep-specified capabilities (in this order), plus any clearly essential: ${featureFocus.trim()}` : "5-7 rows covering the capabilities that matter most to this buyer"} ],
   "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
 }`;
 
@@ -1808,15 +1824,16 @@ JSON shape:
   "discovery_questions": ["3-5 discovery questions, each ONE sentence, that expose ${competitor} gaps and surface LogRocket value"]
 }`;
 
-  // All three run concurrently; wall time is the slowest one, not the sum.
+  // All passes run concurrently; wall time is the slowest one, not the sum.
+  // The matrix pass is skipped entirely when the rep opted out of the table.
   const searchTool = (maxUses) => [{ type: "web_search_20250305", name: "web_search", max_uses: maxUses }];
-  const [messaging, competitorFacts, customerProof] = await Promise.all([
+  const [messaging, competitorFacts, customerProof, matrix] = await Promise.all([
     callAnthropic({ system: messagingPrompt, maxTokens: 2500, userMessage: "Write the positioning copy." }),
     callAnthropic({
       system: competitorPrompt,
-      maxTokens: 3000,
-      tools: searchTool(3),
-      userMessage: "Research and return the verified capability comparison.",
+      maxTokens: 1800,
+      tools: searchTool(2),
+      userMessage: "Research and return the verified AI comparison and data-source coverage.",
     }),
     callAnthropic({
       system: customerPrompt,
@@ -1824,17 +1841,25 @@ JSON shape:
       tools: searchTool(3),
       userMessage: "Find the real named customer proof points.",
     }),
+    includeFeatureComparison
+      ? callAnthropic({
+          system: matrixPrompt,
+          maxTokens: 1800,
+          tools: searchTool(2),
+          userMessage: "Build the verified capability comparison table.",
+        })
+      : Promise.resolve({ feature_comparison: [], sources: [] }),
   ]);
 
-  // Merge the two searched passes' citations, de-duped by URL.
+  // Merge every searched pass's citations, de-duped by URL.
   const sources = [];
   const seen = new Set();
-  [...(competitorFacts.sources || []), ...(customerProof.sources || [])].forEach(s => {
+  [...(competitorFacts.sources || []), ...(customerProof.sources || []), ...(matrix.sources || [])].forEach(s => {
     if (s?.url && !seen.has(s.url)) { seen.add(s.url); sources.push(s); }
   });
 
   // Searched results win over messaging on any overlapping key — they're verified.
-  return { ...messaging, ...competitorFacts, ...customerProof, sources };
+  return { ...messaging, ...competitorFacts, ...customerProof, feature_comparison: matrix.feature_comparison || [], sources };
 }
 
 async function exportGuideToPdf({ guide, competitor, customer }) {
