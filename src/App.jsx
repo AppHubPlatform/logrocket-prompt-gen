@@ -1670,9 +1670,34 @@ const LOGROCKET_INTEGRATIONS = {
   "Other": ["Google Tag Manager"],
 };
 
+// Fallback text, used only if the live catalogue fetch fails.
 const INTEGRATION_CATALOGUE_TEXT = Object.entries(LOGROCKET_INTEGRATIONS)
   .map(([cat, names]) => `${cat}: ${names.join(", ")}`)
   .join("\n");
+
+// Pulls the live catalogue (name + category + LogRocket's own description) so the
+// guide reflects the current published list. Falls back to the bundled snapshot.
+async function fetchIntegrationCatalogueText() {
+  try {
+    const res = await fetch("/api/integrations");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { integrations } = await res.json();
+    if (!Array.isArray(integrations) || integrations.length < 20) throw new Error("catalogue too short");
+    const byCategory = {};
+    integrations.forEach(i => {
+      (byCategory[i.category || "Other"] ||= []).push(
+        i.description ? `${i.name} (${i.description})` : i.name
+      );
+    });
+    return {
+      text: Object.entries(byCategory).map(([cat, list]) => `${cat}:\n  - ${list.join("\n  - ")}`).join("\n"),
+      live: true,
+      count: integrations.length,
+    };
+  } catch {
+    return { text: INTEGRATION_CATALOGUE_TEXT, live: false, count: 0 };
+  }
+}
 
 const COMPETITORS = [
   "PostHog", "FullStory", "Hotjar", "Datadog", "Sentry", "Pendo",
@@ -1778,17 +1803,21 @@ JSON shape:
 }`;
 
   // ── Call 1d: LogRocket integration coverage for the customer's stack ─────
+  // Pull the live catalogue only when we actually need it.
+  const catalogue = integrations.trim()
+    ? await fetchIntegrationCatalogueText()
+    : { text: INTEGRATION_CATALOGUE_TEXT, live: false };
   const integrationsPrompt = `You are a LogRocket solutions engineer. The customer needs these technologies to integrate with LogRocket:
 ${integrations}
 
-GROUND TRUTH — LogRocket's published integration catalogue (https://logrocket.com/products/integrations), grouped by category:
-${INTEGRATION_CATALOGUE_TEXT}
+GROUND TRUTH — LogRocket's published integration catalogue (https://logrocket.com/products/integrations), grouped by category, with LogRocket's own description in parentheses:
+${catalogue.text}
 
 Rules:
 - One entry per technology the rep listed, in the order given. Do not add or drop any.
 - If the technology appears in the catalogue above (match generously — ignore case, punctuation and obvious variants such as "Github"/"GitHub", "New Relic"/"NewRelic"), set "supported": true and "category" to its catalogue category. Do NOT search for these; the catalogue is authoritative.
 - Only if a technology is NOT in the catalogue, run at most 1 web search of logrocket.com/products/integrations or docs.logrocket.com to check for a documented integration. If you still cannot confirm one, set "supported": false — never guess true.
-- "note": MAX 10 WORDS on what the integration does for this customer (e.g. "Link sessions to Jira issues", "Tie survey responses to replays"). For unsupported ones, a brief honest note.
+- "note": MAX 10 WORDS on what the integration does. When the catalogue gives a description, base the note on it rather than inventing one. For unsupported ones, a brief honest note.
 - Cite https://logrocket.com/products/integrations in "sources" whenever you relied on the catalogue.
 
 JSON shape:

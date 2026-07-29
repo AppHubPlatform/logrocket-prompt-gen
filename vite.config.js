@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import { fetchIntegrationCatalogue, CATALOGUE_URL } from './api/_integrationCatalogue.js'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
@@ -14,6 +15,23 @@ export default defineConfig(({ mode }) => {
           server.middlewares.use('/api/me', (_req, res) => {
             res.setHeader('Content-Type', 'application/json')
             res.end(JSON.stringify({ email: null }))
+          })
+        },
+      },
+      {
+        // Mirrors the Express /api/integrations route in dev: fetches and parses
+        // LogRocket's live integration catalogue server-side (avoids CORS).
+        name: 'dev-api-integrations',
+        configureServer(server) {
+          server.middlewares.use('/api/integrations', async (_req, res) => {
+            res.setHeader('Content-Type', 'application/json')
+            try {
+              const integrations = await fetchIntegrationCatalogue()
+              res.end(JSON.stringify({ source: CATALOGUE_URL, count: integrations.length, integrations }))
+            } catch (e) {
+              res.statusCode = 502
+              res.end(JSON.stringify({ error: e.message }))
+            }
           })
         },
       },
