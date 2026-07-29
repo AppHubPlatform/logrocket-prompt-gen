@@ -113,7 +113,7 @@ p{margin:0}
 .source-tile .glyph{width:40px;height:40px;border-radius:12px;background:var(--lr-indigo-2);color:var(--lr-galaxy);display:grid;place-items:center;font-size:20px}
 .source-tile h4{font-family:var(--font-display);font-size:17px;color:var(--lr-ink)}
 .source-tile p{font-size:12.5px;color:var(--text-regular);line-height:1.45;flex:1}
-.source-tile .cover{display:flex;gap:12px;padding-top:10px;border-top:1px solid rgba(0,0,0,.06);font-size:11.5px;font-family:var(--font-display)}
+.source-tile .cover{display:flex;flex-wrap:wrap;column-gap:12px;row-gap:5px;padding-top:10px;border-top:1px solid rgba(0,0,0,.06);font-size:11.5px;font-family:var(--font-display)}
 .source-tile .cover span{display:inline-flex;align-items:center;gap:5px}
 .source-tile .cover .yes{color:var(--lr-galaxy)}
 .source-tile .cover .no{color:var(--text-muted)}
@@ -200,7 +200,8 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   const compAiBullets = (Array.isArray(g.competitor_ai_bullets) ? g.competitor_ai_bullets : []).map((b, i) =>
     `<li><span class="pt ${i < 2 ? "no" : ""}">${i < 2 ? PIP_X : PIP_CHECK}</span><span>${escBold(b)}</span></li>`).join("");
 
-  const dataTiles = (Array.isArray(g.data_sources) ? g.data_sources : []).map(d => `
+  const dataSourceList = Array.isArray(g.data_sources) ? g.data_sources : [];
+  const dataTiles = dataSourceList.map(d => `
     <div class="source-tile">
       <div class="glyph">◆</div>
       <h4>${esc(d.name)}</h4>
@@ -297,7 +298,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   ${dataTiles ? `<section>
     <div class="section-eyebrow"><span class="num">02</span>One Reasoning Layer</div>
     <h2 class="section-title">Galileo reasons across <em>every</em> data source. ${comp} sees a slice.</h2>
-    <div class="sources-grid">${dataTiles}</div>
+    <div class="sources-grid" style="grid-template-columns:repeat(${Math.min(Math.max(dataSourceList.length, 1), 5)},1fr)">${dataTiles}</div>
   </section>` : ""}
 
   ${rows ? `<section>
