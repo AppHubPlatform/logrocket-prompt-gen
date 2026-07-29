@@ -1709,6 +1709,10 @@ const GUIDE_INDUSTRIES = [
   "Travel & Hospitality", "Marketplace", "Education", "Gaming", "Other",
 ];
 
+const GUIDE_PERSONAS = [
+  "Product", "Marketing", "Engineering", "Support", "Executive", "UI/Design",
+];
+
 const COMPANY_SIZES = [
   "1–50 employees", "51–200 employees", "201–1,000 employees",
   "1,001–5,000 employees", "5,000+ employees",
@@ -1768,11 +1772,12 @@ async function callAnthropic({ system, tools, maxTokens, userMessage }) {
   return JSON.parse(text.slice(start, end + 1));
 }
 
-async function generateCompetitorGuide({ competitor, company, industry, size, includeFeatureComparison, featureFocus, integrations = "", rogExamples }) {
+async function generateCompetitorGuide({ competitor, company, industry, size, persona, includeFeatureComparison, featureFocus, integrations = "", rogExamples }) {
   const audience = [
     company ? `Prospect/customer: ${company}` : "",
     industry ? `Industry: ${industry}` : "",
     size ? `Company size: ${size}` : "",
+    persona ? `Primary persona this guide is for: ${persona} — frame the value, examples and language for what a ${persona} audience cares about` : "",
   ].filter(Boolean).join("\n");
 
   const VERIFY_RULES = `- Do NOT state any feature, pricing, rating, or capability claim you have not verified. Omit or hedge instead.
@@ -1882,7 +1887,7 @@ JSON shape:
   "headline": "One-line positioning statement — LogRocket's core promise vs ${competitor}",
   "overview": "2-3 sentence overview framing the comparison for this specific prospect",
   "lede_logrocket": "1-2 sentence 'the full picture' pitch for LogRocket (hero left column)",
-  "ai_example_question": "A short, realistic question a ${industry || "product"} team would ask their AI assistant (e.g. 'Why did checkout drop 18% on Tuesday?'). ILLUSTRATIVE demo scenario, not a claim about the real prospect.",
+  "ai_example_question": "A short, realistic question a ${persona || industry || "product"} team would ask their AI assistant (e.g. 'Why did checkout drop 18% on Tuesday?'). ILLUSTRATIVE demo scenario, not a claim about the real prospect.",
   "ai_example_lr_answer": "How Ask Galileo would answer — MAX 30 WORDS, 1-2 clipped sentences. Name the root cause + the release or code detail. Terse and telegraphic; no preamble, no hedging. ILLUSTRATIVE example. Wrap the specific details ${competitor} could NOT surface (release/deploy, source-mapped error, code-level cause) in **double asterisks** for bold.",
   "ai_example_competitor_answer": "How ${competitor}'s AI would answer the SAME question — MAX 30 WORDS, 1-2 clipped sentences. Behavioral symptoms only (drop-off, rage clicks, which page), no root cause. Terse. Wrap the explicit gap (e.g. **No root cause identified**) in **double asterisks** for bold.",
   "ai_accuracy": "2-3 sentences making message #1 concrete for this prospect. End by citing the independent study.",
@@ -2434,6 +2439,7 @@ function CompetitorGuide() {
   const [company, setCompany] = useState("");
   const [industry, setIndustry] = useState("");
   const [size, setSize] = useState("");
+  const [persona, setPersona] = useState("");
   const [includeFeatureComparison, setIncludeFeatureComparison] = useState(true);
   const [featureFocus, setFeatureFocus] = useState("");
   const [integrations, setIntegrations] = useState("");
@@ -2474,14 +2480,14 @@ function CompetitorGuide() {
         }
       }
       setRogStatus("Researching and writing the guide…");
-      const g = await generateCompetitorGuide({ competitor, company, industry, size, includeFeatureComparison, featureFocus, integrations, rogExamples: rog });
+      const g = await generateCompetitorGuide({ competitor, company, industry, size, persona, includeFeatureComparison, featureFocus, integrations, rogExamples: rog });
       // Hard-guarantee the toggle: if the rep opted out, drop the comparison so
       // it's absent from both the on-screen preview and the PDF, regardless of
       // what the model returned.
       if (!includeFeatureComparison) g.feature_comparison = [];
       setGuide(g);
       if (company && !pdfCustomer) setPdfCustomer(company);
-      LogRocket.track("Competitor Guide Generated", { competitor, industry, size });
+      LogRocket.track("Competitor Guide Generated", { competitor, industry, size, persona });
     } catch (e) {
       LogRocket.captureException(e, { tags: { source: "competitor-guide" } });
       setError(e.message);
@@ -2553,12 +2559,21 @@ function CompetitorGuide() {
           </div>
         </div>
 
-        <div style={{ marginBottom: "16px" }}>
-          <label style={S.fieldLabel}>Company size</label>
-          <select style={S.select} value={size} onChange={e => setSize(e.target.value)}>
-            <option value="">Select size…</option>
-            {COMPANY_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+        <div style={S.fieldGrid}>
+          <div>
+            <label style={S.fieldLabel}>Company size</label>
+            <select style={S.select} value={size} onChange={e => setSize(e.target.value)}>
+              <option value="">Select size…</option>
+              {COMPANY_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={S.fieldLabel}>Persona you're speaking to</label>
+            <select style={S.select} value={persona} onChange={e => setPersona(e.target.value)}>
+              <option value="">Select persona…</option>
+              {GUIDE_PERSONAS.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
         </div>
 
         <div style={{ marginBottom: "16px" }}>
