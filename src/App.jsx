@@ -1831,14 +1831,19 @@ Do NOT research customer references or build a full feature matrix — separate 
 
 For "competitor_ai_timeline": find the dated releases of ${competitor}'s AI AGENT — and nothing else — with approximate month+year, oldest first. This is plotted against LogRocket's Ask Galileo agent timeline, so it must be agent-to-agent.
 
-An AI agent is a named assistant/copilot a user asks questions of in natural language, or that autonomously investigates and returns an answer — e.g. Ask Galileo, PostHog Max, Glassbox GIA. Include its initial GA release and any subsequent releases that materially expanded what the agent can reason over or answer.
+An AI agent is a named assistant/copilot a user asks questions of in natural language, or that autonomously investigates and returns an answer — e.g. Ask Galileo, PostHog Max, Glassbox GIA. Include its GA release and any subsequent GA releases that materially expanded what the agent can reason over or answer.
 
-EXCLUDE everything that is not the agent itself, even when it is AI or ML powered:
+GA ONLY. Every date must be a general-availability date — the agent released to all customers on a standard plan.
+- If the agent ran as beta/preview/early access before GA, use the GA date, never the beta announcement date.
+- If it is still in beta, preview, early access, limited availability, waitlist or design-partner-only, EXCLUDE it entirely — do not plot it and do not treat the beta date as GA.
+- If you can confirm a beta but cannot confirm a GA date, leave that milestone out rather than substituting the beta date.
+
+EXCLUDE everything that is not the GA agent itself, even when it is AI or ML powered:
 - AI/ML features that are not an agent — anomaly detection, auto-insights, funnel or friction scoring, sentiment analysis, predictive metrics, smart search ranking, session-signal detectors (e.g. "Voice of the Silent"-style ML signals), autocapture improvements.
-- Funding rounds and "AI investment" announcements; partnerships; acquisitions (unless the acquired agent itself shipped in ${competitor}'s product, dated to that ship date).
-- Roadmap, "coming soon", private beta or preview announcements; talks, blog posts or analyst mentions with no released agent.
+- Funding rounds and "AI investment" announcements; partnerships; acquisitions (unless the acquired agent itself reached GA in ${competitor}'s product, dated to that GA date).
+- Roadmap and "coming soon" announcements; talks, blog posts or analyst mentions with no GA agent.
 
-Return at most 4. If a release date cannot be verified, leave it out. Returning 1 — or [] when ${competitor} has no AI agent at all — is correct and expected. Never invent a date, and never substitute a non-agent AI feature to fill the timeline.
+Return at most 4. Returning 1 — or [] when ${competitor} has no GA AI agent — is correct and expected. Never invent a date, never substitute a non-agent AI feature, and never pass a beta off as GA.
 
 Each milestone also needs "pct" — an autonomy level on the same 0-100 scale LogRocket uses (0 = human must do the analysis, 100 = the AI reaches a correct root-cause answer unaided). This is plotted against LogRocket's line, so it must be defensible, not flattering or punitive:
 - If a published head-to-head benchmark exists (e.g. the Aakash Gupta LogRocket-vs-PostHog evaluation scored Galileo 47/50 and PostHog Max 28/50 — that is 56%), convert and use it for the nearest milestone.
