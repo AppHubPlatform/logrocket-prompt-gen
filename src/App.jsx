@@ -1724,6 +1724,38 @@ const AI_STUDY_URL = "https://www.linkedin.com/posts/matthew-arbesfeld-04b5429b_
 
 // Ask Galileo's autonomy milestones — LogRocket's own internal figures, so these
 // are fixed rather than researched. Percentages are autonomous-accuracy.
+// Verified competitor copy that must not be left to the model. Research gets a
+// competitor's capabilities right most of the time but not every time, and a wrong
+// note here is the kind of thing a prospect corrects live. Anything listed below
+// overrides the generated note for that competitor + data source.
+// Keys are matched case-insensitively.
+const CURATED_COMPETITOR_NOTES = {
+  fullstory: {
+    releases: {
+      competitor: true,
+      competitor_note: "Ask StoryAI Launch Analysis assesses behavioral impact post-release, but is behavioral only — no deploy marker or error-regression grouping",
+    },
+  },
+};
+
+// Applies the curated notes over whatever the research pass returned, adding the
+// data source if it came back missing entirely.
+function applyCuratedNotes(dataSources, competitor) {
+  const curated = CURATED_COMPETITOR_NOTES[String(competitor || "").trim().toLowerCase()];
+  if (!curated) return dataSources;
+  const out = (Array.isArray(dataSources) ? dataSources : []).map(d => {
+    const override = curated[String(d.name || "").trim().toLowerCase()];
+    return override ? { ...d, ...override } : d;
+  });
+  // Any curated source the model omitted still needs to appear.
+  Object.entries(curated).forEach(([key, override]) => {
+    if (!out.some(d => String(d.name || "").trim().toLowerCase() === key)) {
+      out.push({ name: key.charAt(0).toUpperCase() + key.slice(1), logrocket: true, logrocket_note: "", ...override });
+    }
+  });
+  return out;
+}
+
 const LOGROCKET_AI_TIMELINE = [
   { date: "Jan '25", label: "Human-in-the-Loop", sub: "", pct: 0 },
   { date: "May '25", label: "Analytics Only", sub: "", pct: 30 },
@@ -2577,6 +2609,8 @@ function CompetitorGuide() {
       // it's absent from both the on-screen preview and the PDF, regardless of
       // what the model returned.
       if (!includeFeatureComparison) g.feature_comparison = [];
+      // Verified competitor copy wins over the research pass.
+      g.data_sources = applyCuratedNotes(g.data_sources, competitor);
       setGuide(g);
       if (company && !pdfCustomer) setPdfCustomer(company);
       LogRocket.track("Competitor Guide Generated", { competitor, industry, size, persona });
