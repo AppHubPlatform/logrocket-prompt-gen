@@ -113,26 +113,30 @@ p{margin:0}
 .evo-chart{width:100%;display:block}
 .evo-foot{margin-top:12px;padding-top:12px;border-top:1px solid rgba(0,0,0,.07);font-size:11px;color:var(--text-muted);line-height:1.45}
 .sources-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.source-tile{background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:10px}
-.source-tile .glyph{width:40px;height:40px;border-radius:12px;background:var(--lr-indigo-2);color:var(--lr-galaxy);display:grid;place-items:center;font-size:20px}
-.source-tile h4{font-family:var(--font-display);font-size:17px;color:var(--lr-ink)}
-.source-tile p{font-size:12.5px;color:var(--text-regular);line-height:1.45;flex:1}
-.source-tile .cover{display:flex;flex-wrap:wrap;column-gap:12px;row-gap:5px;padding-top:10px;border-top:1px solid rgba(0,0,0,.06);font-size:11.5px;font-family:var(--font-display)}
-.source-tile .cover span{display:inline-flex;align-items:center;gap:5px}
-.source-tile .cover .yes{color:var(--lr-galaxy)}
-.source-tile .cover .no{color:var(--text-muted)}
-.source-tile .cover .pip{width:14px;height:14px;border-radius:9999px;display:grid;place-items:center;flex-shrink:0;font-size:9px}
-.source-tile .cover .yes .pip{background:var(--lr-galaxy);color:#fff}
-.integrations{margin-top:16px;padding-top:16px;border-top:1px solid rgba(0,0,0,.08)}
-.integrations h5{font-family:var(--font-display);font-size:12px;font-weight:450;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin:0 0 10px}
-.integ-chips{display:flex;flex-wrap:wrap;gap:8px}
-.integ-chip{display:inline-flex;align-items:center;gap:7px;font-family:var(--font-display);font-size:12.5px;padding:7px 13px;border-radius:9999px;border:1px solid}
-.integ-chip .pip{width:15px;height:15px;border-radius:9999px;display:grid;place-items:center;font-size:9px;flex-shrink:0}
-.integ-chip .note{font-family:var(--font-body);font-size:11px;opacity:.75}
-.integ-chip.yes{background:var(--lr-indigo-2);color:var(--lr-galaxy);border-color:rgba(99,63,160,.22)}
-.integ-chip.yes .pip{background:var(--lr-galaxy);color:#fff}
-.integ-chip.no{background:var(--lr-gray-5);color:var(--text-muted);border-color:var(--lr-gray-4)}
-.integ-chip.no .pip{background:#fff;color:var(--lr-gray-2);border:1px solid var(--lr-gray-4)}
+.ds-row-label{display:flex;align-items:center;gap:8px;font-family:var(--font-display);font-size:11.5px;font-weight:450;letter-spacing:.12em;text-transform:uppercase;margin:0 0 9px}
+.ds-row-label .swatch{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+.ds-row-label.lr{color:var(--lr-galaxy)}
+.ds-row-label.lr .swatch{background:var(--lr-galaxy)}
+.ds-row-label.them{color:var(--text-muted);margin-top:16px}
+.ds-row-label.them .swatch{background:var(--lr-gray-3, #B6BECC)}
+.source-tile{background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:8px}
+.source-tile h4{font-family:var(--font-display);font-size:15px;color:var(--lr-ink);display:flex;align-items:center;gap:7px}
+.source-tile h4 .pip{width:16px;height:16px;border-radius:9999px;display:grid;place-items:center;font-size:9.5px;flex-shrink:0}
+.source-tile p{font-size:12px;color:var(--text-regular);line-height:1.4;flex:1;margin:0}
+/* LogRocket row */
+.source-tile.lr{border-color:rgba(99,63,160,.22);background:linear-gradient(180deg,#FCFAFF 0%,#fff 55%)}
+.source-tile.lr h4 .pip{background:var(--lr-galaxy);color:#fff}
+/* Competitor row */
+.source-tile.them{background:var(--lr-gray-5)}
+.source-tile.them h4{color:var(--text-regular)}
+.source-tile.them h4 .pip{background:#fff;color:var(--lr-gray-2);border:1px solid var(--lr-gray-4)}
+.source-tile.them.has h4 .pip{background:var(--lr-gray-2);color:#fff;border:0}
+.source-tile.them p{color:var(--text-muted)}
+/* Integrations, inside the LogRocket card they belong to */
+.ds-integ{margin-top:2px;padding-top:9px;border-top:1px solid rgba(99,63,160,.14)}
+.ds-integ .lbl{display:block;font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px}
+.ds-integ .chips{display:flex;flex-wrap:wrap;gap:4px}
+.ds-integ .chip{font-family:var(--font-display);font-size:10.5px;padding:3px 8px;border-radius:9999px;background:var(--lr-indigo-2);color:var(--lr-galaxy);border:1px solid rgba(99,63,160,.2)}
 .source-tile .cover .no .pip{background:var(--lr-gray-5);color:var(--lr-gray-2);border:1px solid var(--lr-gray-4)}
 .matrix{background:#fff;border-radius:20px;overflow:hidden;border:1px solid rgba(0,0,0,.08)}
 .matrix table{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -406,24 +410,52 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   );
 
   const integrationList = Array.isArray(g.integrations) ? g.integrations : [];
-  const integrationChips = integrationList.map(i => `
-    <span class="integ-chip ${i.supported ? "yes" : "no"}">
-      <span class="pip">${i.supported ? PIP_CHECK : PIP_X}</span>
-      <span>${esc(i.name)}</span>
-      ${i.note ? `<span class="note">${esc(i.note)}</span>` : ""}
-    </span>`).join("");
-
   const dataSourceList = Array.isArray(g.data_sources) ? g.data_sources : [];
-  const dataTiles = dataSourceList.map(d => `
-    <div class="source-tile">
-      <div class="glyph">◆</div>
-      <h4>${esc(d.name)}</h4>
-      <p>${esc(d.note || "")}</p>
-      <div class="cover">
-        <span class="${d.logrocket ? "yes" : "no"}"><span class="pip">${d.logrocket ? PIP_CHECK : PIP_X}</span>LogRocket</span>
-        <span class="${d.competitor ? "yes" : "no"}"><span class="pip">${d.competitor ? PIP_CHECK : PIP_X}</span>${comp}</span>
-      </div>
+
+  // Place each supported integration in the data-source card it feeds. Mapping is
+  // deterministic from the catalogue category so it can't drift per generation.
+  const CATEGORY_TO_SOURCE = {
+    "Error Reporting": "Errors",
+    "Observability": "Backend",
+    "Data Warehouse": "Backend",
+    "Voice of Customer": "Feedback",
+    "Customer Support": "Feedback",
+    "Analytics": "Sessions",
+    "A/B & Feature Flags": "Releases",
+  };
+  const integrationsBySource = {};
+  integrationList.filter(i => i.supported).forEach(i => {
+    const target = CATEGORY_TO_SOURCE[i.category];
+    if (!target) return;
+    (integrationsBySource[target] ||= []).push(i.name);
+  });
+
+  const integChips = (sourceName) => {
+    const names = integrationsBySource[sourceName];
+    if (!names || !names.length) return "";
+    return `
+      <div class="ds-integ">
+        <span class="lbl">Integrates with</span>
+        <div class="chips">${names.map(n => `<span class="chip">${esc(n)}</span>`).join("")}</div>
+      </div>`;
+  };
+
+  // Top row: how LogRocket handles each source (plus its integrations).
+  const lrTiles = dataSourceList.map(d => `
+    <div class="source-tile lr">
+      <h4><span class="pip">${PIP_CHECK}</span>${esc(d.name)}</h4>
+      <p>${esc(d.logrocket_note || d.note || "")}</p>
+      ${integChips(d.name)}
     </div>`).join("");
+
+  // Bottom row: how the competitor handles the same source.
+  const compTiles = dataSourceList.map(d => `
+    <div class="source-tile them${d.competitor ? " has" : ""}">
+      <h4><span class="pip">${d.competitor ? PIP_CHECK : PIP_X}</span>${esc(d.name)}</h4>
+      <p>${esc(d.competitor_note || (d.competitor ? "" : "Not available."))}</p>
+    </div>`).join("");
+
+  const dataTiles = lrTiles; // section renders only when there is at least one source
 
   const rows = (Array.isArray(g.feature_comparison) ? g.feature_comparison : []).map(r => `
     <tr>
@@ -520,11 +552,14 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   ${dataTiles ? `<section>
     <div class="section-eyebrow"><span class="num">03</span>One Reasoning Layer</div>
     <h2 class="section-title">Galileo reasons across <em>every</em> data source. ${comp} sees a slice.</h2>
-    <div class="sources-grid" style="grid-template-columns:repeat(${Math.min(Math.max(dataSourceList.length, 1), 5)},1fr)">${dataTiles}</div>
-    ${integrationChips ? `<div class="integrations">
-      <h5>Integrated with your stack</h5>
-      <div class="integ-chips">${integrationChips}</div>
-    </div>` : ""}
+    ${(() => {
+      const cols = `grid-template-columns:repeat(${Math.min(Math.max(dataSourceList.length, 1), 5)},1fr)`;
+      return `
+    <div class="ds-row-label lr"><span class="swatch"></span>LogRocket</div>
+    <div class="sources-grid" style="${cols}">${lrTiles}</div>
+    <div class="ds-row-label them"><span class="swatch"></span>${comp}</div>
+    <div class="sources-grid" style="${cols}">${compTiles}</div>`;
+    })()}
   </section>` : ""}
 
   ${rows ? `<section>
