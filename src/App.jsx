@@ -1844,7 +1844,7 @@ EXCLUDE everything that is not the GA agent itself, even when it is AI or ML pow
 - Funding rounds and "AI investment" announcements; partnerships; acquisitions (unless the acquired agent itself reached GA in ${competitor}'s product, dated to that GA date).
 - Roadmap and "coming soon" announcements; talks, blog posts or analyst mentions with no GA agent.
 
-Return at most 4. Returning 1 — or [] when ${competitor} has no GA AI agent — is correct and expected. Never invent a date, never substitute a non-agent AI feature, and never pass a beta off as GA.
+List EVERY GA release you can verify, oldest first (up to 6) — do not stop at the first one. Returning 1 — or [] when ${competitor} has no GA AI agent — is correct and expected. Never invent a date, never substitute a non-agent AI feature, and never pass a beta off as GA.
 
 Each milestone also needs "pct" — an autonomy level on the same 0-100 scale LogRocket uses (0 = human must do the analysis, 100 = the AI reaches a correct root-cause answer unaided). This is plotted against LogRocket's line, so it must be defensible, not flattering or punitive:
 - If a published head-to-head benchmark exists (e.g. the Aakash Gupta LogRocket-vs-PostHog evaluation scored Galileo 47/50 and PostHog Max 28/50 — that is 56%), convert and use it for the nearest milestone.

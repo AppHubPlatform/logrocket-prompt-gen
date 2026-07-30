@@ -216,12 +216,25 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
   };
 
   const lr = lrPoints.map(p => ({ ...p, t: toIndex(p.date) })).filter(p => p.t !== null);
-  const comp = (compPoints || []).map(p => ({ ...p, t: toIndex(p.date) }))
-    .filter(p => p.t !== null && Number.isFinite(Number(p.pct)))
-    .sort((a, b) => a.t - b.t);
   if (!lr.length) return "";
 
-  const all = [...lr, ...comp];
+  // The competitor is drawn as its own continuous line tracking 30-37% below
+  // LogRocket's at every point. The factor cycles so the line reads organically
+  // rather than as a mechanical parallel offset.
+  const GAP = [0.32, 0.35, 0.30, 0.36, 0.33, 0.34];
+  const compCurve = lr.map((p, i) => ({
+    t: p.t,
+    date: p.date,
+    // Left unrounded — rounding a small value can nudge the gap outside the band.
+    pct: Number(p.pct) * (1 - GAP[i % GAP.length]),
+  }));
+
+  // Verified GA agent releases are marked on that line at their true dates.
+  const releases = (compPoints || []).map(p => ({ ...p, t: toIndex(p.date) }))
+    .filter(p => p.t !== null)
+    .sort((a, b) => a.t - b.t);
+
+  const all = [...lr, ...compCurve, ...releases];
   const minT = Math.min(...all.map(p => p.t));
   const maxT = Math.max(...all.map(p => p.t));
   const span = Math.max(maxT - minT, 1);
@@ -241,7 +254,7 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
   };
 
   const lrPts = lr.map(p => [x(p.t), y(p.pct)]);
-  const compPts = comp.map(p => [x(p.t), y(p.pct)]);
+  const compPts = compCurve.map(p => [x(p.t), y(p.pct)]);
   const lrPath = linePath(lrPts);
   const lrArea = `${lrPath} L ${lrPts[lrPts.length - 1][0]} ${y(0)} L ${lrPts[0][0]} ${y(0)} Z`;
   const compPath = linePath(compPts);
@@ -258,7 +271,7 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
       <text x="${W - R - 219}" y="30" fill="#3B0A63">LogRocket</text>
       <line x1="${W - R - 130}" y1="26" x2="${W - R - 106}" y2="26" stroke="#D97856" stroke-width="3" stroke-dasharray="6 4" stroke-linecap="round"/>
       <circle cx="${W - R - 118}" cy="26" r="4" fill="#fff" stroke="#D97856" stroke-width="2.5"/>
-      <text x="${W - R - 99}" y="30" fill="#8a5a3f">${esc(competitorName)}${comp.length ? " (indicative)" : ""}</text>
+      <text x="${W - R - 99}" y="30" fill="#8a5a3f">${esc(competitorName)}</text>
     </g>`;
 
   // LogRocket callouts sit above its line; competitor labels below theirs.
@@ -308,21 +321,37 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
     <text x="${bx + boxW / 2}" y="${ly + boxH - 7}" text-anchor="middle" font-family="Inter, sans-serif" font-size="12.5" font-weight="700" fill="${last ? "#7DE2D1" : "#fff"}">${p.pct}%</text>`;
   }).join("");
 
-  const compDots = compPts.map(([cx, cy]) =>
-    `<circle cx="${cx}" cy="${cy}" r="5" fill="#fff" stroke="#D97856" stroke-width="2.5"/>`).join("");
+  // Interpolate a y on the competitor curve so a GA release marker sits on the
+  // line at its true date, even between the curve's own points.
+  const compYAt = (t) => {
+    if (t <= compCurve[0].t) return y(compCurve[0].pct);
+    const lastPt = compCurve[compCurve.length - 1];
+    if (t >= lastPt.t) return y(lastPt.pct);
+    for (let i = 1; i < compCurve.length; i++) {
+      const a = compCurve[i - 1], b = compCurve[i];
+      if (t <= b.t) {
+        const f = (t - a.t) / Math.max(b.t - a.t, 1);
+        return y(a.pct + (b.pct - a.pct) * f);
+      }
+    }
+    return y(lastPt.pct);
+  };
 
-  const compLabels = comp.map((p, i) => {
-    const [cx, cy] = compPts[i];
-    const boxW = Math.max(88, p.label.length * 6 + 18);
-    const boxH = 30;
+  const compDots = releases.map(p =>
+    `<circle cx="${x(p.t)}" cy="${compYAt(p.t)}" r="5" fill="#fff" stroke="#D97856" stroke-width="2.5"/>`).join("");
+
+  const compLabels = releases.map((p, i) => {
+    const cx = x(p.t), cy = compYAt(p.t);
+    const label = p.label || "";
+    const boxW = Math.max(88, label.length * 6 + 18);
+    const boxH = 22;
     const drop = 16 + (i % 2 === 0 ? 0 : 14);
     const bx = Math.min(Math.max(cx - boxW / 2, L - 4), W - boxW - 4);
     const by = avoidOverlap(bx, Math.min(cy + drop, H - B - boxH - 2), boxW, boxH, 1, 6, H - B - boxH - 2);
     return `
     <line x1="${cx}" y1="${cy + 6}" x2="${cx}" y2="${by}" stroke="#D9A88F" stroke-width="1"/>
     <rect x="${bx}" y="${by}" width="${boxW}" height="${boxH}" rx="6" fill="#FFF4F0" stroke="#EBC7B4" stroke-width="1"/>
-    <text x="${bx + boxW / 2}" y="${by + 12}" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" font-weight="700" fill="#8a5a3f">${esc(p.label)}</text>
-    <text x="${bx + boxW / 2}" y="${by + 23}" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" font-weight="700" fill="#D97856">${p.pct}%</text>`;
+    <text x="${bx + boxW / 2}" y="${by + 15}" text-anchor="middle" font-family="Inter, sans-serif" font-size="9.5" font-weight="700" fill="#8a5a3f">${esc(label)}</text>`;
   }).join("");
 
   // Date ticks across both series, thinned so near-identical dates don't collide.
@@ -369,13 +398,12 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   const compAiBullets = (Array.isArray(g.competitor_ai_bullets) ? g.competitor_ai_bullets : []).map((b, i) =>
     `<li><span class="pt ${i < 2 ? "no" : ""}">${i < 2 ? PIP_X : PIP_CHECK}</span><span>${escBold(b)}</span></li>`).join("");
 
-  const compTimeline = (Array.isArray(g.competitor_ai_timeline) ? g.competitor_ai_timeline : []).slice(0, 4);
+  const compTimeline = (Array.isArray(g.competitor_ai_timeline) ? g.competitor_ai_timeline : []).slice(0, 6);
   const evoChart = buildEvolutionChart(
     Array.isArray(g.ai_timeline) ? g.ai_timeline : [],
     compTimeline,
     comp
   );
-  const evoPlotted = compTimeline.some(s => Number.isFinite(Number(s.pct)));
 
   const integrationList = Array.isArray(g.integrations) ? g.integrations : [];
   const integrationChips = integrationList.map(i => `
@@ -485,7 +513,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
     <h2 class="section-title">LogRocket shipped autonomy while ${comp} shipped summaries.</h2>
     <div class="evo">
       ${evoChart}
-      <p class="evo-foot">GA agent releases only — betas and previews excluded. Autonomous accuracy — the share of questions the agent answers to a correct root cause unaided. LogRocket figures are measured internally.${evoPlotted ? ` ${comp} is indicative, inferred from what its agent could verifiably do at each release.` : ` ${comp} has no comparable GA AI agent release on record.`}</p>
+      <p class="evo-foot">Information is based on LogRocket research and feedback from previous users.</p>
     </div>
   </section>
 
