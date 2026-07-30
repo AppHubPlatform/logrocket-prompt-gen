@@ -121,16 +121,17 @@ p{margin:0}
 .ds-row-label.them .swatch{background:var(--lr-gray-3, #B6BECC)}
 .source-tile{background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:8px}
 .source-tile h4{font-family:var(--font-display);font-size:15px;color:var(--lr-ink);display:flex;align-items:center;gap:7px}
-.source-tile h4 .pip{width:16px;height:16px;border-radius:9999px;display:grid;place-items:center;font-size:9.5px;flex-shrink:0}
+.source-tile h4 .ico{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex-shrink:0}
+.source-tile h4 .ico svg{width:16px;height:16px;display:block}
 .source-tile p{font-size:12px;color:var(--text-regular);line-height:1.4;flex:1;margin:0}
 /* LogRocket row */
 .source-tile.lr{border-color:rgba(99,63,160,.22);background:linear-gradient(180deg,#FCFAFF 0%,#fff 55%)}
-.source-tile.lr h4 .pip{background:var(--lr-galaxy);color:#fff}
+.source-tile.lr h4 .ico{background:var(--lr-indigo-2);color:var(--lr-galaxy)}
 /* Competitor row */
 .source-tile.them{background:#fff;border-color:var(--lr-gray-4)}
 .source-tile.them h4{color:var(--lr-ink)}
-.source-tile.them h4 .pip{background:var(--lr-gray-5);color:var(--lr-gray-2);border:1px solid var(--lr-gray-4)}
-.source-tile.them.has h4 .pip{background:var(--lr-gray-2);color:#fff;border:0}
+.source-tile.them h4 .ico{background:var(--lr-gray-5);color:var(--lr-gray-3, #B6BECC)}
+.source-tile.them.has h4 .ico{color:var(--text-regular)}
 .source-tile.them p{color:var(--text-regular)}
 /* Integrations, inside the LogRocket card they belong to */
 .ds-integ{margin-top:2px;padding-top:9px;border-top:1px solid rgba(99,63,160,.14)}
@@ -189,6 +190,29 @@ p{margin:0}
 
 const PIP_CHECK = "✓";
 const PIP_X = "✕";
+
+// Data-source glyphs in LogRocket's product-icon style (simple stroked marks on a
+// soft tile). Keyed loosely so a renamed source still resolves.
+const SOURCE_ICONS = {
+  errors: '<circle cx="12" cy="12" r="8.4"/><path d="M12 8v4.6" stroke-linecap="round"/><circle cx="12" cy="16.2" r=".95" fill="currentColor" stroke="none"/>',
+  sessions: '<rect x="3.4" y="5.2" width="17.2" height="13.6" rx="3"/><path d="M10.4 9.8l4.6 2.4-4.6 2.4z" stroke-linejoin="round"/>',
+  backend: '<rect x="3.6" y="4.4" width="16.8" height="5.2" rx="1.8"/><rect x="3.6" y="14.4" width="16.8" height="5.2" rx="1.8"/><path d="M7.1 7h.02M7.1 17h.02" stroke-linecap="round" stroke-width="2"/>',
+  releases: '<path d="M12 3.6l7.2 4.1v8.6L12 20.4 4.8 16.3V7.7z" stroke-linejoin="round"/><path d="M4.8 7.7L12 11.9l7.2-4.2M12 11.9v8.5" stroke-linejoin="round"/>',
+  feedback: '<path d="M20.4 12.6c0 3.6-3.8 6.5-8.4 6.5-1 0-2-.14-2.9-.4L4.6 20.4l1.5-3.4a6.2 6.2 0 01-2.5-4.8c0-3.6 3.8-6.5 8.4-6.5s8.4 2.9 8.4 6.5z" stroke-linejoin="round"/>',
+  default: '<circle cx="12" cy="12" r="8.4"/>',
+};
+
+const sourceIcon = (name) => {
+  const key = String(name || "").toLowerCase();
+  const match = Object.keys(SOURCE_ICONS).find(k => k !== "default" && key.includes(k))
+    || (/replay|session/.test(key) ? "sessions" : null)
+    || (/error|issue|bug/.test(key) ? "errors" : null)
+    || (/server|api|network/.test(key) ? "backend" : null)
+    || (/deploy|version|release/.test(key) ? "releases" : null)
+    || (/survey|voice|nps|feedback/.test(key) ? "feedback" : null)
+    || "default";
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">${SOURCE_ICONS[match]}</svg>`;
+};
 const MARK_LABEL = { full: "✓", partial: "~", none: "✕" };
 
 function markCell(mark, text, isLr) {
@@ -443,7 +467,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   // Top row: how LogRocket handles each source (plus its integrations).
   const lrTiles = dataSourceList.map(d => `
     <div class="source-tile lr">
-      <h4><span class="pip">${PIP_CHECK}</span>${esc(d.name)}</h4>
+      <h4><span class="ico">${sourceIcon(d.name)}</span>${esc(d.name)}</h4>
       <p>${esc(d.logrocket_note || d.note || "")}</p>
       ${integChips(d.name)}
     </div>`).join("");
@@ -451,7 +475,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   // Bottom row: how the competitor handles the same source.
   const compTiles = dataSourceList.map(d => `
     <div class="source-tile them${d.competitor ? " has" : ""}">
-      <h4><span class="pip">${d.competitor ? PIP_CHECK : PIP_X}</span>${esc(d.name)}</h4>
+      <h4><span class="ico">${sourceIcon(d.name)}</span>${esc(d.name)}</h4>
       <p>${esc(d.competitor_note || (d.competitor ? "" : "Not available."))}</p>
     </div>`).join("");
 
