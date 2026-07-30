@@ -1701,7 +1701,8 @@ async function fetchIntegrationCatalogueText() {
 
 const COMPETITORS = [
   "PostHog", "FullStory", "Hotjar", "Datadog", "Sentry", "Pendo",
-  "Amplitude", "Heap", "Glassbox", "Contentsquare", "Microsoft Clarity", "Other",
+  "Amplitude", "Heap", "Glassbox", "Quantum Metric", "Contentsquare",
+  "Microsoft Clarity", "Other",
 ];
 
 const GUIDE_INDUSTRIES = [
