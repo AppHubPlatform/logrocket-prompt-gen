@@ -481,11 +481,11 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   </section>
 
   <section>
-    <div class="section-eyebrow"><span class="num">02</span>AI Evolution</div>
+    <div class="section-eyebrow"><span class="num">02</span>AI Agent Evolution</div>
     <h2 class="section-title">LogRocket shipped autonomy while ${comp} shipped summaries.</h2>
     <div class="evo">
       ${evoChart}
-      <p class="evo-foot">Autonomous accuracy — the share of questions the assistant answers to a correct root cause unaided. LogRocket figures are measured internally.${evoPlotted ? ` ${comp} is indicative, inferred from its published AI capabilities at each release.` : ` No comparable dated AI milestones published by ${comp}.`}</p>
+      <p class="evo-foot">Agent releases only. Autonomous accuracy — the share of questions the agent answers to a correct root cause unaided. LogRocket figures are measured internally.${evoPlotted ? ` ${comp} is indicative, inferred from what its agent could verifiably do at each release.` : ` ${comp} has no comparable AI agent releases on record.`}</p>
     </div>
   </section>
 

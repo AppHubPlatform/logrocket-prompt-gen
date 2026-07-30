@@ -1760,7 +1760,28 @@ const LENGTH_RULES = `Hard rules:
 - Never invent statistics, customer names, ratings, or quotes.
 - Respond ONLY with the JSON object — no preamble, no markdown fences.`;
 
-async function callAnthropic({ system, tools, maxTokens, userMessage }) {
+// Transient API conditions (overload, rate limit, 5xx) would otherwise fail the
+// whole guide, and firing four or five calls at once makes hitting one likelier.
+const TRANSIENT = /overloaded|rate.?limit|too many requests|timeout|temporarily/i;
+const isTransient = (status, message) =>
+  status === 429 || status === 529 || status >= 500 || TRANSIENT.test(message || "");
+
+async function callAnthropic({ system, tools, maxTokens, userMessage, attempts = 3 }) {
+  let lastErr;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await callAnthropicOnce({ system, tools, maxTokens, userMessage });
+    } catch (e) {
+      lastErr = e;
+      if (!e.retryable || attempt === attempts) break;
+      // 1s, then 3s — enough to clear a brief capacity blip.
+      await new Promise(r => setTimeout(r, attempt * attempt * 1000));
+    }
+  }
+  throw lastErr;
+}
+
+async function callAnthropicOnce({ system, tools, maxTokens, userMessage }) {
   const res = await fetch("/api/anthropic", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1773,7 +1794,12 @@ async function callAnthropic({ system, tools, maxTokens, userMessage }) {
     }),
   });
   const data = await res.json();
-  if (!res.ok || data.error) throw new Error(data.error?.message || `API error ${res.status}`);
+  if (!res.ok || data.error) {
+    const message = data.error?.message || `API error ${res.status}`;
+    const err = new Error(message);
+    err.retryable = isTransient(res.status, message);
+    throw err;
+  }
   const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
   if (!text) throw new Error("Empty response from API");
   const start = text.indexOf("{");
@@ -1803,11 +1829,16 @@ ACCURACY IS CRITICAL — this is customer-facing. Verify with web_search first. 
 - G2/TrustRadius/Capterra if a strength or weakness needs backing
 Do NOT research customer references or build a full feature matrix — separate passes cover those.
 
-For "competitor_ai_timeline": find 2-4 dated AI FEATURE RELEASES by ${competitor} — a specific AI capability that actually shipped to customers — with its approximate month+year, oldest first.
+For "competitor_ai_timeline": find the dated releases of ${competitor}'s AI AGENT — and nothing else — with approximate month+year, oldest first. This is plotted against LogRocket's Ask Galileo agent timeline, so it must be agent-to-agent.
 
-Include ONLY shipped, generally-available AI features (named assistants, AI-powered analysis, auto-insights, anomaly detection, etc.) where you can verify a release date.
-EXCLUDE, even when they mention AI: funding rounds and "AI investment" announcements; partnerships; acquisitions (unless the acquired capability itself shipped as a feature in ${competitor}'s product, in which case date it to that ship date); roadmap, "coming soon", private beta or preview announcements; conference talks, blog posts and analyst mentions with no released feature; generic marketing claims about being AI-first.
-If a release date cannot be verified, leave that milestone out. Returning 1 milestone — or [] — is correct and expected when that is all that actually shipped. Never invent a date, and never pad the list with non-feature events.
+An AI agent is a named assistant/copilot a user asks questions of in natural language, or that autonomously investigates and returns an answer — e.g. Ask Galileo, PostHog Max, Glassbox GIA. Include its initial GA release and any subsequent releases that materially expanded what the agent can reason over or answer.
+
+EXCLUDE everything that is not the agent itself, even when it is AI or ML powered:
+- AI/ML features that are not an agent — anomaly detection, auto-insights, funnel or friction scoring, sentiment analysis, predictive metrics, smart search ranking, session-signal detectors (e.g. "Voice of the Silent"-style ML signals), autocapture improvements.
+- Funding rounds and "AI investment" announcements; partnerships; acquisitions (unless the acquired agent itself shipped in ${competitor}'s product, dated to that ship date).
+- Roadmap, "coming soon", private beta or preview announcements; talks, blog posts or analyst mentions with no released agent.
+
+Return at most 4. If a release date cannot be verified, leave it out. Returning 1 — or [] when ${competitor} has no AI agent at all — is correct and expected. Never invent a date, and never substitute a non-agent AI feature to fill the timeline.
 
 Each milestone also needs "pct" — an autonomy level on the same 0-100 scale LogRocket uses (0 = human must do the analysis, 100 = the AI reaches a correct root-cause answer unaided). This is plotted against LogRocket's line, so it must be defensible, not flattering or punitive:
 - If a published head-to-head benchmark exists (e.g. the Aakash Gupta LogRocket-vs-PostHog evaluation scored Galileo 47/50 and PostHog Max 28/50 — that is 56%), convert and use it for the nearest milestone.
