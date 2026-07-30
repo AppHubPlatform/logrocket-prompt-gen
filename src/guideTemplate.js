@@ -127,11 +127,11 @@ p{margin:0}
 .source-tile.lr{border-color:rgba(99,63,160,.22);background:linear-gradient(180deg,#FCFAFF 0%,#fff 55%)}
 .source-tile.lr h4 .pip{background:var(--lr-galaxy);color:#fff}
 /* Competitor row */
-.source-tile.them{background:var(--lr-gray-5)}
-.source-tile.them h4{color:var(--text-regular)}
-.source-tile.them h4 .pip{background:#fff;color:var(--lr-gray-2);border:1px solid var(--lr-gray-4)}
+.source-tile.them{background:#fff;border-color:var(--lr-gray-4)}
+.source-tile.them h4{color:var(--lr-ink)}
+.source-tile.them h4 .pip{background:var(--lr-gray-5);color:var(--lr-gray-2);border:1px solid var(--lr-gray-4)}
 .source-tile.them.has h4 .pip{background:var(--lr-gray-2);color:#fff;border:0}
-.source-tile.them p{color:var(--text-muted)}
+.source-tile.them p{color:var(--text-regular)}
 /* Integrations, inside the LogRocket card they belong to */
 .ds-integ{margin-top:2px;padding-top:9px;border-top:1px solid rgba(99,63,160,.14)}
 .ds-integ .lbl{display:block;font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px}
