@@ -1825,10 +1825,17 @@ async function generateCompetitorGuide({ competitor, company, industry, size, pe
 
 ${audience}
 
-ACCURACY IS CRITICAL — this is customer-facing. Verify with web_search first. Be efficient: 2 targeted searches, then write. Search only:
-- ${competitor}'s own site (AI/assistant features, what data it covers)
+ACCURACY IS CRITICAL — this is customer-facing. Verify with web_search first. Be efficient: 3 targeted searches, then write. Search only:
+- ${competitor}'s own site (AI/assistant features, and what it offers for errors, sessions, backend data, releases and feedback)
 - G2/TrustRadius/Capterra if a strength or weakness needs backing
 Do NOT research customer references or build a full feature matrix — separate passes cover those.
+
+DATA SOURCES — represent ${competitor} accurately, by name.
+For each of the five data sources (Errors, Sessions, Backend, Releases, Feedback), research what ${competitor} actually ships for it and write "competitor_note" describing their real approach — naming the actual product or feature where one exists.
+- Set "competitor": true whenever they genuinely have a capability there, even a strong one. Only set false when you have verified there is no such capability.
+- A rep will be corrected live if this understates them, which loses the deal. So never claim an absence you have not verified, and never write a dismissive placeholder like "No release tracking" for a source where the competitor ships something real.
+- Where they do have a capability, the honest differentiator is usually HOW it works — behavioural vs code-level, separate tool vs same timeline, manual vs correlated — not that it is missing. Say that instead.
+Example of the standard expected: FullStory ships Release Analyzer, which assesses the behavioural impact of a specific code release and flags regressions after a deploy. For FullStory's "Releases" card the correct note names Release Analyzer and describes it as behavioural release impact — NOT "no release tracking".
 
 For "competitor_ai_timeline": find the dated releases of ${competitor}'s AI AGENT — and nothing else — with approximate month+year, oldest first. This is plotted against LogRocket's Ask Galileo agent timeline, so it must be agent-to-agent.
 
@@ -1965,8 +1972,8 @@ JSON shape:
     callAnthropic({ system: messagingPrompt, maxTokens: 2500, userMessage: "Write the positioning copy." }),
     callAnthropic({
       system: competitorPrompt,
-      maxTokens: 1800,
-      tools: searchTool(2),
+      maxTokens: 2200,
+      tools: searchTool(3),
       userMessage: "Research and return the verified AI comparison and data-source coverage.",
     }),
     callAnthropic({
@@ -2372,6 +2379,29 @@ function GuideEditor({ guide, setGuide, competitor }) {
             </div>
           ))}
           {addBtn("Add row", () => addItem("feature_comparison", { feature: "", logrocket: "", competitor: "" }))}
+        </GuideSection>
+      )}
+
+      {Array.isArray(guide.data_sources) && guide.data_sources.length > 0 && (
+        <GuideSection title="Data sources — how each side handles them">
+          <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "8px" }}>
+            Correct the {competitor} notes here if a product name or capability is off — these appear in the PDF.
+          </div>
+          {guide.data_sources.map((d, i) => (
+            <div key={i} style={{ border: `1px solid ${BORDER}`, borderRadius: "10px", padding: "10px", marginBottom: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                <input style={{ ...S.input, flex: "0 0 130px", fontWeight: "600" }} placeholder="Source" value={d.name || ""} onChange={e => setItem("data_sources", i, { ...d, name: e.target.value })} />
+                <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#374151", whiteSpace: "nowrap", cursor: "pointer" }}>
+                  <input type="checkbox" checked={!!d.competitor} onChange={e => setItem("data_sources", i, { ...d, competitor: e.target.checked })} style={{ accentColor: ACCENT, width: "15px", height: "15px" }} />
+                  {competitor} has this
+                </label>
+              </div>
+              <label style={S.fieldLabel}>LogRocket</label>
+              <textarea style={{ ...S.textarea, marginBottom: "8px", minHeight: "52px" }} rows={2} value={d.logrocket_note || d.note || ""} onChange={e => setItem("data_sources", i, { ...d, logrocket_note: e.target.value })} />
+              <label style={S.fieldLabel}>{competitor}</label>
+              <textarea style={{ ...S.textarea, minHeight: "52px" }} rows={2} value={d.competitor_note || ""} onChange={e => setItem("data_sources", i, { ...d, competitor_note: e.target.value })} />
+            </div>
+          ))}
         </GuideSection>
       )}
 
