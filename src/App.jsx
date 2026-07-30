@@ -1803,7 +1803,11 @@ ACCURACY IS CRITICAL — this is customer-facing. Verify with web_search first. 
 - G2/TrustRadius/Capterra if a strength or weakness needs backing
 Do NOT research customer references or build a full feature matrix — separate passes cover those.
 
-For "competitor_ai_timeline": find 2-4 DATED milestones in ${competitor}'s AI/assistant history (launch, major releases, acquisitions that added AI) with approximate month+year, oldest first. Use only dates you can verify — if you can only confirm one milestone, return one; if none, return []. Never invent a date.
+For "competitor_ai_timeline": find 2-4 dated AI FEATURE RELEASES by ${competitor} — a specific AI capability that actually shipped to customers — with its approximate month+year, oldest first.
+
+Include ONLY shipped, generally-available AI features (named assistants, AI-powered analysis, auto-insights, anomaly detection, etc.) where you can verify a release date.
+EXCLUDE, even when they mention AI: funding rounds and "AI investment" announcements; partnerships; acquisitions (unless the acquired capability itself shipped as a feature in ${competitor}'s product, in which case date it to that ship date); roadmap, "coming soon", private beta or preview announcements; conference talks, blog posts and analyst mentions with no released feature; generic marketing claims about being AI-first.
+If a release date cannot be verified, leave that milestone out. Returning 1 milestone — or [] — is correct and expected when that is all that actually shipped. Never invent a date, and never pad the list with non-feature events.
 
 Each milestone also needs "pct" — an autonomy level on the same 0-100 scale LogRocket uses (0 = human must do the analysis, 100 = the AI reaches a correct root-cause answer unaided). This is plotted against LogRocket's line, so it must be defensible, not flattering or punitive:
 - If a published head-to-head benchmark exists (e.g. the Aakash Gupta LogRocket-vs-PostHog evaluation scored Galileo 47/50 and PostHog Max 28/50 — that is 56%), convert and use it for the nearest milestone.

@@ -267,14 +267,39 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
     return `<circle cx="${cx}" cy="${cy}" r="${last ? 8 : 5}" fill="${last ? "#430A6D" : "#fff"}" stroke="${last ? "#AA82FF" : "#633FA0"}" stroke-width="${last ? 3 : 2.5}"/>`;
   }).join("");
 
+  // Milestones can land close together in time (a competitor shipping twice in
+  // one quarter), so nudge each box away from any already placed to keep every
+  // label readable.
+  const placed = [];
+  const clashes = (bx, y0, boxW, boxH) => placed.some(r =>
+    bx < r.x + r.w + 4 && bx + boxW + 4 > r.x && y0 < r.y + r.h + 3 && y0 + boxH + 3 > r.y);
+
+  // Walk in `dir` looking for a free slot; if that side runs out of room, try the
+  // other side before giving up (two low milestones a month apart would otherwise
+  // stack into the axis).
+  const avoidOverlap = (bx, by, boxW, boxH, dir, minY, maxY) => {
+    const scan = (start, step) => {
+      let y0 = start;
+      for (let guard = 0; guard < 14; guard++) {
+        if (!clashes(bx, y0, boxW, boxH)) return y0;
+        y0 += step * (boxH + 5);
+        if (y0 < minY || y0 > maxY) return null;
+      }
+      return null;
+    };
+    const y = scan(by, dir) ?? scan(by, -dir) ?? Math.max(minY, Math.min(maxY, by));
+    placed.push({ x: bx, y, w: boxW, h: boxH });
+    return y;
+  };
+
   const lrLabels = lr.map((p, i) => {
     const [cx, cy] = lrPts[i];
     const last = i === lr.length - 1;
     const lift = 32 + (i % 2 === 0 ? 17 : 0);
-    const ly = Math.max(46, cy - lift);
     const boxW = Math.max(94, p.label.length * 6.3 + 20);
     const boxH = p.sub ? 44 : 32;
     const bx = Math.min(Math.max(cx - boxW / 2, L - 4), W - boxW - 4);
+    const ly = avoidOverlap(bx, Math.max(46, cy - lift), boxW, boxH, -1, 6, H - B - boxH - 2);
     return `
     <line x1="${cx}" y1="${cy - (last ? 9 : 6)}" x2="${cx}" y2="${ly + boxH}" stroke="#8E86A0" stroke-width="1"/>
     <rect x="${bx}" y="${ly}" width="${boxW}" height="${boxH}" rx="7" fill="${last ? "#3B0A63" : "#2A2733"}"/>
@@ -291,8 +316,8 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
     const boxW = Math.max(88, p.label.length * 6 + 18);
     const boxH = 30;
     const drop = 16 + (i % 2 === 0 ? 0 : 14);
-    const by = Math.min(cy + drop, H - B - boxH - 2);
     const bx = Math.min(Math.max(cx - boxW / 2, L - 4), W - boxW - 4);
+    const by = avoidOverlap(bx, Math.min(cy + drop, H - B - boxH - 2), boxW, boxH, 1, 6, H - B - boxH - 2);
     return `
     <line x1="${cx}" y1="${cy + 6}" x2="${cx}" y2="${by}" stroke="#D9A88F" stroke-width="1"/>
     <rect x="${bx}" y="${by}" width="${boxW}" height="${boxH}" rx="6" fill="#FFF4F0" stroke="#EBC7B4" stroke-width="1"/>
@@ -300,9 +325,14 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
     <text x="${bx + boxW / 2}" y="${by + 23}" text-anchor="middle" font-family="Inter, sans-serif" font-size="10.5" font-weight="700" fill="#D97856">${p.pct}%</text>`;
   }).join("");
 
-  // Date ticks for every plotted milestone across both series.
+  // Date ticks across both series, thinned so near-identical dates don't collide.
   const ticks = [...new Map(all.map(p => [p.t, p.date])).entries()].sort((a, b) => a[0] - b[0]);
-  const xlabels = ticks.map(([t, label]) => `
+  let lastTickX = -Infinity;
+  const xlabels = ticks.filter(([t]) => {
+    if (x(t) - lastTickX < 52) return false;
+    lastTickX = x(t);
+    return true;
+  }).map(([t, label]) => `
     <text x="${x(t)}" y="${H - 12}" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" font-weight="700" fill="#633FA0">${esc(label)}</text>`).join("");
 
   return `<svg class="evo-chart" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Autonomous accuracy over time: LogRocket versus ${esc(competitorName)}">
