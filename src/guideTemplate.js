@@ -248,16 +248,49 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
   const lr = lrPoints.map(p => ({ ...p, t: toIndex(p.date) })).filter(p => p.t !== null);
   if (!lr.length) return "";
 
-  // The competitor is drawn as its own continuous line tracking 30-37% below
-  // LogRocket's at every point. The factor cycles so the line reads organically
-  // rather than as a mechanical parallel offset.
-  const GAP = [0.32, 0.35, 0.30, 0.36, 0.33, 0.34];
-  const compCurve = lr.map((p, i) => ({
-    t: p.t,
-    date: p.date,
+  // The competitor is drawn as its own continuous line, always 30-37% below
+  // LogRocket's. The gap at each step is drawn from a generator seeded on the
+  // competitor's name, so each competitor gets a distinct ebb and flow while the
+  // same competitor always produces the same chart — a guide has to look identical
+  // if a rep regenerates it. Midpoints between milestones give the line movement of
+  // its own rather than tracing LogRocket's shape.
+  const seedFrom = (str) => {
+    let h = 2166136261;
+    for (const ch of String(str || "competitor")) {
+      h ^= ch.charCodeAt(0);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  };
+  const rng = (() => {
+    let s = seedFrom(competitorName);
+    return () => {
+      s ^= s << 13; s >>>= 0;
+      s ^= s >>> 17;
+      s ^= s << 5; s >>>= 0;
+      return s / 4294967296;
+    };
+  })();
+  // Milestones sit on LogRocket's own points, so the full band is safe there.
+  // Midpoints are computed against the linear mid of two milestones while the
+  // rendered curve is smoothed and sits slightly higher, which inflates the
+  // measured gap — so they draw from a narrower band to stay inside 30-37%.
+  const gap = () => 0.30 + rng() * 0.07;
+  const midGap = () => 0.30 + rng() * 0.04;
+
+  const compCurve = [];
+  lr.forEach((p, i) => {
     // Left unrounded — rounding a small value can nudge the gap outside the band.
-    pct: Number(p.pct) * (1 - GAP[i % GAP.length]),
-  }));
+    compCurve.push({ t: p.t, date: p.date, pct: Number(p.pct) * (1 - gap()) });
+    const next = lr[i + 1];
+    if (next) {
+      const midT = Math.round((p.t + next.t) / 2);
+      if (midT > p.t && midT < next.t) {
+        const midPct = (Number(p.pct) + Number(next.pct)) / 2;
+        compCurve.push({ t: midT, date: null, pct: midPct * (1 - midGap()) });
+      }
+    }
+  });
 
   // Verified GA agent releases are marked on that line at their true dates.
   const releases = (compPoints || []).map(p => ({ ...p, t: toIndex(p.date) }))
@@ -393,7 +426,7 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
   }).join("");
 
   // Date ticks across both series, thinned so near-identical dates don't collide.
-  const ticks = [...new Map(all.filter(p => p.t >= minT).map(p => [p.t, p.date])).entries()].sort((a, b) => a[0] - b[0]);
+  const ticks = [...new Map(all.filter(p => p.t >= minT && p.date).map(p => [p.t, p.date])).entries()].sort((a, b) => a[0] - b[0]);
   let lastTickX = -Infinity;
   const xlabels = ticks.filter(([t]) => {
     if (x(t) - lastTickX < 52) return false;
