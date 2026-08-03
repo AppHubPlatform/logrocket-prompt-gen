@@ -625,9 +625,9 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   ${dataTiles ? `<section>
     <div class="section-eyebrow"><span class="num">03</span>One Reasoning Layer</div>
     <h2 class="section-title">${Object.keys(integrationsBySource).length
-      ? `Galileo reasons across <em>every</em> data source and integrates with your tech stack, so nothing is missed. ${comp} sees a slice.`
+      ? `Galileo reasons across <em>every</em> data source and integrates with your tech stack, so nothing is missed.`
       // Without supported integrations no card shows a chip, so don't claim them.
-      : `Galileo reasons across <em>every</em> data source, so nothing is missed. ${comp} sees a slice.`}</h2>
+      : `Galileo reasons across <em>every</em> data source, so nothing is missed.`}</h2>
     ${(() => {
       const cols = `grid-template-columns:repeat(${Math.min(Math.max(dataSourceList.length, 1), 5)},1fr)`;
       return `
