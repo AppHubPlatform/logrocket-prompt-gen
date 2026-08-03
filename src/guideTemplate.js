@@ -525,7 +525,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   const compTiles = dataSourceList.map(d => `
     <div class="source-tile them${d.competitor ? " has" : ""}">
       <h4><span class="ico">${sourceIcon(d.name)}</span>${esc(d.name)}</h4>
-      <p>${esc(d.competitor_note || (d.competitor ? "" : "Not available."))}</p>
+      <p>${escBold(d.competitor_note || (d.competitor ? "" : "Not available."))}</p>
     </div>`).join("");
 
   const dataTiles = lrTiles; // section renders only when there is at least one source

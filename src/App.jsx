@@ -1733,7 +1733,7 @@ const CURATED_COMPETITOR_NOTES = {
   fullstory: {
     releases: {
       competitor: true,
-      competitor_note: "Ask StoryAI Launch Analysis assesses behavioral impact post-release, but is behavioral only — no deploy marker or error-regression grouping",
+      competitor_note: "Ask StoryAI Launch Analysis assesses behavioral impact post-release, but is behavioral only — **no deploy marker or error-regression grouping**",
     },
   },
 };
@@ -1894,6 +1894,7 @@ For each of the five data sources (Errors, Sessions, Backend, Releases, Feedback
 - Set "competitor": true whenever they genuinely have a capability there, even a strong one. Only set false when you have verified there is no such capability.
 - A rep will be corrected live if this understates them, which loses the deal. So never claim an absence you have not verified, and never write a dismissive placeholder like "No release tracking" for a source where the competitor ships something real.
 - Where they do have a capability, the honest differentiator is usually HOW it works — behavioural vs code-level, separate tool vs same timeline, manual vs correlated — not that it is missing. Say that instead.
+- Wrap the specific gap — the part LogRocket does and they do not — in **double asterisks** so it renders bold. Bold ONLY that clause, never the whole note, and never the part describing what they DO ship. Example: "Error Analysis tracks front-end errors with AI summaries and session links, but **no JS stack traces or network-level error detail**". If a source has no verified gap, add no bold at all rather than inventing one.
 Example of the standard expected: FullStory ships Release Analyzer, which assesses the behavioural impact of a specific code release and flags regressions after a deploy. For FullStory's "Releases" card the correct note names Release Analyzer and describes it as behavioural release impact — NOT "no release tracking".
 
 For "competitor_ai_timeline": find the dated releases of ${competitor}'s AI AGENT — and nothing else — with approximate month+year, oldest first. This is plotted against LogRocket's Ask Galileo agent timeline, so it must be agent-to-agent.
@@ -1928,7 +1929,7 @@ JSON shape:
   "competitor_ai_summary": "2-3 sentences on what ${competitor}'s AI does and where it stops (behavior only, no code/errors, etc.)",
   "competitor_ai_bullets": ["3 bullets on ${competitor} AI limitations plus 1 fair strength — each ONE sentence, MAX 14 WORDS. In the limitation bullets, wrap the specific missing capability in **double asterisks** for bold"],
   "competitor_ai_timeline": [ { "date": "e.g. Mar '25", "label": "the AI capability or product shipped, MAX 4 WORDS", "note": "MAX 8 WORDS on what it does / still cannot do", "pct": 30, "pct_basis": "benchmark|capability" } ],
-  "data_sources": [ { "name": "Errors", "logrocket": true, "logrocket_note": "how LogRocket handles this data source, MAX 12 WORDS", "competitor": false, "competitor_note": "how ${competitor} handles it — or what it cannot do. MAX 12 WORDS" }, { "name": "Sessions", "logrocket": true, "logrocket_note": "…", "competitor": true, "competitor_note": "…" }, { "name": "Backend", "logrocket": true, "logrocket_note": "server-side/API data — network requests, backend errors, server logs, tied to the session", "competitor": false, "competitor_note": "…" }, { "name": "Releases", "logrocket": true, "logrocket_note": "…", "competitor": false, "competitor_note": "…" }, { "name": "Feedback", "logrocket": true, "logrocket_note": "…", "competitor": false, "competitor_note": "…" } ],
+  "data_sources": [ { "name": "Errors", "logrocket": true, "logrocket_note": "how LogRocket handles this data source, MAX 12 WORDS", "competitor": false, "competitor_note": "how ${competitor} handles it — or what it cannot do. MAX 12 WORDS. Wrap the specific gap in **double asterisks** for bold" }, { "name": "Sessions", "logrocket": true, "logrocket_note": "…", "competitor": true, "competitor_note": "…" }, { "name": "Backend", "logrocket": true, "logrocket_note": "server-side/API data — network requests, backend errors, server logs, tied to the session", "competitor": false, "competitor_note": "…" }, { "name": "Releases", "logrocket": true, "logrocket_note": "…", "competitor": false, "competitor_note": "…" }, { "name": "Feedback", "logrocket": true, "logrocket_note": "…", "competitor": false, "competitor_note": "…" } ],
   (return exactly these five data_sources rows, in this order; set each "logrocket"/"competitor" boolean from what you actually verified)
   "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
 }`;
@@ -2456,6 +2457,7 @@ function GuideEditor({ guide, setGuide, competitor }) {
         <GuideSection title="Data sources — how each side handles them">
           <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "8px" }}>
             Correct the {competitor} notes here if a product name or capability is off — these appear in the PDF.
+            Wrap text in **double asterisks** to bold it — use this to call out the gap in a {competitor} note.
           </div>
           {guide.data_sources.map((d, i) => (
             <div key={i} style={{ border: `1px solid ${BORDER}`, borderRadius: "10px", padding: "10px", marginBottom: "8px" }}>
