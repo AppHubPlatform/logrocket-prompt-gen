@@ -1738,6 +1738,14 @@ const CURATED_COMPETITOR_NOTES = {
   },
 };
 
+// LogRocket's own product copy, taken from our docs. Unlike the competitor notes
+// these hold for every competitor, so they are keyed by data source alone.
+// Keys are matched case-insensitively.
+const CURATED_LOGROCKET_NOTES = {
+  // https://docs.logrocket.com/docs/feedback
+  feedback: "Automatically surfaces and quantifies actionable UX problems from unstructured feedback data",
+};
+
 // Win stories that must appear for a given competitor. These come from the field
 // rather than from anything public, so research will never surface them. Pinned
 // examples lead the section; researched ones fill in behind them.
@@ -1765,19 +1773,26 @@ function applyCuratedExamples(examples, competitor) {
   return [...curated, ...rest];
 }
 
-// Applies the curated notes over whatever the research pass returned, adding the
-// data source if it came back missing entirely.
+// Applies the curated LogRocket and competitor notes over whatever the research
+// pass returned, adding the data source if it came back missing entirely.
 function applyCuratedNotes(dataSources, competitor) {
-  const curated = CURATED_COMPETITOR_NOTES[String(competitor || "").trim().toLowerCase()];
-  if (!curated) return dataSources;
+  const curated = CURATED_COMPETITOR_NOTES[String(competitor || "").trim().toLowerCase()] || {};
   const out = (Array.isArray(dataSources) ? dataSources : []).map(d => {
-    const override = curated[String(d.name || "").trim().toLowerCase()];
-    return override ? { ...d, ...override } : d;
+    const key = String(d.name || "").trim().toLowerCase();
+    const lrNote = CURATED_LOGROCKET_NOTES[key];
+    const next = lrNote ? { ...d, logrocket: true, logrocket_note: lrNote } : d;
+    const override = curated[key];
+    return override ? { ...next, ...override } : next;
   });
   // Any curated source the model omitted still needs to appear.
   Object.entries(curated).forEach(([key, override]) => {
     if (!out.some(d => String(d.name || "").trim().toLowerCase() === key)) {
-      out.push({ name: key.charAt(0).toUpperCase() + key.slice(1), logrocket: true, logrocket_note: "", ...override });
+      out.push({
+        name: key.charAt(0).toUpperCase() + key.slice(1),
+        logrocket: true,
+        logrocket_note: CURATED_LOGROCKET_NOTES[key] || "",
+        ...override,
+      });
     }
   });
   return out;
