@@ -1738,6 +1738,35 @@ const CURATED_COMPETITOR_NOTES = {
   },
 };
 
+// Win stories that must appear for a given competitor. These come from the field
+// rather than from anything public, so research will never surface them. Pinned
+// examples lead the section; researched ones fill in behind them.
+// Keys are matched case-insensitively.
+const CURATED_CUSTOMER_EXAMPLES = {
+  contentsquare: [
+    {
+      name: "Arhaus",
+      profile: "Home furnishings retail",
+      outcome: "Arhaus had been paying Contentsquare to run micro-conversion analysis manually over several weeks. Ask Galileo pulled together the same insights and recommendations in minutes.",
+      replaced: "",
+      // The stat slot renders at 28px and wraps past ~10 characters, so the
+      // comparison lives in the label rather than the number.
+      stats: [{ num: "Minutes", label: "vs. weeks of manual Contentsquare analysis" }],
+    },
+  ],
+};
+
+// Puts the curated examples first, then fills the remaining slots with researched
+// ones, dropping any that duplicate a pinned company.
+function applyCuratedExamples(examples, competitor) {
+  const curated = CURATED_CUSTOMER_EXAMPLES[String(competitor || "").trim().toLowerCase()];
+  if (!curated) return examples;
+  const pinned = new Set(curated.map(ex => String(ex.name || "").trim().toLowerCase()));
+  const rest = (Array.isArray(examples) ? examples : [])
+    .filter(ex => !pinned.has(String(ex.name || "").trim().toLowerCase()));
+  return [...curated, ...rest];
+}
+
 // Applies the curated notes over whatever the research pass returned, adding the
 // data source if it came back missing entirely.
 function applyCuratedNotes(dataSources, competitor) {
@@ -2622,6 +2651,7 @@ function CompetitorGuide() {
       if (!includeFeatureComparison) g.feature_comparison = [];
       // Verified competitor copy wins over the research pass.
       g.data_sources = applyCuratedNotes(g.data_sources, competitor);
+      g.customer_examples = applyCuratedExamples(g.customer_examples, competitor);
       setGuide(g);
       if (company && !pdfCustomer) setPdfCustomer(company);
       LogRocket.track("Competitor Guide Generated", { competitor, industry, size, persona });
