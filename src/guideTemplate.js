@@ -112,27 +112,78 @@ p{margin:0}
 .evo{background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:20px;padding:26px 28px;box-shadow:var(--shadow-marketing)}
 .evo-chart{width:100%;display:block}
 .evo-foot{margin-top:12px;padding-top:12px;border-top:1px solid rgba(0,0,0,.07);font-size:11px;color:var(--text-muted);line-height:1.45}
-.sources-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.ds-row-label{display:flex;align-items:center;gap:8px;font-family:var(--font-display);font-size:11.5px;font-weight:450;letter-spacing:.12em;text-transform:uppercase;margin:0 0 9px}
-.ds-row-label .swatch{width:9px;height:9px;border-radius:3px;flex-shrink:0}
-.ds-row-label.lr{color:var(--lr-galaxy)}
-.ds-row-label.lr .swatch{background:var(--lr-galaxy)}
-.ds-row-label.them{color:var(--text-muted);margin-top:16px}
-.ds-row-label.them .swatch{background:var(--lr-gray-3, #B6BECC)}
-.source-tile{background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:8px}
-.source-tile h4{font-family:var(--font-display);font-size:15px;color:var(--lr-ink);display:flex;align-items:center;gap:7px}
-.source-tile h4 .ico{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex-shrink:0}
-.source-tile h4 .ico svg{width:16px;height:16px;display:block}
-.source-tile p{font-size:12px;color:var(--text-regular);line-height:1.4;flex:1;margin:0}
-/* LogRocket row */
-.source-tile.lr{border-color:rgba(99,63,160,.22);background:linear-gradient(180deg,#FCFAFF 0%,#fff 55%)}
-.source-tile.lr h4 .ico{background:var(--lr-indigo-2);color:var(--lr-galaxy)}
-/* Competitor row */
-.source-tile.them{background:#fff;border-color:var(--lr-gray-4)}
-.source-tile.them h4{color:var(--lr-ink)}
-.source-tile.them h4 .ico{background:var(--lr-gray-5);color:var(--lr-gray-3, #B6BECC)}
-.source-tile.them.has h4 .ico{color:var(--text-regular)}
-.source-tile.them p{color:var(--text-regular)}
+/* Section 03 — context completeness. Two panels side by side: LogRocket's five
+   signals interlock into one reasoning layer, while the competitor's strip shows
+   a gap wherever research found no capability. Which pieces are filled is driven
+   by the researched per-source boolean, never by a fixed pattern. */
+.ctx-lede{text-align:center;font-size:13.5px;color:var(--text-regular);margin:-2px 0 18px;line-height:1.45}
+.ctx-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
+.ctx-panel{border-radius:20px;padding:15px;display:flex;flex-direction:column;gap:11px;background:#fff}
+.ctx-panel.lr{border:1px solid rgba(99,63,160,.20)}
+.ctx-panel.them{border:1px solid rgba(0,0,0,.07)}
+.ctx-head{display:flex;align-items:center;justify-content:center;gap:9px;font-family:var(--font-display);font-size:14.5px;letter-spacing:.10em;text-transform:uppercase}
+.ctx-head .mk{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex-shrink:0}
+.ctx-head .mk svg{width:16px;height:16px;display:block}
+.ctx-panel.lr .ctx-head{color:var(--lr-galaxy)}
+.ctx-panel.lr .ctx-head .mk{background:var(--lr-indigo-2);color:var(--lr-galaxy)}
+.ctx-panel.them .ctx-head{color:var(--text-regular)}
+.ctx-panel.them .ctx-head .mk{background:var(--lr-gray-5);color:var(--lr-gray-2)}
+/* Interlocking signal strip. No gap between pieces — the nub on each piece's
+   right edge overlaps its neighbour so the row reads as one joined chain. */
+.pz-row{display:grid;gap:0}
+.pz{position:relative;padding:11px 8px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px}
+.pz .ico svg{width:21px;height:21px;display:block}
+.pz .nm{font-family:var(--font-display);font-size:11px;line-height:1.15}
+.pz .fr{font-size:8.4px;line-height:1.3}
+.pz.on{background:var(--lr-galaxy);color:#fff}
+.pz.on .fr{color:rgba(255,255,255,.84)}
+.pz.on .fr strong{color:#fff}
+.pz.off{background:var(--lr-gray-5);color:var(--lr-gray-2);border-top:1px dashed var(--lr-gray-4);border-bottom:1px dashed var(--lr-gray-4)}
+.pz.off .q{font-family:var(--font-display);font-size:20px;line-height:1.6}
+.pz:first-child{border-top-left-radius:12px;border-bottom-left-radius:12px}
+.pz:last-child{border-top-right-radius:12px;border-bottom-right-radius:12px}
+.pz::after{content:"";position:absolute;right:-5px;top:50%;margin-top:-5px;width:10px;height:10px;border-radius:50%;background:inherit;z-index:2}
+.pz:last-child::after{display:none}
+/* Under the competitor strip: a dead-end stub beneath each piece that has a
+   verified gap, so nothing joins up. LogRocket gets one arrow into its layer. */
+.pz-marks{display:grid;gap:0;margin-top:3px}
+.pz-mark{display:flex;flex-direction:column;align-items:center;gap:3px}
+.pz-mark .ln{width:0;height:11px;border-left:1.5px dashed var(--lr-gray-3, #B6BECC)}
+.pz-mark .pip{width:15px;height:15px;border-radius:50%;border:1.5px solid var(--lr-gray-3, #B6BECC);color:var(--lr-gray-2);display:grid;place-items:center;font-family:var(--font-display);font-size:9.5px;line-height:1}
+.pz-arrow{display:flex;justify-content:center;color:var(--lr-galaxy);margin-top:3px}
+.pz-arrow svg{width:19px;height:19px;display:block}
+/* Verdict card, three outcomes, and the closing bar. */
+.ctx-out{display:flex;align-items:flex-start;gap:11px;border-radius:14px;padding:12px 13px}
+.ctx-panel.lr .ctx-out{border:1px solid rgba(99,63,160,.20);background:linear-gradient(180deg,#FCFAFF 0%,#fff 100%)}
+.ctx-panel.them .ctx-out{border:1px solid rgba(0,0,0,.07);background:#FBFBFC}
+.ctx-out .orb{width:42px;height:42px;border-radius:50%;flex-shrink:0;display:grid;place-items:center}
+.ctx-out .orb svg{width:23px;height:23px;display:block}
+.ctx-panel.lr .ctx-out .orb{background:var(--lr-galaxy);color:#fff}
+.ctx-panel.them .ctx-out .orb{background:var(--lr-gray-5);color:var(--lr-gray-2)}
+.ctx-out .lbl{display:block;font-family:var(--font-mono);font-size:8.4px;letter-spacing:.10em;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px}
+.ctx-out h4{font-family:var(--font-display);font-size:13.5px;line-height:1.2;margin-bottom:4px}
+.ctx-panel.lr .ctx-out h4{color:var(--lr-ink)}
+.ctx-panel.them .ctx-out h4{color:var(--text-regular)}
+.ctx-out p{font-size:10.6px;line-height:1.4;color:var(--text-regular);margin:0}
+.ctx-tri{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:auto}
+.ctx-tri .it{display:flex;gap:7px;align-items:flex-start}
+.ctx-tri .bg{width:22px;height:22px;border-radius:7px;flex-shrink:0;display:grid;place-items:center}
+.ctx-tri .bg svg{width:13px;height:13px;display:block}
+.ctx-panel.lr .ctx-tri .bg{background:var(--lr-indigo-2);color:var(--lr-galaxy)}
+.ctx-panel.them .ctx-tri .bg{background:var(--lr-gray-5);color:var(--lr-gray-2)}
+.ctx-tri .t{display:block;font-family:var(--font-display);font-size:10.4px;line-height:1.2}
+.ctx-panel.lr .ctx-tri .t{color:var(--lr-galaxy)}
+.ctx-panel.them .ctx-tri .t{color:var(--text-regular)}
+.ctx-tri .d{display:block;font-size:8.8px;line-height:1.32;color:var(--text-muted);margin-top:2px}
+.ctx-bar{display:flex;align-items:center;justify-content:center;gap:9px;border-radius:12px;padding:10px;font-family:var(--font-display);font-size:12px;text-align:center}
+.ctx-bar svg{width:15px;height:15px;flex-shrink:0}
+.ctx-panel.lr .ctx-bar{background:var(--lr-galaxy);color:#fff}
+.ctx-panel.them .ctx-bar{background:var(--lr-gray-5);color:var(--text-regular)}
+.ctx-integ{border-top:1px solid rgba(99,63,160,.14);padding-top:9px}
+.ctx-foot{display:flex;align-items:center;gap:13px;margin-top:14px;border-radius:14px;padding:12px 16px;background:var(--lr-indigo-2);border:1px solid rgba(99,63,160,.18)}
+.ctx-foot .hd{font-family:var(--font-display);font-size:12.5px;color:var(--lr-galaxy);flex-shrink:0}
+.ctx-foot .sep{width:1px;height:18px;background:rgba(99,63,160,.25);flex-shrink:0}
+.ctx-foot .tx{font-size:11.2px;color:var(--text-regular);line-height:1.4}
 /* Integrations, inside the LogRocket card they belong to */
 .ds-integ{margin-top:2px;padding-top:9px;border-top:1px solid rgba(99,63,160,.14)}
 .ds-integ .lbl{display:block;font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px}
@@ -140,7 +191,6 @@ p{margin:0}
 .ds-integ .chip{font-family:var(--font-display);font-size:10.5px;padding:3px 8px;border-radius:9999px;background:var(--lr-indigo-2);color:var(--lr-galaxy);border:1px solid rgba(99,63,160,.2)}
 .ds-integ .chip.logo{background:#fff;border-color:rgba(0,0,0,.10);padding:5px 9px;display:inline-flex;align-items:center;justify-content:center;height:32px}
 .ds-integ .chip.logo img{height:20px;width:auto;max-width:74px;object-fit:contain;display:block}
-.source-tile .cover .no .pip{background:var(--lr-gray-5);color:var(--lr-gray-2);border:1px solid var(--lr-gray-4)}
 .matrix{background:#fff;border-radius:20px;overflow:hidden;border:1px solid rgba(0,0,0,.08)}
 .matrix table{width:100%;border-collapse:collapse;font-size:13.5px}
 .matrix thead th{text-align:left;font-family:var(--font-display);font-weight:450;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);padding:13px 20px;background:var(--lr-moon);border-bottom:1px solid rgba(0,0,0,.08)}
@@ -194,6 +244,23 @@ p{margin:0}
 
 const PIP_CHECK = "✓";
 const PIP_X = "✕";
+
+// Section 03 glyphs. Stroked with currentColor so the same markup works on the
+// purple fill and on the grey competitor panel.
+const S = (body, extra = "") =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"${extra}>${body}</svg>`;
+const ICO_ROCKET = S('<path d="M12 3c2.6 2.1 4 5.2 4 8.6L18 13v3l-2.6-1.7a3.4 3.4 0 0 1-4.8 0L8 16v-3l2-1.4C10 8.2 11.4 5.1 12 3Z"/><circle cx="12" cy="10" r="1.5"/>');
+const ICO_CUBE = S('<path d="M12 3.4l7.2 4.1v9L12 20.6 4.8 16.5v-9z"/><path d="M4.8 7.5L12 11.7l7.2-4.2M12 11.7v8.9"/>');
+const ICO_ATOM = S('<circle cx="12" cy="12" r="2.4"/><ellipse cx="12" cy="12" rx="9" ry="4" /><ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9" ry="4" transform="rotate(120 12 12)"/>');
+const ICO_ARROW_DOWN = S('<path d="M12 4.6v14"/><path d="M6.4 13.2L12 18.8l5.6-5.6"/>');
+const ICO_CHECK_C = S('<circle cx="12" cy="12" r="8.6"/><path d="M8.4 12.3l2.5 2.5 4.7-5"/>');
+const ICO_X_C = S('<circle cx="12" cy="12" r="8.6"/><path d="M9.4 9.4l5.2 5.2M14.6 9.4l-5.2 5.2"/>');
+const ICO_BOLT = S('<path d="M13.4 3.2L6.2 13.4h4.3l-.9 7.4 7.2-10.2h-4.3z"/>');
+const ICO_CHART = S('<path d="M5 19.2V11M12 19.2V5.6M19 19.2v-5.6"/>');
+const ICO_DOLLAR = S('<circle cx="12" cy="12" r="8.6"/><path d="M12 7.6v8.8M14.2 9.6a2.3 2.3 0 0 0-2.2-1.2c-1.3 0-2.3.8-2.3 1.9s.9 1.6 2.3 1.9c1.5.3 2.4.8 2.4 1.9s-1 1.9-2.4 1.9a2.4 2.4 0 0 1-2.3-1.3"/>');
+const ICO_CLOCK = S('<circle cx="12" cy="12" r="8.6"/><path d="M12 7.6V12l3 1.9"/>');
+const ICO_QMARK = S('<circle cx="12" cy="12" r="8.6"/><path d="M9.8 9.6a2.3 2.3 0 0 1 4.4.8c0 1.5-2.2 1.9-2.2 3.3"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/>');
+const ICO_MINUS = S('<circle cx="12" cy="12" r="8.6"/><path d="M8.4 12h7.2"/>');
 
 // Data-source glyphs in LogRocket's product-icon style (simple stroked marks on a
 // soft tile). Keyed loosely so a renamed source still resolves.
@@ -499,36 +566,39 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
     (integrationsBySource[target] ||= []).push(i);
   });
 
-  // Show the tool's own logo; fall back to its name only if no logo resolved.
-  const integChips = (sourceName) => {
-    const items = integrationsBySource[sourceName];
-    if (!items || !items.length) return "";
-    const chips = items.map(i => i.logo
-      ? `<span class="chip logo" title="${esc(i.name)}"><img src="${i.logo}" alt="${esc(i.name)}"/></span>`
-      : `<span class="chip">${esc(i.name)}</span>`).join("");
-    return `
-      <div class="ds-integ">
-        <span class="lbl">Integrates with</span>
-        <div class="chips">${chips}</div>
-      </div>`;
-  };
-
-  // Top row: how LogRocket handles each source (plus its integrations).
-  const lrTiles = dataSourceList.map(d => `
-    <div class="source-tile lr">
-      <h4><span class="ico">${sourceIcon(d.name)}</span>${esc(d.name)}</h4>
-      <p>${esc(d.logrocket_note || d.note || "")}</p>
-      ${integChips(d.name)}
+  // LogRocket's strip: every signal present, so every piece is filled.
+  const lrPieces = dataSourceList.map(d => `
+    <div class="pz on">
+      <span class="ico">${sourceIcon(d.name)}</span>
+      <span class="nm">${esc(d.name)}</span>
+      <span class="fr">${esc(d.logrocket_note || d.note || "")}</span>
     </div>`).join("");
 
-  // Bottom row: how the competitor handles the same source.
-  const compTiles = dataSourceList.map(d => `
-    <div class="source-tile them${d.competitor ? " has" : ""}">
-      <h4><span class="ico">${sourceIcon(d.name)}</span>${esc(d.name)}</h4>
-      <p>${escBold(d.competitor_note || (d.competitor ? "" : "Not available."))}</p>
+  // The competitor's strip: a filled piece where research found a capability, a
+  // "?" gap where it did not. Driven by the researched flag, so a competitor with
+  // full coverage correctly shows five filled pieces.
+  const compPieces = dataSourceList.map(d => d.competitor ? `
+    <div class="pz on">
+      <span class="ico">${sourceIcon(d.name)}</span>
+      <span class="nm">${esc(d.name)}</span>
+      <span class="fr">${escBold(d.competitor_note || "")}</span>
+    </div>` : `
+    <div class="pz off">
+      <span class="q">?</span>
+      <span class="nm">${esc(d.name)}</span>
+      <span class="fr">Not available</span>
     </div>`).join("");
 
-  const dataTiles = lrTiles; // section renders only when there is at least one source
+  // A dead-end stub under each piece that has a verified gap — either no
+  // capability at all, or a capability with a bolded shortfall in its note.
+  const compMarks = dataSourceList.map(d => {
+    const hasGap = !d.competitor || /\*\*[^*]+\*\*/.test(d.competitor_note || "");
+    return hasGap
+      ? `<span class="pz-mark"><span class="ln"></span><span class="pip">!</span></span>`
+      : `<span class="pz-mark"></span>`;
+  }).join("");
+
+  const dataTiles = lrPieces; // section renders only when there is at least one source
 
   const rows = (Array.isArray(g.feature_comparison) ? g.feature_comparison : []).map(r => `
     <tr>
@@ -624,17 +694,71 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
 
   ${dataTiles ? `<section>
     <div class="section-eyebrow"><span class="num">03</span>One Reasoning Layer</div>
-    <h2 class="section-title">${Object.keys(integrationsBySource).length
-      ? `Galileo reasons across <em>every</em> data source and integrates with your tech stack, so nothing is missed.`
-      // Without supported integrations no card shows a chip, so don't claim them.
-      : `Galileo reasons across <em>every</em> data source, so nothing is missed.`}</h2>
+    <h2 class="section-title" style="text-align:center">AI is only as good as the <em>context</em> it receives.</h2>
+    <p class="ctx-lede">Galileo reasons across every technical and user signal to uncover the full story.</p>
     ${(() => {
-      const cols = `grid-template-columns:repeat(${Math.min(Math.max(dataSourceList.length, 1), 5)},1fr)`;
+      const n = Math.min(Math.max(dataSourceList.length, 1), 5);
+      const cols = `grid-template-columns:repeat(${n},1fr)`;
+      const gapCount = dataSourceList.filter(d => !d.competitor).length;
+      // The integration chips lose their per-card home in this layout, so they
+      // collect into one strip inside the LogRocket panel.
+      const allChips = Object.values(integrationsBySource).flat();
+      const chipStrip = allChips.length ? `
+      <div class="ds-integ ctx-integ">
+        <span class="lbl">Integrates with your stack</span>
+        <div class="chips">${allChips.map(i => i.logo
+          ? `<span class="chip logo" title="${esc(i.name)}"><img src="${i.logo}" alt="${esc(i.name)}"/></span>`
+          : `<span class="chip">${esc(i.name)}</span>`).join("")}</div>
+      </div>` : "";
       return `
-    <div class="ds-row-label lr"><span class="swatch"></span>LogRocket</div>
-    <div class="sources-grid" style="${cols}">${lrTiles}</div>
-    <div class="ds-row-label them"><span class="swatch"></span>${comp}</div>
-    <div class="sources-grid" style="${cols}">${compTiles}</div>`;
+    <div class="ctx-cols">
+      <div class="ctx-panel lr">
+        <div class="ctx-head"><span class="mk">${ICO_ROCKET}</span>LogRocket</div>
+        <div class="pz-row" style="${cols}">${lrPieces}</div>
+        <div class="pz-arrow">${ICO_ARROW_DOWN}</div>
+        <div class="ctx-out">
+          <span class="orb">${ICO_ATOM}</span>
+          <span>
+            <span class="lbl">Galileo AI</span>
+            <h4>Complete picture. Clear explanation.</h4>
+            <p>Connected signals. Full context.<br/>Faster root cause. Confident decisions.</p>
+          </span>
+        </div>
+        <div class="ctx-tri">
+          <span class="it"><span class="bg">${ICO_BOLT}</span><span><span class="t">Faster resolution</span><span class="d">Get to root cause in minutes, not days</span></span></span>
+          <span class="it"><span class="bg">${ICO_CHART}</span><span><span class="t">Better experiences</span><span class="d">See the full impact across the stack</span></span></span>
+          <span class="it"><span class="bg">${ICO_DOLLAR}</span><span><span class="t">Higher impact</span><span class="d">Fix what matters. Drive real outcomes.</span></span></span>
+        </div>
+        ${chipStrip}
+        <div class="ctx-bar">${ICO_CHECK_C}Complete context. Better AI. Better outcomes.</div>
+      </div>
+      <div class="ctx-panel them">
+        <div class="ctx-head"><span class="mk">${ICO_CUBE}</span>${comp}</div>
+        <div class="pz-row" style="${cols}">${compPieces}</div>
+        <div class="pz-marks" style="${cols}">${compMarks}</div>
+        <div class="ctx-out">
+          <span class="orb">${ICO_ATOM}</span>
+          <span>
+            <span class="lbl">${comp} AI</span>
+            <h4>${gapCount ? "Incomplete picture. Unclear answers." : "Signals analysed separately."}</h4>
+            <p>${gapCount
+              ? "Disconnected signals. Missing context.<br/>Slower investigations. Uncertain decisions."
+              : "No single layer reasons across all of them at once.<br/>More stitching together, slower answers."}</p>
+          </span>
+        </div>
+        <div class="ctx-tri">
+          <span class="it"><span class="bg">${ICO_CLOCK}</span><span><span class="t">Slower resolution</span><span class="d">Investigations span multiple tools</span></span></span>
+          <span class="it"><span class="bg">${ICO_QMARK}</span><span><span class="t">Missed insights</span><span class="d">Gaps in data lead to incomplete answers</span></span></span>
+          <span class="it"><span class="bg">${ICO_MINUS}</span><span><span class="t">Lower impact</span><span class="d">Address symptoms, not root causes</span></span></span>
+        </div>
+        <div class="ctx-bar">${ICO_X_C}${gapCount ? "Gaps in context. Weaker AI. Missed outcomes." : "Less connected context. Weaker AI."}</div>
+      </div>
+    </div>
+    <div class="ctx-foot">
+      <span class="hd">More context. Smarter AI. Better results.</span>
+      <span class="sep"></span>
+      <span class="tx">LogRocket connects every technical and user signal so Galileo AI can see the whole picture.</span>
+    </div>`;
     })()}
   </section>` : ""}
 
