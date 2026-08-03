@@ -173,7 +173,9 @@ p{margin:0}
 .win-quote::after{content:"\\201D";color:var(--lr-matter-0)}
 .win-out{font-size:13.5px;line-height:1.5;color:var(--text-regular)}
 .win-replaced{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-display);font-size:11px;background:var(--lr-danger-4);color:var(--lr-danger-1);padding:4px 10px;border-radius:9999px;text-transform:uppercase;letter-spacing:.08em;align-self:flex-start}
-.win-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-top:14px;border-top:1px solid rgba(0,0,0,.08);margin-top:auto}
+/* One equal column per stat rather than a fixed three, so a card with a single
+   stat gives it the full width instead of squeezing it into a third. */
+.win-stats{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;padding-top:14px;border-top:1px solid rgba(0,0,0,.08);margin-top:auto}
 .win-stat .num{font-family:var(--font-display);font-size:28px;color:var(--lr-galaxy);letter-spacing:-.025em;line-height:1}
 .win-stat .lbl{font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.3}
 .tldr{background:linear-gradient(135deg,var(--lr-galaxy) 0%,var(--lr-indigo-0) 100%);color:#fff;border-radius:24px;padding:32px 36px;display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center;position:relative;overflow:hidden}

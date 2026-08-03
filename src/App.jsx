@@ -1749,9 +1749,7 @@ const CURATED_CUSTOMER_EXAMPLES = {
       profile: "Home furnishings retail",
       outcome: "Arhaus had been paying Contentsquare to run micro-conversion analysis manually over several weeks. Ask Galileo pulled together the same insights and recommendations in minutes.",
       replaced: "",
-      // The stat slot renders at 28px and wraps past ~10 characters, so the
-      // comparison lives in the label rather than the number.
-      stats: [{ num: "Minutes", label: "vs. weeks of manual Contentsquare analysis" }],
+      stats: [{ num: "Weeks → minutes", label: "Micro-conversion analysis that Contentsquare ran manually" }],
     },
   ],
 };
