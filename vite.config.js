@@ -1,6 +1,6 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
-import { fetchIntegrationCatalogue, CATALOGUE_URL } from './api/_integrationCatalogue.js'
+import { fetchIntegrationCatalogue, fetchLogosFor, CATALOGUE_URL } from './api/_integrationCatalogue.js'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
@@ -23,9 +23,15 @@ export default defineConfig(({ mode }) => {
         // LogRocket's live integration catalogue server-side (avoids CORS).
         name: 'dev-api-integrations',
         configureServer(server) {
-          server.middlewares.use('/api/integrations', async (_req, res) => {
+          server.middlewares.use('/api/integrations', async (req, res) => {
             res.setHeader('Content-Type', 'application/json')
             try {
+              const logos = new URL(req.url, 'http://localhost').searchParams.get('logos')
+              if (logos) {
+                const map = await fetchLogosFor(logos.split(',').map(s => s.trim()))
+                res.end(JSON.stringify({ logos: map }))
+                return
+              }
               const integrations = await fetchIntegrationCatalogue()
               res.end(JSON.stringify({ source: CATALOGUE_URL, count: integrations.length, integrations }))
             } catch (e) {

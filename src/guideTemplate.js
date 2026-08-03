@@ -138,6 +138,8 @@ p{margin:0}
 .ds-integ .lbl{display:block;font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px}
 .ds-integ .chips{display:flex;flex-wrap:wrap;gap:4px}
 .ds-integ .chip{font-family:var(--font-display);font-size:10.5px;padding:3px 8px;border-radius:9999px;background:var(--lr-indigo-2);color:var(--lr-galaxy);border:1px solid rgba(99,63,160,.2)}
+.ds-integ .chip.logo{background:#fff;border-color:rgba(0,0,0,.10);padding:5px 9px;display:inline-flex;align-items:center;justify-content:center;height:32px}
+.ds-integ .chip.logo img{height:20px;width:auto;max-width:74px;object-fit:contain;display:block}
 .source-tile .cover .no .pip{background:var(--lr-gray-5);color:var(--lr-gray-2);border:1px solid var(--lr-gray-4)}
 .matrix{background:#fff;border-radius:20px;overflow:hidden;border:1px solid rgba(0,0,0,.08)}
 .matrix table{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -451,16 +453,20 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   integrationList.filter(i => i.supported).forEach(i => {
     const target = CATEGORY_TO_SOURCE[i.category];
     if (!target) return;
-    (integrationsBySource[target] ||= []).push(i.name);
+    (integrationsBySource[target] ||= []).push(i);
   });
 
+  // Show the tool's own logo; fall back to its name only if no logo resolved.
   const integChips = (sourceName) => {
-    const names = integrationsBySource[sourceName];
-    if (!names || !names.length) return "";
+    const items = integrationsBySource[sourceName];
+    if (!items || !items.length) return "";
+    const chips = items.map(i => i.logo
+      ? `<span class="chip logo" title="${esc(i.name)}"><img src="${i.logo}" alt="${esc(i.name)}"/></span>`
+      : `<span class="chip">${esc(i.name)}</span>`).join("");
     return `
       <div class="ds-integ">
         <span class="lbl">Integrates with</span>
-        <div class="chips">${names.map(n => `<span class="chip">${esc(n)}</span>`).join("")}</div>
+        <div class="chips">${chips}</div>
       </div>`;
   };
 
@@ -669,8 +675,11 @@ export async function downloadGuidePdf({ guide, competitor, customer, dateStamp,
 
     const doc = frame.contentDocument;
 
-    // Let web fonts and layout settle before measuring/capturing.
+    // Let web fonts, logo images and layout settle before measuring/capturing.
     try { await doc.fonts.ready; } catch { /* fonts API unavailable */ }
+    await Promise.all([...doc.images].map(img => img.complete
+      ? Promise.resolve()
+      : new Promise(done => { img.addEventListener("load", done, { once: true }); img.addEventListener("error", done, { once: true }); })));
     await new Promise(r => setTimeout(r, 350));
 
     const totalH = Math.ceil(doc.documentElement.scrollHeight);

@@ -2039,13 +2039,24 @@ JSON shape:
     if (s?.url && !seen.has(s.url)) { seen.add(s.url); sources.push(s); }
   });
 
+  // Pull logos for the supported integrations so the cards show marks, not names.
+  const supported = (integrationCoverage.integrations || []).filter(i => i.supported).map(i => i.name);
+  let logos = {};
+  if (supported.length) {
+    try {
+      const r = await fetch(`/api/integrations?logos=${encodeURIComponent(supported.join(","))}`);
+      if (r.ok) logos = (await r.json()).logos || {};
+    } catch { /* chips fall back to the tool name */ }
+  }
+  const withLogos = (integrationCoverage.integrations || []).map(i => ({ ...i, logo: logos[i.name] || null }));
+
   // Searched results win over messaging on any overlapping key — they're verified.
   return {
     ...messaging,
     ...competitorFacts,
     ...customerProof,
     feature_comparison: matrix.feature_comparison || [],
-    integrations: integrationCoverage.integrations || [],
+    integrations: withLogos,
     // LogRocket's own autonomy milestones — fixed data, not researched.
     ai_timeline: LOGROCKET_AI_TIMELINE,
     sources,
