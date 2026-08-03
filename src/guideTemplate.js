@@ -264,8 +264,11 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
     .filter(p => p.t !== null)
     .sort((a, b) => a.t - b.t);
 
+  // Both timelines start at LogRocket's first milestone so every guide shares the
+  // same window regardless of competitor. maxT still spans everything, so a later
+  // competitor release is never cut off.
   const all = [...lr, ...compCurve, ...releases];
-  const minT = Math.min(...all.map(p => p.t));
+  const minT = Math.min(...lr.map(p => p.t));
   const maxT = Math.max(...all.map(p => p.t));
   const span = Math.max(maxT - minT, 1);
   const x = (t) => L + (pw * (t - minT)) / span;
@@ -367,12 +370,17 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
     return y(lastPt.pct);
   };
 
+  // A GA predating LogRocket's first milestone is pinned to the axis start so it
+  // still appears; its real date goes into the label so the position can't be
+  // misread as the ship date.
+  const plotT = (t) => Math.max(t, minT);
+
   const compDots = releases.map(p =>
-    `<circle cx="${x(p.t)}" cy="${compYAt(p.t)}" r="5" fill="#fff" stroke="#D97856" stroke-width="2.5"/>`).join("");
+    `<circle cx="${x(plotT(p.t))}" cy="${compYAt(plotT(p.t))}" r="5" fill="#fff" stroke="#D97856" stroke-width="2.5"/>`).join("");
 
   const compLabels = releases.map((p, i) => {
-    const cx = x(p.t), cy = compYAt(p.t);
-    const label = p.label || "";
+    const cx = x(plotT(p.t)), cy = compYAt(plotT(p.t));
+    const label = (p.label || "") + (p.t < minT && p.date ? ` (${p.date})` : "");
     const boxW = Math.max(88, label.length * 6 + 18);
     const boxH = 22;
     const drop = 16 + (i % 2 === 0 ? 0 : 14);
@@ -385,7 +393,7 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
   }).join("");
 
   // Date ticks across both series, thinned so near-identical dates don't collide.
-  const ticks = [...new Map(all.map(p => [p.t, p.date])).entries()].sort((a, b) => a[0] - b[0]);
+  const ticks = [...new Map(all.filter(p => p.t >= minT).map(p => [p.t, p.date])).entries()].sort((a, b) => a[0] - b[0]);
   let lastTickX = -Infinity;
   const xlabels = ticks.filter(([t]) => {
     if (x(t) - lastTickX < 52) return false;

@@ -88,13 +88,29 @@ export async function fetchIntegrationCatalogue() {
 
 // Data URIs for just the integrations the guide actually shows, keyed by name.
 const logoCache = new Map();
+
+const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+// Reps and the model name tools loosely — "Google Play" for the catalogue's
+// "Google Play Store", "App Store" for "Apple App Store" — so match on the
+// normalised name, then on containment either way, longest match winning.
+function findEntry(catalogue, query) {
+  const q = norm(query);
+  if (!q) return null;
+  const exact = catalogue.find(i => norm(i.name) === q);
+  if (exact) return exact;
+  const partial = catalogue
+    .filter(i => { const n = norm(i.name); return n.includes(q) || q.includes(n); })
+    .sort((a, b) => norm(b.name).length - norm(a.name).length);
+  return partial[0] || null;
+}
+
 export async function fetchLogosFor(names) {
   const catalogue = await fetchIntegrationCatalogue();
-  const byName = new Map(catalogue.map(i => [i.name.toLowerCase(), i]));
   const wanted = [...new Set((names || []).map(n => String(n).trim()).filter(Boolean))].slice(0, 30);
   const out = {};
   await Promise.all(wanted.map(async (name) => {
-    const entry = byName.get(name.toLowerCase());
+    const entry = findEntry(catalogue, name);
     if (!entry?.logoUrl) return;
     if (!logoCache.has(entry.logoUrl)) {
       logoCache.set(entry.logoUrl, await inlineLogo(entry.logoUrl));
