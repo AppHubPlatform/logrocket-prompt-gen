@@ -13,6 +13,29 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<"
 // substitution keeps model/rep-authored text safe — only our own tags survive.
 const escBold = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
 
+// Keep at most `max` sentences. The word limits in the prompt are advisory and
+// the model does overrun them, so the cap is enforced here where it cannot be
+// missed. Abbreviations like "e.g." are not treated as sentence ends, and a bold
+// marker left unpaired by the cut is closed so escBold still matches it.
+const ABBREVIATIONS = ["e.g.", "i.e.", "etc.", "vs.", "approx.", "No."];
+const DOT = "\u0001"; // sentinel the splitter ignores and real text never contains
+
+const clampSentences = (s, max = 2) => {
+  const text = String(s ?? "").trim();
+  if (!text) return "";
+  // Mask abbreviation dots before splitting — otherwise "e.g." is itself read as
+  // two sentence ends and the note gets cut to "e.g.".
+  let masked = text;
+  for (const abbr of ABBREVIATIONS) {
+    masked = masked.split(abbr).join(abbr.replace(/\./g, DOT));
+  }
+  const parts = masked.match(/[^.!?]+(?:[.!?]+|$)/g) || [masked];
+  let out = parts.slice(0, max).join("").split(DOT).join(".").trim();
+  // Close a bold marker the cut left unpaired so escBold still matches it.
+  if ((out.match(/\*\*/g) || []).length % 2) out += "**";
+  return out;
+};
+
 const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 131 28" aria-label="LogRocket"><path fill="currentColor" fill-rule="evenodd" d="M6.066 3.156A10.53 10.53 0 0 1 9.122 0a10.294 10.294 0 0 1 3.016 3.094 15.59 15.59 0 0 1 2.93 9.777c.637.513 1.293 1.006 1.918 1.53a3.46 3.46 0 0 1 1.104 3.189c-.302 1.457-.592 2.918-.911 4.372a1.214 1.214 0 0 1-1.848.61c-1.027-.825-2.027-1.678-3.05-2.504a4.684 4.684 0 0 1-2.891 1.255 4.678 4.678 0 0 1-3.385-1.22c-.735.541-1.419 1.191-2.138 1.772-.315.31-.666.58-1.046.806a1.215 1.215 0 0 1-1.603-.785c-.329-1.422-.672-2.839-.99-4.263a3.453 3.453 0 0 1 1.163-3.321c.559-.45 1.125-.893 1.694-1.331.159-.08.08-.261.087-.401a15.615 15.615 0 0 1 2.9-9.42m1.007 4.402a2.395 2.395 0 0 0 .21 3.173 2.636 2.636 0 0 0 3.603.075 2.398 2.398 0 0 0 .636-2.634 2.55 2.55 0 0 0-2.14-1.59 2.6 2.6 0 0 0-2.31.974" clip-rule="evenodd"/><path fill="currentColor" d="M5.712 23.082a.605.605 0 0 1 .896-.485 5.778 5.778 0 0 0 5.03 0 .61.61 0 0 1 .896.45c.005.89.005 1.78 0 2.67a.602.602 0 0 1-.94.436c-.267-.226-.508-.48-.764-.719-.407.762-.789 1.534-1.199 2.294a.61.61 0 0 1-1.012.006c-.41-.761-.79-1.538-1.206-2.299-.253.24-.494.494-.761.72a.603.603 0 0 1-.94-.442c-.007-.878 0-1.756 0-2.634M9.102 10.259a1.22 1.22 0 0 0 1.248-1.192v-.008a1.221 1.221 0 0 0-1.24-1.2h-.008A1.22 1.22 0 0 0 7.855 9.05v.008a1.22 1.22 0 0 0 1.24 1.2h.007Z"/><path fill="currentColor" fill-rule="evenodd" d="M22.79 6.163h1.953v13.186h8.156v1.776H22.787l.004-14.962Zm11.824 9.773a5.224 5.224 0 0 1 .476-2.229 5.588 5.588 0 0 1 1.29-1.776 5.9 5.9 0 0 1 4.14-1.584 5.746 5.746 0 0 1 4.068 1.51 5.135 5.135 0 0 1 1.649 3.941 5.142 5.142 0 0 1-1.765 3.961 5.899 5.899 0 0 1-4.141 1.576 5.74 5.74 0 0 1-4.082-1.5 5.086 5.086 0 0 1-1.638-3.898m2.005-.116a3.935 3.935 0 0 0 .296 1.531c.191.456.47.87.82 1.218a3.82 3.82 0 0 0 2.789 1.077 3.576 3.576 0 0 0 2.641-1.077 3.58 3.58 0 0 0 1.067-2.652 3.772 3.772 0 0 0-3.899-3.878 3.552 3.552 0 0 0-2.641 1.09 3.673 3.673 0 0 0-1.067 2.694m14.537.94a1.812 1.812 0 0 0-.507 1.133.8.8 0 0 0 .36.74c.3.168.623.29.959.36.402.09.857.168 1.363.232.507.063 1.028.126 1.564.19.528.07 1.046.161 1.553.274.474.093.935.242 1.373.444a2.043 2.043 0 0 1 1.322 1.88 3.753 3.753 0 0 1-1.656 3.107 5.943 5.943 0 0 1-3.624 1.151 6.751 6.751 0 0 1-3.318-.76 2.741 2.741 0 0 1-1.596-2.495 3.278 3.278 0 0 1 .785-2.017c.148-.19.31-.366.486-.529a2.005 2.005 0 0 1-1.532-1.892 3.761 3.761 0 0 1 1.394-2.894 2.957 2.957 0 0 1-.485-1.638 3.228 3.228 0 0 1 .37-1.574c.248-.451.59-.844 1.004-1.152a4.902 4.902 0 0 1 3.05-.972 4.742 4.742 0 0 1 3.022.972 4.064 4.064 0 0 1 2.18-.909 5.73 5.73 0 0 1 .824-.063l-.088 1.638a5.5 5.5 0 0 0-1.933.496c.238.464.362.979.359 1.5a2.961 2.961 0 0 1-.38 1.483 3.504 3.504 0 0 1-.994 1.142 4.839 4.839 0 0 1-2.968.95 5.13 5.13 0 0 1-2.885-.793m.507-3.707a1.87 1.87 0 0 0-.201.887c-.006.31.063.62.201.899.141.254.336.473.57.643a3.043 3.043 0 0 0 1.819.508c.907.099 1.79-.338 2.26-1.12.14-.27.21-.573.202-.877a1.856 1.856 0 0 0-.212-.898 1.857 1.857 0 0 0-.56-.655 3.006 3.006 0 0 0-1.817-.518 2.34 2.34 0 0 0-2.262 1.134m.021 7.796a2.75 2.75 0 0 0-.73 1.913 1.556 1.556 0 0 0 1.047 1.404 4.033 4.033 0 0 0 1.722.413 6.94 6.94 0 0 0 1.394-.117c.348-.064.683-.182.993-.349a1.693 1.693 0 0 0 1.025-1.542c0-.627-.606-1.047-1.817-1.258a24.982 24.982 0 0 0-1.913-.243 19.22 19.22 0 0 1-1.721-.221M75.27 10.78a4.594 4.594 0 0 1-3.064 4.597l2.843 5.758h-2.274l-2.567-5.21c-.725.108-1.456.161-2.188.16h-3.888v5.049h-1.954V6.173h6.14c1.7-.103 3.4.209 4.954.908a3.88 3.88 0 0 1 1.996 3.698m-6.984 3.529a7.267 7.267 0 0 0 3.508-.656 2.917 2.917 0 0 0 1.406-2.747c0-1.676-1.085-2.628-3.254-2.853a17.263 17.263 0 0 0-1.934-.105h-3.878v6.363l4.152-.002Zm9.328 1.638c-.007-.77.155-1.53.476-2.23a5.576 5.576 0 0 1 1.289-1.775 5.905 5.905 0 0 1 4.142-1.585 5.744 5.744 0 0 1 4.075 1.502 5.137 5.137 0 0 1 1.649 3.941 5.144 5.144 0 0 1-1.765 3.961 5.899 5.899 0 0 1-4.142 1.575 5.734 5.734 0 0 1-4.078-1.5 5.081 5.081 0 0 1-1.638-3.898m2.006-.116a3.815 3.815 0 0 0 1.11 2.747 3.82 3.82 0 0 0 2.789 1.076 3.572 3.572 0 0 0 2.641-1.076 3.582 3.582 0 0 0 1.067-2.653 3.769 3.769 0 0 0-1.11-2.779 3.782 3.782 0 0 0-2.789-1.098 3.552 3.552 0 0 0-2.642 1.088 3.673 3.673 0 0 0-1.066 2.695Zm20.35 3.043.369 1.49a6.46 6.46 0 0 1-3.888.983 4.995 4.995 0 0 1-3.846-1.5 5.592 5.592 0 0 1-1.363-3.974 5.43 5.43 0 0 1 1.532-3.93 5.207 5.207 0 0 1 3.878-1.585 5.61 5.61 0 0 1 3.4.96l-.698 1.572a4.719 4.719 0 0 0-2.896-.886 2.877 2.877 0 0 0-2.353 1.12 4.032 4.032 0 0 0-.856 2.62 4.2 4.2 0 0 0 .898 2.767 3.171 3.171 0 0 0 2.588 1.141 7.235 7.235 0 0 0 3.233-.784m2.673-14.232h2.005v10.577l4.744-4.65h2.344l-4.968 4.86 2.958 3.192a3.334 3.334 0 0 0 2.24 1.088l-.307 1.426a3.248 3.248 0 0 1-2.599-.591 5.742 5.742 0 0 1-.602-.581l-3.814-4.121v5.293h-2.005l.004-16.493Zm19.271 6.857c.392.403.691.886.878 1.416.219.57.33 1.175.327 1.786-.01.74-.081 1.479-.212 2.208h-7.354a3.507 3.507 0 0 0 1.036 2.018c.638.521 1.45.782 2.272.73a8.86 8.86 0 0 0 3.602-.72l.339 1.511a7.822 7.822 0 0 1-3.107.836c-.485.047-.971.068-1.457.063a5.49 5.49 0 0 1-1.881-.359 4.086 4.086 0 0 1-1.627-1.056 5.779 5.779 0 0 1-1.278-4.058 5.428 5.428 0 0 1 1.532-3.93 5.205 5.205 0 0 1 3.877-1.585 4.124 4.124 0 0 1 3.051 1.141m-.708 3.857.042-.57a2.513 2.513 0 0 0-1.447-2.568 2.895 2.895 0 0 0-1.162-.21 2.948 2.948 0 0 0-1.247.26 3.068 3.068 0 0 0-.971.72 3.816 3.816 0 0 0-.951 2.367l5.736.002Zm4.671-3.159h-1.134v-1.307l2.6-1.954h.539v1.638h3.021v1.626h-3.021v4.271a4.622 4.622 0 0 0 .454 2.451 2.393 2.393 0 0 0 1.774.794l-.305 1.426c-2.114.267-3.363-.567-3.749-2.504a9.235 9.235 0 0 1-.179-1.87v-4.57Z" clip-rule="evenodd"/></svg>`;
 
 const TOKENS = `
@@ -134,10 +157,13 @@ p{margin:0}
 /* Interlocking signal strip. No gap between pieces — the nub on each piece's
    right edge overlaps its neighbour so the row reads as one joined chain. */
 .pz-row{display:grid;gap:0}
-.pz{position:relative;padding:11px 8px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px}
+/* Fixed height, not min-height: the two columns' notes differ in length and a
+   min-height still lets the taller column win, which knocks every row below it
+   out of alignment. The note is line-clamped to fit exactly. */
+.pz{position:relative;height:134px;padding:11px 8px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;overflow:hidden}
 .pz .ico svg{width:21px;height:21px;display:block}
 .pz .nm{font-family:var(--font-display);font-size:11px;line-height:1.15}
-.pz .fr{font-size:8.4px;line-height:1.3}
+.pz .fr{font-size:8.4px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
 .pz.on{background:var(--lr-galaxy);color:#fff}
 .pz.on .fr{color:rgba(255,255,255,.84)}
 .pz.on .fr strong{color:#fff}
@@ -149,6 +175,9 @@ p{margin:0}
 .pz:last-child::after{display:none}
 /* Under the competitor strip: a dead-end stub beneath each piece that has a
    verified gap, so nothing joins up. LogRocket gets one arrow into its layer. */
+/* The arrow and the stub row occupy the same height so the verdict cards below
+   them start at the same y in both columns. */
+.pz-marks,.pz-arrow{min-height:29px}
 .pz-marks{display:grid;gap:0;margin-top:3px}
 .pz-mark{display:flex;flex-direction:column;align-items:center;gap:3px}
 .pz-mark .ln{width:0;height:11px;border-left:1.5px dashed var(--lr-gray-3, #B6BECC)}
@@ -574,7 +603,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
     <div class="pz on">
       <span class="ico">${sourceIcon(d.name)}</span>
       <span class="nm">${esc(d.name)}</span>
-      <span class="fr">${esc(d.logrocket_note || d.note || "")}</span>
+      <span class="fr">${esc(clampSentences(d.logrocket_note || d.note || ""))}</span>
     </div>`).join("");
 
   // The competitor's strip: a filled piece where research found a capability, a
@@ -584,7 +613,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
     <div class="pz on">
       <span class="ico">${sourceIcon(d.name)}</span>
       <span class="nm">${esc(d.name)}</span>
-      <span class="fr">${escBold(d.competitor_note || "")}</span>
+      <span class="fr">${escBold(clampSentences(d.competitor_note || ""))}</span>
     </div>` : `
     <div class="pz off">
       <span class="q">?</span>
@@ -702,16 +731,16 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
       const n = Math.min(Math.max(dataSourceList.length, 1), 5);
       const cols = `grid-template-columns:repeat(${n},1fr)`;
       const gapCount = dataSourceList.filter(d => !d.competitor).length;
-      // The integration chips lose their per-card home in this layout, so they
-      // collect into one strip inside the LogRocket panel.
+      // The integration chips sit below both panels rather than inside the
+      // LogRocket one, so the two columns stay structurally identical.
       const allChips = Object.values(integrationsBySource).flat();
       const chipStrip = allChips.length ? `
-      <div class="ds-integ ctx-integ">
-        <span class="lbl">Integrates with your stack</span>
-        <div class="chips">${allChips.map(i => i.logo
-          ? `<span class="chip logo" title="${esc(i.name)}"><img src="${i.logo}" alt="${esc(i.name)}"/></span>`
-          : `<span class="chip">${esc(i.name)}</span>`).join("")}</div>
-      </div>` : "";
+    <div class="ds-integ ctx-integ">
+      <span class="lbl">LogRocket integrates with your stack</span>
+      <div class="chips">${allChips.map(i => i.logo
+        ? `<span class="chip logo" title="${esc(i.name)}"><img src="${i.logo}" alt="${esc(i.name)}"/></span>`
+        : `<span class="chip">${esc(i.name)}</span>`).join("")}</div>
+    </div>` : "";
       return `
     <div class="ctx-cols">
       <div class="ctx-panel lr">
@@ -731,7 +760,6 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
           <span class="it"><span class="bg">${ICO_CHART}</span><span><span class="t">Better experiences</span><span class="d">See the full impact across the stack</span></span></span>
           <span class="it"><span class="bg">${ICO_DOLLAR}</span><span><span class="t">Higher impact</span><span class="d">Fix what matters. Drive real outcomes.</span></span></span>
         </div>
-        ${chipStrip}
         <div class="ctx-bar">${ICO_CHECK_C}Complete context. Better AI. Better outcomes.</div>
       </div>
       <div class="ctx-panel them">
@@ -756,6 +784,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
         <div class="ctx-bar">${ICO_X_C}${gapCount ? "Gaps in context. Weaker AI. Missed outcomes." : "Less connected context. Weaker AI."}</div>
       </div>
     </div>
+    ${chipStrip}
     <div class="ctx-foot">
       <span class="hd">More context. Smarter AI. Better results.</span>
       <span class="sep"></span>
