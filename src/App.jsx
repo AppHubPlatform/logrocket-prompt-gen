@@ -1914,6 +1914,10 @@ For each of the five data sources (Errors, Sessions, Backend, Releases, Feedback
 - Wrap the specific gap — the part LogRocket does and they do not — in **double asterisks** so it renders bold. Bold ONLY that clause, never the whole note, and never the part describing what they DO ship. Example: "Error Analysis tracks front-end errors with AI summaries and session links, but **no JS stack traces or network-level error detail**". If a source has no verified gap, add no bold at all rather than inventing one.
 Example of the standard expected: FullStory ships Release Analyzer, which assesses the behavioural impact of a specific code release and flags regressions after a deploy. For FullStory's "Releases" card the correct note names Release Analyzer and describes it as behavioural release impact — NOT "no release tracking".
 
+FEEDBACK CARD, one extra check. LogRocket Feedback ingests unstructured feedback from OTHER channels the customer already uses (Intercom, Zendesk, Gong, G2, Productboard, Gladly, HubSpot Service Hub, Apple App Store, Google Play, Alchemer) and quantifies it against session behaviour. So for ${competitor}, research specifically whether their feedback capability can pull in feedback originating OUTSIDE their own widget or survey tool.
+- If they only collect what their own widget or survey captures, make that the bolded gap, e.g. "Ships a User Feedback widget, but **only its own widget, no support or review channels**".
+- If they DO ingest third-party channels, name that accurately and do not imply otherwise. Only claim this limitation when you have verified it.
+
 For "competitor_ai_timeline": find the dated releases of ${competitor}'s AI AGENT — and nothing else — with approximate month+year, oldest first. This is plotted against LogRocket's Ask Galileo agent timeline, so it must be agent-to-agent.
 
 An AI agent is a named assistant/copilot a user asks questions of in natural language, or that autonomously investigates and returns an answer — e.g. Ask Galileo, PostHog Max, Glassbox GIA. Include its GA release and any subsequent GA releases that materially expanded what the agent can reason over or answer.
