@@ -26,6 +26,25 @@ const noDash = (s) => String(s ?? "")
   .replace(/,\s*$/, "")
   .split(RANGE).join("-");
 
+// Ranking language about the competitor hands them credibility this guide exists
+// to question, and none of it is verifiable. The prompt forbids it; this strips
+// the adjectival forms, where removal leaves a clean sentence.
+// Noun-phrase forms are deliberately absent: "is the market leader in X" and "is
+// the gold standard for X" cannot be cut without rewriting the claim, and cutting
+// them anyway yields "is the for X". Those stay the prompt's job.
+const RANKING_ADJECTIVES =
+  /\b(?:best[-\s]in[-\s]class|best[-\s]of[-\s]breed|world[-\s]class|industry[-\s]leading|market[-\s]leading|category[-\s]defining)\s+/gi;
+
+const noRankingClaims = (s) => String(s ?? "")
+  .replace(RANKING_ADJECTIVES, "")
+  // Removing the adjective can strand the wrong article ("a analytics platform").
+  .replace(/\ba(\s+[aeiou])/g, "an$1")
+  .replace(/\bA(\s+[aeiou])/g, "An$1")
+  .replace(/\ban(\s+[^aeiou\s])/g, "a$1")
+  .replace(/\bAn(\s+[^aeiou\s])/g, "A$1")
+  .replace(/\s{2,}/g, " ")
+  .trim();
+
 const esc = (s) => noDash(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 // Escape first, then turn **…** markers into <strong>. Escaping before the
@@ -600,7 +619,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   const comp = esc(competitor || "the competitor");
 
   const ledeLr = g.lede_logrocket || g.headline || g.overview || "";
-  const ledeThem = g.lede_competitor || "";
+  const ledeThem = noRankingClaims(g.lede_competitor || "");
   const exampleQ = g.ai_example_question || "";
 
   const aiBullets = (Array.isArray(g.ai_bullets) ? g.ai_bullets : []).map(b =>

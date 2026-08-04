@@ -1833,6 +1833,7 @@ const LENGTH_RULES = `Hard rules:
 - LENGTH LIMIT — this is a scannable one-pager, not a doc. EVERY prose field must be at most 2-3 sentences. Bullets and table cells must be ONE short sentence or phrase. Never write a long paragraph. Be punchy: cut qualifiers rather than running long.
 - WORD CAPS ARE ABSOLUTE. Where a field states a MAX word count, count the words and stay under it — bolding or adding detail is never a reason to exceed it. If you need room for the bolded differentiator, delete other words.
 - Never invent statistics, customer names, ratings, or quotes.
+- NEVER call the competitor a "market leader", "industry leader", "best-in-class", "the leading X", "gold standard" or similar. Ranking language hands them the credibility this guide exists to question, and it is unverifiable. State the specific capability instead.
 - NO EM DASHES OR EN DASHES anywhere in the output. Use a comma, a colon, or a second sentence instead. Write "behavioral only, with no deploy marker", never "behavioral only - no deploy marker".
 - Respond ONLY with the JSON object, no preamble, no markdown fences.`;
 
@@ -1941,7 +1942,7 @@ ${LENGTH_RULES}
 
 JSON shape:
 {
-  "lede_competitor": "1-2 sentence honest summary of what ${competitor} is good at AND where it stops short (hero right column)",
+  "lede_competitor": "1-2 sentence honest summary of what ${competitor} is good at AND where it stops short (hero right column). Name the concrete thing they do well, never a ranking claim: write 'strong at error tracking for backend teams', never 'best-in-class', 'market leader', 'industry leader' or 'the leading X'.",
   "competitor_ai_summary": "2-3 sentences on what ${competitor}'s AI does and where it stops (behavior only, no code/errors, etc.)",
   "competitor_ai_bullets": ["3 bullets on ${competitor} AI limitations plus 1 fair strength — each ONE sentence, MAX 14 WORDS. In the limitation bullets, wrap the specific missing capability in **double asterisks** for bold"],
   "competitor_ai_timeline": [ { "date": "e.g. Mar '25", "label": "the AI capability or product shipped, MAX 4 WORDS", "note": "MAX 8 WORDS on what it does / still cannot do", "pct": 30, "pct_basis": "benchmark|capability" } ],
