@@ -116,7 +116,10 @@ p{margin:0}
    signals interlock into one reasoning layer, while the competitor's strip shows
    a gap wherever research found no capability. Which pieces are filled is driven
    by the researched per-source boolean, never by a fixed pattern. */
-.ctx-lede{text-align:center;font-size:13.5px;color:var(--text-regular);margin:-2px 0 18px;line-height:1.45}
+/* The merged header runs longer than a normal section title, so it gets the full
+   page width rather than the 820px measure. Alignment matches every other
+   section header. */
+.section-title.ctx{max-width:none;margin-bottom:18px}
 .ctx-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
 .ctx-panel{border-radius:20px;padding:15px;display:flex;flex-direction:column;gap:11px;background:#fff}
 .ctx-panel.lr{border:1px solid rgba(99,63,160,.20)}
@@ -694,8 +697,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
 
   ${dataTiles ? `<section>
     <div class="section-eyebrow"><span class="num">03</span>One Reasoning Layer</div>
-    <h2 class="section-title" style="text-align:center">AI is only as good as the <em>context</em> it receives.</h2>
-    <p class="ctx-lede">Galileo reasons across every technical and user signal to explain why, not just what.</p>
+    <h2 class="section-title ctx">AI is only as good as the <em>context</em> it receives — Galileo reasons across every technical and user signal to explain why, not just what.</h2>
     ${(() => {
       const n = Math.min(Math.max(dataSourceList.length, 1), 5);
       const cols = `grid-template-columns:repeat(${n},1fr)`;
