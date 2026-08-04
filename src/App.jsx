@@ -1927,6 +1927,8 @@ GA ONLY. Every date must be a general-availability date — the agent released t
 - If it is still in beta, preview, early access, limited availability, waitlist or design-partner-only, EXCLUDE it entirely — do not plot it and do not treat the beta date as GA.
 - If you can confirm a beta but cannot confirm a GA date, leave that milestone out rather than substituting the beta date.
 
+WINDOW: the chart starts at January 2025, LogRocket's first milestone. Ignore any ${competitor} release dated before Jan 2025 entirely, and do not reference it in the label of a later milestone either. A milestone the chart cannot place is dropped, so returning one wastes the research.
+
 EXCLUDE everything that is not the GA agent itself, even when it is AI or ML powered:
 - AI/ML features that are not an agent — anomaly detection, auto-insights, funnel or friction scoring, sentiment analysis, predictive metrics, smart search ranking, session-signal detectors (e.g. "Voice of the Silent"-style ML signals), autocapture improvements.
 - Funding rounds and "AI investment" announcements; partnerships; acquisitions (unless the acquired agent itself reached GA in ${competitor}'s product, dated to that GA date).
