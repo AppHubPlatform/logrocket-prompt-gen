@@ -227,6 +227,8 @@ p{margin:0}
 .pz.on .fr strong{color:#fff}
 .pz.off{background:var(--lr-gray-5);color:var(--lr-gray-2);border-top:1px dashed var(--lr-gray-4);border-bottom:1px dashed var(--lr-gray-4)}
 .pz.off .q{font-family:var(--font-display);font-size:20px;line-height:1.6}
+/* The gap clause still needs to read on the grey fill. */
+.pz.off .fr strong{color:var(--text-regular)}
 .pz:first-child{border-top-left-radius:12px;border-bottom-left-radius:12px}
 .pz:last-child{border-top-right-radius:12px;border-bottom-right-radius:12px}
 .pz::after{content:"";position:absolute;right:-5px;top:50%;margin-top:-5px;width:10px;height:10px;border-radius:50%;background:inherit;z-index:2}
@@ -677,20 +679,30 @@ export function buildGuideHtml({ guide, competitor, customer }) {
       ${pieceChips(d.name)}
     </div>`).join("");
 
-  // The competitor's strip: a filled piece where research found a capability, a
-  // "?" gap where it did not. Driven by the researched flag, so a competitor with
-  // full coverage correctly shows five filled pieces.
-  const compPieces = dataSourceList.map(d => d.competitor ? `
+  // The competitor's strip has three states, so "has something" is not conflated
+  // with "has the equivalent":
+  //   filled          - a capability that matches what LogRocket does here
+  //   unfilled + note - ships something, but not the equivalent (e.g. feedback
+  //                     captured only through their own widget). The note still
+  //                     names it, since blanking it would understate them.
+  //   unfilled + "?"  - nothing verified for this source at all
+  const compPieces = dataSourceList.map(d => {
+    const note = escBold(clampSentences(d.competitor_note || "", 1, { keepMarked: true }));
+    if (d.competitor) {
+      return `
     <div class="pz on">
       <span class="ico">${sourceIcon(d.name)}</span>
       <span class="nm">${esc(d.name)}</span>
-      <span class="fr">${escBold(clampSentences(d.competitor_note || "", 1, { keepMarked: true }))}</span>
-    </div>` : `
+      <span class="fr">${note}</span>
+    </div>`;
+    }
+    return `
     <div class="pz off">
-      <span class="q">?</span>
+      ${note ? `<span class="ico">${sourceIcon(d.name)}</span>` : `<span class="q">?</span>`}
       <span class="nm">${esc(d.name)}</span>
-      <span class="fr">Not available</span>
-    </div>`).join("");
+      <span class="fr">${note || "Not available"}</span>
+    </div>`;
+  }).join("");
 
   // A dead-end stub under each piece that has a verified gap — either no
   // capability at all, or a capability with a bolded shortfall in its note.

@@ -1915,8 +1915,9 @@ For each of the five data sources (Errors, Sessions, Backend, Releases, Feedback
 Example of the standard expected: FullStory ships Release Analyzer, which assesses the behavioural impact of a specific code release and flags regressions after a deploy. For FullStory's "Releases" card the correct note names Release Analyzer and describes it as behavioural release impact — NOT "no release tracking".
 
 FEEDBACK CARD, one extra check. LogRocket Feedback ingests unstructured feedback from OTHER channels the customer already uses (Intercom, Zendesk, Gong, G2, Productboard, Gladly, HubSpot Service Hub, Apple App Store, Google Play, Alchemer) and quantifies it against session behaviour. So for ${competitor}, research specifically whether their feedback capability can pull in feedback originating OUTSIDE their own widget or survey tool.
-- If they only collect what their own widget or survey captures, make that the bolded gap, e.g. "Ships a User Feedback widget, but **only its own widget, no support or review channels**".
-- If they DO ingest third-party channels, name that accurately and do not imply otherwise. Only claim this limitation when you have verified it.
+- If they only collect what their own widget or survey captures, set "competitor": false for the Feedback source. A widget that captures its own submissions is not the same capability as analysing feedback from every channel the customer already uses, and marking it as present would imply parity that does not exist. Still write the accurate note naming their widget, with the limit as the bolded gap, e.g. "Ships a User Feedback widget, but **only its own widget, no support or review channels**". The card shows the note either way, so setting false does not hide what they ship.
+- Only set "competitor": true for Feedback when they can genuinely ingest feedback originating outside their own tooling. Then name those channels.
+- Only claim this limitation when you have verified it.
 
 For "competitor_ai_timeline": find the dated releases of ${competitor}'s AI AGENT — and nothing else — with approximate month+year, oldest first. This is plotted against LogRocket's Ask Galileo agent timeline, so it must be agent-to-agent.
 
