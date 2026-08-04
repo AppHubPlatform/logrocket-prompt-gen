@@ -616,7 +616,7 @@ const TEAMS = [
   { role: "Growth", glyph: "↗", title: "Move the metric", p: "A/B impact and drop-off, quantified without engineering." },
 ];
 
-export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
+export function buildGuideHtml({ guide, competitor, customer }) {
   const g = guide || {};
   const comp = esc(competitor || "the competitor");
 
@@ -743,7 +743,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
 <div class="page">
   <div class="meta">
     <div class="lockup">${LOGO_SVG}<span class="pipe"></span><span class="label">Competitive Brief</span></div>
-    <div class="stamp">${esc(customer ? `Prepared for ${customer}` : "")}${customer && dateStamp ? "  ·  " : ""}${esc(dateStamp || "")}</div>
+    <div class="stamp">${esc(customer ? `Prepared for ${customer}` : "")}</div>
   </div>
 
   <section class="hero">
@@ -919,8 +919,8 @@ function computePageSlices(blocks, pageH, totalH) {
   return slices.length ? slices : [[0, totalH]];
 }
 
-export async function downloadGuidePdf({ guide, competitor, customer, dateStamp, fileName }) {
-  const html = buildGuideHtml({ guide, competitor, customer, dateStamp });
+export async function downloadGuidePdf({ guide, competitor, customer, fileName }) {
+  const html = buildGuideHtml({ guide, competitor, customer });
 
   // Render the exact print document offscreen at full width.
   const frame = document.createElement("iframe");

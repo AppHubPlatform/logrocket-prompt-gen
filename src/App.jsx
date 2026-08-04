@@ -2572,7 +2572,7 @@ function GuidePreview({ guide, competitor, customer }) {
   const frameRef = useRef(null);
   const RENDER_W = 1180;
   const html = useMemo(
-    () => buildGuideHtml({ guide, competitor, customer, dateStamp: "" }),
+    () => buildGuideHtml({ guide, competitor, customer }),
     [guide, competitor, customer]
   );
   const [scale, setScale] = useState(0.55);
@@ -2684,7 +2684,6 @@ function CompetitorGuide() {
     } finally { setLoading(false); setRogStatus(""); }
   };
 
-  const dateStamp = () => new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   const pdfFileName = () => {
     const base = (pdfCustomer || company || `logrocket-vs-${competitor}`).trim().replace(/[^a-z0-9]+/gi, "-").toLowerCase();
     return `${base}-competitor-guide.pdf`;
@@ -2698,7 +2697,6 @@ function CompetitorGuide() {
         guide,
         competitor,
         customer: pdfCustomer || company,
-        dateStamp: dateStamp(),
         fileName: pdfFileName(),
       });
       LogRocket.track("Competitor Guide PDF Downloaded", { competitor, pages });
