@@ -695,7 +695,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   ${dataTiles ? `<section>
     <div class="section-eyebrow"><span class="num">03</span>One Reasoning Layer</div>
     <h2 class="section-title" style="text-align:center">AI is only as good as the <em>context</em> it receives.</h2>
-    <p class="ctx-lede">Galileo reasons across every technical and user signal to uncover the full story.</p>
+    <p class="ctx-lede">Galileo reasons across every technical and user signal to explain why, not just what.</p>
     ${(() => {
       const n = Math.min(Math.max(dataSourceList.length, 1), 5);
       const cols = `grid-template-columns:repeat(${n},1fr)`;
