@@ -20,7 +20,10 @@ const escBold = (s) => esc(s).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
 const ABBREVIATIONS = ["e.g.", "i.e.", "etc.", "vs.", "approx.", "No."];
 const DOT = "\u0001"; // sentinel the splitter ignores and real text never contains
 
-const clampSentences = (s, max = 2) => {
+// keepMarked: never drop the sentence carrying the bolded gap. Cutting to the
+// limit would otherwise delete the one clause the card exists to show, leaving a
+// note that only lists what the competitor ships.
+const clampSentences = (s, max = 2, { keepMarked = false } = {}) => {
   const text = String(s ?? "").trim();
   if (!text) return "";
   // Mask abbreviation dots before splitting — otherwise "e.g." is itself read as
@@ -30,7 +33,13 @@ const clampSentences = (s, max = 2) => {
     masked = masked.split(abbr).join(abbr.replace(/\./g, DOT));
   }
   const parts = masked.match(/[^.!?]+(?:[.!?]+|$)/g) || [masked];
-  let out = parts.slice(0, max).join("").split(DOT).join(".").trim();
+  let take = max;
+  if (keepMarked) {
+    const marked = parts.findIndex(p => p.includes("**"));
+    // Extend only as far as the marked sentence, and drop everything after it.
+    if (marked >= 0) take = Math.max(take, marked + 1);
+  }
+  let out = parts.slice(0, take).join("").split(DOT).join(".").trim();
   // Close a bold marker the cut left unpaired so escBold still matches it.
   if ((out.match(/\*\*/g) || []).length % 2) out += "**";
   return out;
@@ -606,7 +615,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
     <div class="pz on">
       <span class="ico">${sourceIcon(d.name)}</span>
       <span class="nm">${esc(d.name)}</span>
-      <span class="fr">${esc(clampSentences(d.logrocket_note || d.note || ""))}</span>
+      <span class="fr">${esc(clampSentences(d.logrocket_note || d.note || "", 1))}</span>
     </div>`).join("");
 
   // The competitor's strip: a filled piece where research found a capability, a
@@ -616,7 +625,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
     <div class="pz on">
       <span class="ico">${sourceIcon(d.name)}</span>
       <span class="nm">${esc(d.name)}</span>
-      <span class="fr">${escBold(clampSentences(d.competitor_note || ""))}</span>
+      <span class="fr">${escBold(clampSentences(d.competitor_note || "", 1, { keepMarked: true }))}</span>
     </div>` : `
     <div class="pz off">
       <span class="q">?</span>
