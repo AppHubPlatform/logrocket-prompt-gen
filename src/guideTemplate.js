@@ -7,7 +7,26 @@
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas-pro";
 
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// The guide uses no em or en dashes. A dash used as a separator becomes a comma;
+// enforced at render time because a style rule in the prompt is only advisory and
+// the model reaches for them constantly.
+const RANGE = "\u0002"; // second sentinel, for dashes that are legitimate ranges
+
+const noDash = (s) => String(s ?? "")
+  // A dash between numbers is a range ("201-1,000 employees"), not a separator.
+  // Park it first so the comma rule below cannot turn it into "201, 1,000".
+  .replace(/(\d)\s*[—–]\s*(?=\d)/g, `$1${RANGE}`)
+  // After a conjunction or preposition the clause already joins, so a comma there
+  // reads as a stumble ("but, no stack traces"). Drop to a plain space.
+  .replace(/\b(but|and|or|so|yet|with|plus|though)\s*[—–]\s*/gi, "$1 ")
+  .replace(/\s*[—–]\s*/g, ", ")
+  // A dash following punctuation that already separates would double it up.
+  .replace(/([,;:])\s*,\s*/g, "$1 ")
+  .replace(/\s*,\s*([.;:!?])/g, "$1")
+  .replace(/,\s*$/, "")
+  .split(RANGE).join("-");
+
+const esc = (s) => noDash(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 // Escape first, then turn **…** markers into <strong>. Escaping before the
 // substitution keeps model/rep-authored text safe — only our own tags survive.
@@ -176,6 +195,14 @@ p{margin:0}
 .pz .ico svg{width:21px;height:21px;display:block}
 .pz .nm{font-family:var(--font-display);font-size:11px;line-height:1.15}
 .pz .fr{font-size:8.4px;line-height:1.3}
+/* Integration logos inside the LogRocket piece they belong to. White chips so the
+   vendor marks stay legible on the purple fill; pinned to the bottom of the piece
+   so they line up across the strip regardless of note length. */
+.pz-integ{width:100%;margin-top:auto;padding-top:7px;border-top:1px solid rgba(255,255,255,.28)}
+.pz-integ .chips{display:flex;flex-wrap:wrap;gap:3px;justify-content:center}
+.pz-integ .chip{font-family:var(--font-display);font-size:9px;padding:2px 6px;border-radius:9999px;background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.32)}
+.pz-integ .chip.logo{background:#fff;border-color:rgba(255,255,255,.55);padding:3px 6px;display:inline-flex;align-items:center;justify-content:center;height:22px}
+.pz-integ .chip.logo img{height:14px;width:auto;max-width:52px;object-fit:contain;display:block}
 .pz.on{background:var(--lr-galaxy);color:#fff}
 .pz.on .fr{color:rgba(255,255,255,.84)}
 .pz.on .fr strong{color:#fff}
@@ -223,7 +250,6 @@ p{margin:0}
 .ctx-bar svg{width:15px;height:15px;flex-shrink:0}
 .ctx-panel.lr .ctx-bar{background:var(--lr-galaxy);color:#fff}
 .ctx-panel.them .ctx-bar{background:var(--lr-gray-5);color:var(--text-regular)}
-.ctx-integ{border-top:1px solid rgba(99,63,160,.14);padding-top:9px}
 .ctx-foot{display:flex;align-items:center;gap:13px;margin-top:14px;border-radius:14px;padding:12px 16px;background:var(--lr-indigo-2);border:1px solid rgba(99,63,160,.18)}
 .ctx-foot .hd{font-family:var(--font-display);font-size:12.5px;color:var(--lr-galaxy);flex-shrink:0}
 .ctx-foot .sep{width:1px;height:18px;background:rgba(99,63,160,.25);flex-shrink:0}
@@ -610,12 +636,24 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
     (integrationsBySource[target] ||= []).push(i);
   });
 
+  // Logos for the integrations that belong to this data source, shown inside the
+  // LogRocket piece they map to. Only LogRocket's side carries them.
+  const pieceChips = (sourceName) => {
+    const items = integrationsBySource[sourceName];
+    if (!items || !items.length) return "";
+    const chips = items.map(i => i.logo
+      ? `<span class="chip logo" title="${esc(i.name)}"><img src="${i.logo}" alt="${esc(i.name)}"/></span>`
+      : `<span class="chip">${esc(i.name)}</span>`).join("");
+    return `<span class="pz-integ"><span class="chips">${chips}</span></span>`;
+  };
+
   // LogRocket's strip: every signal present, so every piece is filled.
   const lrPieces = dataSourceList.map(d => `
     <div class="pz on">
       <span class="ico">${sourceIcon(d.name)}</span>
       <span class="nm">${esc(d.name)}</span>
       <span class="fr">${esc(clampSentences(d.logrocket_note || d.note || "", 1))}</span>
+      ${pieceChips(d.name)}
     </div>`).join("");
 
   // The competitor's strip: a filled piece where research found a capability, a
@@ -678,7 +716,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
 
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<title>LogRocket vs ${comp} — Competitive Brief</title>
+<title>LogRocket vs ${comp} · Competitive Brief</title>
 <style>${TOKENS}${COMPONENT_CSS}</style>
 </head><body>
 <div class="page">
@@ -738,21 +776,11 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
 
   ${dataTiles ? `<section>
     <div class="section-eyebrow"><span class="num">03</span>One Reasoning Layer</div>
-    <h2 class="section-title ctx">AI is only as good as the <em>context</em> it receives — Galileo reasons across every technical and user signal to explain why, not just what.</h2>
+    <h2 class="section-title ctx">AI is only as good as the <em>context</em> it receives. Galileo reasons across every technical and user signal to explain why, not just what.</h2>
     ${(() => {
       const n = Math.min(Math.max(dataSourceList.length, 1), 5);
       const cols = `grid-template-columns:repeat(${n},1fr)`;
       const gapCount = dataSourceList.filter(d => !d.competitor).length;
-      // The integration chips sit below both panels rather than inside the
-      // LogRocket one, so the two columns stay structurally identical.
-      const allChips = Object.values(integrationsBySource).flat();
-      const chipStrip = allChips.length ? `
-    <div class="ds-integ ctx-integ">
-      <span class="lbl">LogRocket integrates with your stack</span>
-      <div class="chips">${allChips.map(i => i.logo
-        ? `<span class="chip logo" title="${esc(i.name)}"><img src="${i.logo}" alt="${esc(i.name)}"/></span>`
-        : `<span class="chip">${esc(i.name)}</span>`).join("")}</div>
-    </div>` : "";
       return `
     <div class="ctx-cols">
       <div class="ctx-panel lr">
@@ -796,7 +824,6 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
         <div class="ctx-bar">${ICO_X_C}${gapCount ? "Gaps in context. Weaker AI. Missed outcomes." : "Less connected context. Weaker AI."}</div>
       </div>
     </div>
-    ${chipStrip}
     <div class="ctx-foot">
       <span class="hd">More context. Smarter AI. Better results.</span>
       <span class="sep"></span>
@@ -835,7 +862,7 @@ export function buildGuideHtml({ guide, competitor, customer, dateStamp }) {
   </section>` : ""}
 
   <div class="footnote">
-    <span>LogRocket · Confidential — internal &amp; customer use</span>
+    <span>LogRocket · Confidential: internal &amp; customer use</span>
     <span>Verify claims against sources before sharing externally.</span>
   </div>
 </div>

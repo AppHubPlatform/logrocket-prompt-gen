@@ -1733,7 +1733,7 @@ const CURATED_COMPETITOR_NOTES = {
   fullstory: {
     releases: {
       competitor: true,
-      competitor_note: "Ask StoryAI Launch Analysis assesses behavioral impact post-release, but is behavioral only — **no deploy marker or error-regression grouping**",
+      competitor_note: "Ask StoryAI Launch Analysis assesses behavioral impact post-release, but is behavioral only, with **no deploy marker or error-regression grouping**",
     },
   },
 };
@@ -1833,7 +1833,8 @@ const LENGTH_RULES = `Hard rules:
 - LENGTH LIMIT — this is a scannable one-pager, not a doc. EVERY prose field must be at most 2-3 sentences. Bullets and table cells must be ONE short sentence or phrase. Never write a long paragraph. Be punchy: cut qualifiers rather than running long.
 - WORD CAPS ARE ABSOLUTE. Where a field states a MAX word count, count the words and stay under it — bolding or adding detail is never a reason to exceed it. If you need room for the bolded differentiator, delete other words.
 - Never invent statistics, customer names, ratings, or quotes.
-- Respond ONLY with the JSON object — no preamble, no markdown fences.`;
+- NO EM DASHES OR EN DASHES anywhere in the output. Use a comma, a colon, or a second sentence instead. Write "behavioral only, with no deploy marker", never "behavioral only - no deploy marker".
+- Respond ONLY with the JSON object, no preamble, no markdown fences.`;
 
 // Transient API conditions (overload, rate limit, 5xx) would otherwise fail the
 // whole guide, and firing four or five calls at once makes hitting one likelier.
@@ -2436,16 +2437,16 @@ function GuideEditor({ guide, setGuide, competitor }) {
       </GuideSection>
       <GuideSection title="AI example (shown in the cards)">
         <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "8px" }}>
-          Wrap text in **double asterisks** to bold it — use this to highlight what {competitor} can't do.
+          Wrap text in **double asterisks** to bold it. Use this to highlight what {competitor} can't do.
         </div>
         <label style={S.fieldLabel}>Example question</label>
         <input style={{ ...S.input, marginBottom: "10px" }} value={guide.ai_example_question || ""} onChange={e => setField("ai_example_question", e.target.value)} />
-        <label style={S.fieldLabel}>Ask Galileo — example answer</label>
+        <label style={S.fieldLabel}>Ask Galileo: example answer</label>
         <textarea style={{ ...S.textarea, marginBottom: "10px" }} rows={3} value={guide.ai_example_lr_answer || ""} onChange={e => setField("ai_example_lr_answer", e.target.value)} />
-        <label style={S.fieldLabel}>{competitor} AI — example answer</label>
+        <label style={S.fieldLabel}>{competitor} AI: example answer</label>
         <textarea style={S.textarea} rows={3} value={guide.ai_example_competitor_answer || ""} onChange={e => setField("ai_example_competitor_answer", e.target.value)} />
       </GuideSection>
-      <GuideSection title="AI accuracy — key takeaway (on-screen only)">
+      <GuideSection title="AI accuracy: key takeaway (on-screen only)">
         <textarea style={S.textarea} rows={5} value={guide.ai_accuracy || ""} onChange={e => setField("ai_accuracy", e.target.value)} />
       </GuideSection>
       <GuideSection title="One connected picture of every issue">
@@ -2469,10 +2470,10 @@ function GuideEditor({ guide, setGuide, competitor }) {
       )}
 
       {Array.isArray(guide.data_sources) && guide.data_sources.length > 0 && (
-        <GuideSection title="Data sources — how each side handles them">
+        <GuideSection title="Data sources: how each side handles them">
           <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "8px" }}>
-            Correct the {competitor} notes here if a product name or capability is off — these appear in the PDF.
-            Wrap text in **double asterisks** to bold it — use this to call out the gap in a {competitor} note.
+            Correct the {competitor} notes here if a product name or capability is off. These appear in the PDF.
+            Wrap text in **double asterisks** to bold it. Use this to call out the gap in a {competitor} note.
           </div>
           {guide.data_sources.map((d, i) => (
             <div key={i} style={{ border: `1px solid ${BORDER}`, borderRadius: "10px", padding: "10px", marginBottom: "8px" }}>
@@ -2655,7 +2656,7 @@ function CompetitorGuide() {
           rog = await fetchRogCustomerExamples({ industry, size, competitor });
           setRogExamples(rog);
         } catch (e) {
-          setRogError(`Rog unavailable — using public case studies only (${e.message})`);
+          setRogError(`Rog unavailable, using public case studies only (${e.message})`);
         }
       }
       setRogStatus("Researching and writing the guide…");
@@ -2710,7 +2711,7 @@ function CompetitorGuide() {
       </div>
       <h1 style={S.heroTitle}>Competitor guide</h1>
       <p style={S.heroSub}>
-        Build a customized guide positioning LogRocket against a competitor — with AI-accuracy proof, our unified-data advantage, and Rog-sourced customer examples.
+        Build a customized guide positioning LogRocket against a competitor, with AI-accuracy proof, our unified-data advantage, and Rog-sourced customer examples.
       </p>
 
       <div style={S.card}>
@@ -2764,7 +2765,7 @@ function CompetitorGuide() {
             style={S.input}
             value={integrations}
             onChange={e => setIntegrations(e.target.value)}
-            placeholder="Comma-separated — e.g. Qualtrics, G2, Jira, Segment, Datadog, Zendesk"
+            placeholder="Comma-separated, e.g. Qualtrics, G2, Jira, Segment, Datadog, Zendesk"
           />
           <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "6px" }}>
             The guide will confirm which of these LogRocket integrates with and show them in "One reasoning layer".
@@ -2773,7 +2774,7 @@ function CompetitorGuide() {
 
         <div style={{ marginBottom: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-            <label style={{ ...S.fieldLabel, marginBottom: 0 }}>Customer examples — Rog (pulled automatically)</label>
+            <label style={{ ...S.fieldLabel, marginBottom: 0 }}>Customer examples: Rog (pulled automatically)</label>
             <button style={S.rogBtn(rogLoading)} onClick={pullRog} disabled={rogLoading}>
               {rogLoading ? "Pulling…" : "✦ Preview Rog data"}
             </button>
@@ -2782,7 +2783,7 @@ function CompetitorGuide() {
             style={S.textarea}
             value={rogExamples}
             onChange={e => setRogExamples(e.target.value)}
-            placeholder="Leave blank — Rog is pulled automatically when you generate. Preview or paste your own here to override what the guide is grounded in."
+            placeholder="Leave blank. Rog is pulled automatically when you generate. Preview or paste your own here to override what the guide is grounded in."
             rows={4}
           />
           {rogError && <div style={{ fontSize: "12px", color: "#b91c1c", marginTop: "6px" }}>⚠️ Rog error: {rogError}</div>}
@@ -2800,7 +2801,7 @@ function CompetitorGuide() {
               style={S.textarea}
               value={featureFocus}
               onChange={e => setFeatureFocus(e.target.value)}
-              placeholder="Comma-separated — e.g. session replay, error tracking, product analytics, funnels, AI insights, data retention. Leave blank and we'll pick the most relevant."
+              placeholder="Comma-separated, e.g. session replay, error tracking, product analytics, funnels, AI insights, data retention. Leave blank and we'll pick the most relevant."
               rows={2}
             />
           </div>
@@ -2835,7 +2836,7 @@ function CompetitorGuide() {
               </>
             ) : (
             <>
-            <div style={{ ...S.sectionSub, marginTop: "4px", marginBottom: "12px" }}>Live preview — exactly what the PDF will contain. Use <strong>Edit</strong> to make corrections, then open the PDF.</div>
+            <div style={{ ...S.sectionSub, marginTop: "4px", marginBottom: "12px" }}>Live preview: exactly what the PDF will contain. Use <strong>Edit</strong> to make corrections, then open the PDF.</div>
             <GuidePreview guide={guide} competitor={competitor} customer={pdfCustomer || company} />
 
             {(guide.ai_accuracy || guide.competitor_ai_summary || guide.unified_data) && (
@@ -2859,7 +2860,7 @@ function CompetitorGuide() {
                   )}
                   {guide.unified_data && (
                     <div style={S.outputBlock}>
-                      <div style={{ fontSize: "12px", fontWeight: "700", color: ACCENT_DARK, marginBottom: "5px" }}>One reasoning layer — all data sources</div>
+                      <div style={{ fontSize: "12px", fontWeight: "700", color: ACCENT_DARK, marginBottom: "5px" }}>One reasoning layer: all data sources</div>
                       <p style={{ ...S.outputText, fontSize: "13px" }}>{guide.unified_data}</p>
                     </div>
                   )}
@@ -2869,11 +2870,11 @@ function CompetitorGuide() {
 
             {Array.isArray(guide.sources) && guide.sources.length > 0 && (
               <div style={{ marginTop: "18px" }}>
-                <GuideSection title="Sources (on-screen only — not in the PDF)">
+                <GuideSection title="Sources (on-screen only, not in the PDF)">
                   <ul style={{ margin: 0, paddingLeft: "18px" }}>
                     {guide.sources.map((s, i) => (
                       <li key={i} style={{ fontSize: "12px", color: "#6b7280", marginBottom: "5px", lineHeight: "1.5" }}>
-                        {s.label ? `${s.label} — ` : ""}
+                        {s.label ? `${s.label}: ` : ""}
                         <a href={s.url} target="_blank" rel="noreferrer" style={{ color: ACCENT, wordBreak: "break-all" }}>{s.url}</a>
                       </li>
                     ))}
