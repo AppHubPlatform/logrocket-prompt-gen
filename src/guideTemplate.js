@@ -143,8 +143,11 @@ p{margin:0}
    page width rather than the 820px measure. Alignment matches every other
    section header. */
 .section-title.ctx{max-width:none;margin-bottom:18px}
-.ctx-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch}
-.ctx-panel{border-radius:20px;padding:15px;display:flex;flex-direction:column;gap:11px;background:#fff}
+/* Six shared row tracks — head, signal strip, connector, verdict, outcomes, bar.
+   Each panel is a subgrid of them, so every row sizes to the taller of the two
+   columns and both sides stay level without capping any content. */
+.ctx-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;grid-template-rows:repeat(6,auto)}
+.ctx-panel{grid-row:1/-1;display:grid;grid-template-rows:subgrid;row-gap:11px;border-radius:20px;padding:15px;background:#fff}
 .ctx-panel.lr{border:1px solid rgba(99,63,160,.20)}
 .ctx-panel.them{border:1px solid rgba(0,0,0,.07)}
 .ctx-head{display:flex;align-items:center;justify-content:center;gap:9px;font-family:var(--font-display);font-size:14.5px;letter-spacing:.10em;text-transform:uppercase}
@@ -157,13 +160,13 @@ p{margin:0}
 /* Interlocking signal strip. No gap between pieces — the nub on each piece's
    right edge overlaps its neighbour so the row reads as one joined chain. */
 .pz-row{display:grid;gap:0}
-/* Fixed height, not min-height: the two columns' notes differ in length and a
-   min-height still lets the taller column win, which knocks every row below it
-   out of alignment. The note is line-clamped to fit exactly. */
-.pz{position:relative;height:134px;padding:11px 8px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;overflow:hidden}
+/* Height comes from content, never a cap — a clipped note reads as a finished
+   sentence and misrepresents the competitor. Equal sizing across the two columns
+   is handled by the subgrid on .ctx-panel instead. */
+.pz{position:relative;min-height:96px;padding:11px 8px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px}
 .pz .ico svg{width:21px;height:21px;display:block}
 .pz .nm{font-family:var(--font-display);font-size:11px;line-height:1.15}
-.pz .fr{font-size:8.4px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
+.pz .fr{font-size:8.4px;line-height:1.3}
 .pz.on{background:var(--lr-galaxy);color:#fff}
 .pz.on .fr{color:rgba(255,255,255,.84)}
 .pz.on .fr strong{color:#fff}
@@ -197,7 +200,7 @@ p{margin:0}
 .ctx-panel.lr .ctx-out h4{color:var(--lr-ink)}
 .ctx-panel.them .ctx-out h4{color:var(--text-regular)}
 .ctx-out p{font-size:10.6px;line-height:1.4;color:var(--text-regular);margin:0}
-.ctx-tri{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:auto}
+.ctx-tri{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .ctx-tri .it{display:flex;gap:7px;align-items:flex-start}
 .ctx-tri .bg{width:22px;height:22px;border-radius:7px;flex-shrink:0;display:grid;place-items:center}
 .ctx-tri .bg svg{width:13px;height:13px;display:block}
