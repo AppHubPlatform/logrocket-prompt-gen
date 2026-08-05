@@ -1968,7 +1968,7 @@ For each of the five data sources (Errors, Sessions, Backend, Releases, Feedback
 - Where they do have a capability, the honest differentiator is usually HOW it works — behavioural vs code-level, separate tool vs same timeline, manual vs correlated — not that it is missing. Say that instead.
 - Wrap the specific gap — the part LogRocket does and they do not — in **double asterisks** so it renders bold. Bold ONLY that clause, never the whole note, and never the part describing what they DO ship. If a source has no verified gap, add no bold at all rather than inventing one.
 
-LENGTH: these are cards on a one-pager, not prose. ONE sentence, MAX 10 WORDS, clipped. Do not explain, just characterise. This is the standard expected, for PostHog:
+LENGTH: these are cards on a one-pager, not prose. ONE sentence, 5 to 8 WORDS, clipped. Do not explain, just characterise. This is the standard expected, for PostHog:
   Errors:    "Captures frontend errors, but **lacks complete backend context**."
   Sessions:  "Replay available, but **limited behavioral reasoning**."
   Backend:   "Logs exist **separately from session analysis**."
@@ -1976,12 +1976,12 @@ LENGTH: these are cards on a one-pager, not prose. ONE sentence, MAX 10 WORDS, c
   Feedback:  "Feedback remains **disconnected from technical signals**."
 Note what those examples do NOT do: they never name the product ("Error Tracking", "Release Health"), and they never explain. Match that density for every competitor.
 
-Before you return each competitor_note, count its words. Over 10, cut from the capability half, not the gap: drop the product name first, then adjectives, then filler like "available", "exists", "ships with". "Error Tracking ships with stack traces and session replay, but no network-request-level session correlation" is 15 words and too long; "Captures frontend errors, but **no session-level network correlation**" is 8 and correct.
+Before you return each competitor_note, count its words. Over 8, cut from the capability half, not the gap: drop the product name first, then adjectives, then filler like "available", "exists", "ships with". "Error Tracking ships with stack traces and session replay, but no network-request-level session correlation" is 15 words and far too long; "Captures frontend errors, but **no session correlation**" is 7 and correct.
 
 Accuracy still outranks brevity: name what they ship, and do not turn a short note into a claim you have not verified. FullStory ships Release Analyzer, so its "Releases" note characterises that as behavioural release impact, NOT "no release tracking".
 
 FEEDBACK CARD, one extra check. LogRocket Feedback ingests unstructured feedback from OTHER channels the customer already uses (Intercom, Zendesk, Gong, G2, Productboard, Gladly, HubSpot Service Hub, Apple App Store, Google Play, Alchemer) and quantifies it against session behaviour. So for ${competitor}, research specifically whether their feedback capability can pull in feedback originating OUTSIDE their own widget or survey tool.
-- If they only collect what their own widget or survey captures, set "competitor": false for the Feedback source. A widget that captures its own submissions is not the same capability as analysing feedback from every channel the customer already uses, and marking it as present would imply parity that does not exist. Still write the accurate note naming their widget, with the limit as the bolded gap, and keep it inside the 10-word cap, e.g. "Own feedback widget only, **no support or review channels**". The card shows the note either way, so setting false does not hide what they ship.
+- If they only collect what their own widget or survey captures, set "competitor": false for the Feedback source. A widget that captures its own submissions is not the same capability as analysing feedback from every channel the customer already uses, and marking it as present would imply parity that does not exist. Still write the accurate note naming their widget, with the limit as the bolded gap, and keep it inside the 8-word cap, e.g. "Own widget only, **no support or review channels**". The card shows the note either way, so setting false does not hide what they ship.
 - Only set "competitor": true for Feedback when they can genuinely ingest feedback originating outside their own tooling. Then name those channels.
 - Only claim this limitation when you have verified it.
 
@@ -2019,7 +2019,7 @@ JSON shape:
   "competitor_ai_summary": "2-3 sentences on what ${competitor}'s AI does and where it stops (behavior only, no code/errors, etc.)",
   "competitor_ai_bullets": ["3 bullets on ${competitor} AI limitations plus 1 fair strength — each ONE sentence, MAX 14 WORDS. In the limitation bullets, wrap the specific missing capability in **double asterisks** for bold"],
   "competitor_ai_timeline": [ { "date": "e.g. Mar '25", "label": "the AI capability or product shipped, MAX 4 WORDS", "note": "MAX 8 WORDS on what it does / still cannot do", "pct": 30, "pct_basis": "benchmark|capability" } ],
-  "data_sources": [ { "name": "Errors", "logrocket": true, "logrocket_note": "how LogRocket handles this data source, MAX 12 WORDS, ONE sentence", "competitor": false, "competitor_note": "how ${competitor} handles it, ONE sentence, MAX 10 WORDS. Terse and clipped, not a full explanation. Wrap only the gap in **double asterisks**" }, { "name": "Sessions", "logrocket": true, "logrocket_note": "…", "competitor": true, "competitor_note": "…" }, { "name": "Backend", "logrocket": true, "logrocket_note": "server-side/API data — network requests, backend errors, server logs, tied to the session", "competitor": false, "competitor_note": "…" }, { "name": "Releases", "logrocket": true, "logrocket_note": "…", "competitor": false, "competitor_note": "…" }, { "name": "Feedback", "logrocket": true, "logrocket_note": "…", "competitor": false, "competitor_note": "…" } ],
+  "data_sources": [ { "name": "Errors", "logrocket": true, "logrocket_note": "how LogRocket handles this data source, MAX 12 WORDS, ONE sentence", "competitor": false, "competitor_note": "how ${competitor} handles it, ONE sentence, 5 to 8 WORDS. Terse and clipped, not a full explanation. Wrap only the gap in **double asterisks**" }, { "name": "Sessions", "logrocket": true, "logrocket_note": "…", "competitor": true, "competitor_note": "…" }, { "name": "Backend", "logrocket": true, "logrocket_note": "server-side/API data — network requests, backend errors, server logs, tied to the session", "competitor": false, "competitor_note": "…" }, { "name": "Releases", "logrocket": true, "logrocket_note": "…", "competitor": false, "competitor_note": "…" }, { "name": "Feedback", "logrocket": true, "logrocket_note": "…", "competitor": false, "competitor_note": "…" } ],
   (return exactly these five data_sources rows, in this order; set each "logrocket"/"competitor" boolean from what you actually verified)
   "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
 }`;
@@ -2076,13 +2076,15 @@ ${rogExamples ? `Rog data (LogRocket's internal customer intelligence — prefer
 
 Must be REAL, NAMED customers. Never output an anonymized profile like "A mid-market fintech". Draw on BOTH the Rog data above and LogRocket's publicly documented customers. Prefer companies${industry ? ` in or adjacent to ${industry}` : ""}${size ? ` of a similar size to ${size}` : ""}, especially any that switched from or evaluated ${competitor}. Only use quotes, numbers and "replaced" values that actually appear in a source — never invent them (a real customer with no published stats gets an empty "stats" array). Return at most 2 customers. If you cannot verify ANY real named customer, return [].
 
+QUOTES: a quote is only usable with its attribution. If you have a real quote, fill "quote_author" and "quote_title" from the same source. If the source does not name the speaker, or names them without a title, leave the missing field empty rather than guessing a plausible name or inventing a title. If you can find no attribution at all, return an empty "quote" and let the outcome carry the story: an unattributed quote in a customer-facing brief reads as fabricated.
+
 ${VERIFY_RULES}
 
 ${LENGTH_RULES}
 
 JSON shape:
 {
-  "customer_examples": [ { "name": "REAL company name", "profile": "industry + size", "quote": "real quote if present in a source, else empty string", "outcome": "the result/win in ONE sentence", "stats": [ { "num": "e.g. 30%", "label": "what it measures" } ], "replaced": "competitor they replaced, only if a source states it, else empty" } ],
+  "customer_examples": [ { "name": "REAL company name", "profile": "industry + size", "quote": "real quote if present in a source, else empty string", "quote_author": "the person who said it, full name, ONLY if the source attributes it; else empty string", "quote_title": "their job title at the company, ONLY if the source states it; else empty string", "outcome": "the result/win in ONE sentence", "stats": [ { "num": "e.g. 30%", "label": "what it measures" } ], "replaced": "competitor they replaced, only if a source states it, else empty" } ],
   "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
 }`;
 

@@ -222,8 +222,8 @@ p{margin:0}
    is handled by the subgrid on .ctx-panel instead. */
 .pz{position:relative;min-height:96px;padding:11px 8px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px}
 .pz .ico svg{width:21px;height:21px;display:block}
-.pz .nm{font-family:var(--font-display);font-size:11px;line-height:1.15}
-.pz .fr{font-size:8.4px;line-height:1.3}
+.pz .nm{font-family:var(--font-display);font-size:12.5px;line-height:1.15}
+.pz .fr{font-size:10px;line-height:1.35}
 /* Integration logos inside the LogRocket piece they belong to. White chips so the
    vendor marks stay legible on the purple fill; pinned to the bottom of the piece
    so they line up across the strip regardless of note length. */
@@ -328,6 +328,10 @@ p{margin:0}
 .win-quote{font-family:var(--font-display);font-size:17px;line-height:1.3;color:var(--lr-ink)}
 .win-quote::before{content:"\\201C";color:var(--lr-matter-0)}
 .win-quote::after{content:"\\201D";color:var(--lr-matter-0)}
+/* Attribution under a quote. Only rendered when the source names the speaker, so
+   its absence means the quote had no attribution rather than a layout slip. */
+.win-attr{font-size:11.5px;color:var(--text-muted);margin-top:-2px}
+.win-attr::before{content:"\\2014\\00a0"}
 .win-out{font-size:13.5px;line-height:1.5;color:var(--text-regular)}
 .win-replaced{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-display);font-size:11px;background:var(--lr-danger-4);color:var(--lr-danger-1);padding:4px 10px;border-radius:9999px;text-transform:uppercase;letter-spacing:.08em;align-self:flex-start}
 /* One equal column per stat rather than a fixed three, so a card with a single
@@ -768,6 +772,9 @@ export function buildGuideHtml({ guide, competitor, customer }) {
         ${ex.profile ? `<span class="win-tag">${esc(ex.profile)}</span>` : ""}
       </div>
       ${ex.quote ? `<div class="win-quote">${esc(ex.quote)}</div>` : ""}
+      ${ex.quote && (ex.quote_author || ex.quote_title) ? `<div class="win-attr">${
+        [esc(ex.quote_author || ""), esc(ex.quote_title || "")].filter(Boolean).join(", ")
+      }</div>` : ""}
       ${ex.outcome ? `<div class="win-out">${esc(ex.outcome)}</div>` : ""}
       ${ex.replaced ? `<span class="win-replaced"><span>✕</span> Replaced ${esc(ex.replaced)}</span>` : ""}
       ${stats ? `<div class="win-stats">${stats}</div>` : ""}
