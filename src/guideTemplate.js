@@ -454,22 +454,23 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
     }
   });
 
-  // Both timelines start at LogRocket's first milestone so every guide shares the
-  // same window regardless of competitor.
+  // The window is exactly LogRocket's own timeline, so every guide shares the same
+  // axis regardless of competitor and neither line runs past the other.
   const lrStart = Math.min(...lr.map(p => p.t));
+  const lrEnd = Math.max(...lr.map(p => p.t));
 
-  // Verified GA agent releases are marked on that line at their true dates.
-  // Anything the competitor shipped before LogRocket's first milestone is dropped
-  // rather than pinned to the axis start: pinning still printed the earlier date
-  // in the label, which read as the competitor having got there first.
+  // Verified GA agent releases are marked on that line at their true dates, but
+  // only inside LogRocket's window. Earlier ones were previously pinned to the
+  // axis start, which printed the earlier date and read as the competitor having
+  // got there first; later ones stretched the axis past LogRocket's last
+  // milestone, leaving their line running on beyond ours.
   const releases = (compPoints || []).map(p => ({ ...p, t: toIndex(p.date) }))
-    .filter(p => p.t !== null && p.t >= lrStart)
+    .filter(p => p.t !== null && p.t >= lrStart && p.t <= lrEnd)
     .sort((a, b) => a.t - b.t);
 
-  // maxT still spans everything, so a later competitor release is never cut off.
   const all = [...lr, ...compCurve, ...releases];
   const minT = lrStart;
-  const maxT = Math.max(...all.map(p => p.t));
+  const maxT = lrEnd;
   const span = Math.max(maxT - minT, 1);
   const x = (t) => L + (pw * (t - minT)) / span;
   const y = (pct) => T + ph - (ph * Math.max(0, Math.min(100, Number(pct)))) / 100;
