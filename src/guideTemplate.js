@@ -202,6 +202,14 @@ p{margin:0}
 .ctx-head{display:flex;align-items:center;justify-content:center;gap:9px;font-family:var(--font-display);font-size:14.5px;letter-spacing:.10em;text-transform:uppercase}
 .ctx-head .mk{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex-shrink:0}
 .ctx-head .mk svg{width:16px;height:16px;display:block}
+/* Real wordmarks at the top of each column. Both are capped to the same height so
+   the two panels' headers stay level whatever the logo's aspect ratio. */
+.ctx-head .wordmark{display:flex;align-items:center;justify-content:center;height:26px}
+.ctx-head .wordmark svg,.ctx-head .wordmark img{height:24px;width:auto;max-width:230px;object-fit:contain;display:block}
+.ctx-head .wordmark.lr{color:var(--lr-galaxy)}
+/* The competitor's own square mark, sized to match LogRocket's wordmark height. */
+.ctx-head .brandmark{display:flex;align-items:center;justify-content:center;height:24px;flex-shrink:0}
+.ctx-head .brandmark img{height:22px;width:auto;max-width:26px;object-fit:contain;display:block}
 .ctx-panel.lr .ctx-head{color:var(--lr-galaxy)}
 .ctx-panel.lr .ctx-head .mk{background:var(--lr-indigo-2);color:var(--lr-galaxy)}
 .ctx-panel.them .ctx-head{color:var(--text-regular)}
@@ -838,7 +846,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
       return `
     <div class="ctx-cols">
       <div class="ctx-panel lr">
-        <div class="ctx-head"><span class="mk">${ICO_ROCKET}</span>LogRocket</div>
+        <div class="ctx-head"><span class="wordmark lr">${LOGO_SVG}</span></div>
         <div class="pz-row" style="${cols}">${lrPieces}</div>
         <div class="pz-arrow">${ICO_ARROW_DOWN}</div>
         <div class="ctx-out">
@@ -857,7 +865,12 @@ export function buildGuideHtml({ guide, competitor, customer }) {
         <div class="ctx-bar">${ICO_CHECK_C}Complete context. Better AI. Better outcomes.</div>
       </div>
       <div class="ctx-panel them">
-        <div class="ctx-head"><span class="mk">${ICO_CUBE}</span>${comp}</div>
+        <div class="ctx-head">${g.competitor_logo
+          // Their real mark, but keep the name beside it: most of these assets are
+          // square brand marks rather than wordmarks, so the logo alone would
+          // leave the column unlabelled. LogRocket's wordmark spells itself.
+          ? `<span class="brandmark"><img src="${g.competitor_logo}" alt=""/></span>${comp}`
+          : `<span class="mk">${ICO_CUBE}</span>${comp}`}</div>
         <div class="pz-row" style="${cols}">${compPieces}</div>
         <div class="pz-marks" style="${cols}">${compMarks}</div>
         <div class="ctx-out">
