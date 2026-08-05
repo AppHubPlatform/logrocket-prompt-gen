@@ -186,9 +186,10 @@ p{margin:0}
    signals interlock into one reasoning layer, while the competitor's strip shows
    a gap wherever research found no capability. Which pieces are filled is driven
    by the researched per-source boolean, never by a fixed pattern. */
-/* The merged header runs longer than a normal section title, so it gets the full
-   page width rather than the 820px measure. Alignment matches every other
-   section header. */
+/* Titles that must not wrap get the full page width rather than the 820px
+   measure. Wrapping is still allowed as a fallback: an unusually long custom
+   competitor name is better wrapped than overflowing the page in the PDF. */
+.section-title.wide{max-width:none}
 .section-title.ctx{max-width:none;margin-bottom:18px}
 /* Six shared row tracks — head, signal strip, connector, verdict, outcomes, bar.
    Each panel is a subgrid of them, so every row sizes to the taller of the two
@@ -779,7 +780,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
 
   <section>
     <div class="section-eyebrow"><span class="num">01</span>AI Assistants</div>
-    <h2 class="section-title">Ask <em>Galileo</em> connects behavior to the code. ${comp} AI stops at the behavior.</h2>
+    <h2 class="section-title wide">Ask <em>Galileo</em> connects behavior to the code. ${comp} AI stops at the behavior.</h2>
     <div class="ai">
       <div class="ai-card lr">
         <div class="ai-head"><div class="ai-glyph">✦</div><div class="ai-name"><small>LogRocket</small>Ask Galileo</div></div>
