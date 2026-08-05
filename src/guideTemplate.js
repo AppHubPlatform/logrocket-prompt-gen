@@ -655,9 +655,19 @@ export function buildGuideHtml({ guide, competitor, customer }) {
     "Analytics": "Sessions",
     "A/B & Feature Flags": "Releases",
   };
+  // Per-tool overrides, for tools the catalogue files under a category that does
+  // not match the card a rep expects. LogRocket groups issue trackers under
+  // "Error Reporting" alongside Sentry and Bugsnag, but a ticket from a session is
+  // release work, not error capture. Keyed on the normalised name.
+  const TOOL_TO_SOURCE = {
+    jira: "Releases",
+    linear: "Releases",
+  };
+  const normTool = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
   const integrationsBySource = {};
   integrationList.filter(i => i.supported).forEach(i => {
-    const target = CATEGORY_TO_SOURCE[i.category];
+    const target = TOOL_TO_SOURCE[normTool(i.name)] || CATEGORY_TO_SOURCE[i.category];
     if (!target) return;
     (integrationsBySource[target] ||= []).push(i);
   });
