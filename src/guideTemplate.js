@@ -809,7 +809,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
 
   <section>
     <div class="section-eyebrow"><span class="num">01</span>AI Assistants</div>
-    <h2 class="section-title wide">Ask <em>Galileo</em> connects behavior to the code. ${comp} AI stops at the behavior.</h2>
+    <h2 class="section-title wide">LogRocket's <em>Ask Galileo</em></h2>
     <div class="ai">
       <div class="ai-card lr">
         <div class="ai-head"><div class="ai-glyph">✦</div><div class="ai-name"><small>LogRocket</small>Ask Galileo</div></div>
@@ -839,7 +839,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
 
   ${dataTiles ? `<section>
     <div class="section-eyebrow"><span class="num">03</span>One Reasoning Layer</div>
-    <h2 class="section-title ctx">AI is only as good as the <em>context</em> it receives. Galileo reasons across every technical and user signal to explain why, not just what.</h2>
+    <h2 class="section-title ctx">AI is only as good as the <em>context</em> it receives. LogRocket reasons across every technical and user signal to explain why, not just what.</h2>
     ${(() => {
       const n = Math.min(Math.max(dataSourceList.length, 1), 5);
       const cols = `grid-template-columns:repeat(${n},1fr)`;
@@ -853,7 +853,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
         <div class="ctx-out">
           <span class="orb">${ICO_ATOM}</span>
           <span>
-            <span class="lbl">Galileo AI</span>
+            <span class="lbl">LogRocket AI</span>
             <h4>Complete picture. Clear explanation.</h4>
             <p>Connected signals. Full context.<br/>Faster root cause. Confident decisions.</p>
           </span>
@@ -898,7 +898,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
     <div class="ctx-foot">
       <span class="hd">More context. Smarter AI. Better results.</span>
       <span class="sep"></span>
-      <span class="tx">LogRocket connects every technical and user signal so Galileo AI can see the whole picture.</span>
+      <span class="tx">LogRocket connects every technical and user signal so its AI can see the whole picture.</span>
     </div>`;
     })()}
   </section>` : ""}
