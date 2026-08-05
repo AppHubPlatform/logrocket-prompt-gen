@@ -335,17 +335,11 @@ p{margin:0}
 .win-stats{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;padding-top:14px;border-top:1px solid rgba(0,0,0,.08);margin-top:auto}
 .win-stat .num{font-family:var(--font-display);font-size:28px;color:var(--lr-galaxy);letter-spacing:-.025em;line-height:1}
 .win-stat .lbl{font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.3}
-.tldr{background:linear-gradient(135deg,var(--lr-galaxy) 0%,var(--lr-indigo-0) 100%);color:#fff;border-radius:24px;padding:32px 36px;display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center;position:relative;overflow:hidden}
-.tldr-trophy{width:60px;height:60px;border-radius:18px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);display:grid;place-items:center;font-size:28px}
-.tldr h3{font-family:var(--font-display);font-size:26px;line-height:1.2;margin-bottom:8px}
-.tldr h3 .winner{background:#fff;color:var(--lr-galaxy);padding:2px 10px;border-radius:6px}
-.tldr p{color:rgba(255,255,255,.88);font-size:15px;line-height:1.55}
-.footnote{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:var(--text-muted);padding:4px}
 @page{size:A4;margin:10mm}
 @media print{
   body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .page{max-width:100%;padding:0;gap:14px}
-  section,.hero,.tldr,.wins,.ai{break-inside:avoid}
+  section,.hero,.wins,.ai{break-inside:avoid}
 }
 `;
 
@@ -920,18 +914,6 @@ export function buildGuideHtml({ guide, competitor, customer }) {
     <div class="wins">${wins}</div>
   </section>` : ""}
 
-  ${g.tldr ? `<section class="tldr">
-    <div class="tldr-trophy">🏆</div>
-    <div>
-      <h3>The verdict: <span class="winner">LogRocket</span></h3>
-      <p>${esc(g.tldr)}</p>
-    </div>
-  </section>` : ""}
-
-  <div class="footnote">
-    <span>LogRocket · Confidential: internal &amp; customer use</span>
-    <span>Verify claims against sources before sharing externally.</span>
-  </div>
 </div>
 </body></html>`;
 }

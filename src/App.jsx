@@ -2110,7 +2110,6 @@ JSON shape:
   "ai_accuracy": "2-3 sentences making message #1 concrete for this prospect. End by citing the independent study.",
   "ai_bullets": ["3 bullets on why LogRocket's Galileo AI answers are more accurate/actionable — each ONE sentence, MAX 14 WORDS. In each, wrap the capability ${competitor} lacks in **double asterisks** for bold"],
   "unified_data": "2-3 sentences making message #2 concrete for this prospect and industry",
-  "tldr": "One punchy sentence verdict on why LogRocket wins for this buyer",
   "objection_handling": "2-3 sentences total: the single most common objection a ${competitor} rep raises, plus a crisp LogRocket response",
   "discovery_questions": ["3-5 discovery questions, each ONE sentence, that expose ${competitor} gaps and surface LogRocket value"]
 }`;
