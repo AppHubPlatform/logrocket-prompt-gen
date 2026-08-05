@@ -866,12 +866,15 @@ export function buildGuideHtml({ guide, competitor, customer }) {
         <div class="ctx-bar">${ICO_CHECK_C}Complete context. Better AI. Better outcomes.</div>
       </div>
       <div class="ctx-panel them">
-        <div class="ctx-head">${g.competitor_logo
-          // Their real mark, but keep the name beside it: most of these assets are
-          // square brand marks rather than wordmarks, so the logo alone would
-          // leave the column unlabelled. LogRocket's wordmark spells itself.
-          ? `<span class="brandmark"><img src="${g.competitor_logo}" alt=""/></span>${comp}`
-          : `<span class="mk">${ICO_CUBE}</span>${comp}`}</div>
+        <div class="ctx-head">${
+          // A wordmark spells the name itself, so it stands alone like LogRocket's.
+          // A square brand mark does not, so the name stays beside it rather than
+          // leaving the column unlabelled.
+          g.competitor_logo && g.competitor_logo_wordmark
+            ? `<span class="wordmark them"><img src="${g.competitor_logo}" alt="${comp}"/></span>`
+            : g.competitor_logo
+              ? `<span class="brandmark"><img src="${g.competitor_logo}" alt=""/></span>${comp}`
+              : `<span class="mk">${ICO_CUBE}</span>${comp}`}</div>
         <div class="pz-row" style="${cols}">${compPieces}</div>
         <div class="pz-marks" style="${cols}">${compMarks}</div>
         <div class="ctx-out">

@@ -1766,25 +1766,6 @@ const CURATED_COMPETITOR_LEDES = {
   "microsoft clarity": "Clarity gives you recordings and heatmaps for free, and for basic visibility that's fine. Everything past that is manual: you're watching sessions and guessing. LogRocket captures richer data, network activity, logs, errors, feedback, releases, and Galileo analyzes all of it across your sessions, so issues surface on their own with root causes attached. The difference shows up as soon as you have more sessions than anyone has time to watch.",
 };
 
-// Competitor logos for the section 03 column header. Five competitors are also
-// LogRocket integrations, so their logo comes from the catalogue automatically and
-// needs no slot here. The rest have no asset we can fetch: logrocket.com has no
-// comparison pages, and every free logo service returns a 32-128px favicon rather
-// than a wordmark.
-//
-// TO FILL IN: paste a data URI ("data:image/svg+xml;base64,...") for the logo.
-// A blank slot falls back to the generic mark plus the competitor's name, so the
-// header still reads correctly until an asset lands. A slot filled here wins over
-// the catalogue. Keys are matched case-insensitively.
-const CURATED_COMPETITOR_LOGOS = {
-  posthog: "",
-  fullstory: "",
-  hotjar: "",
-  glassbox: "",
-  "quantum metric": "",
-  contentsquare: "",
-  "microsoft clarity": "",
-};
 
 // Approved copy for LogRocket's own signal pieces in section 03. Unlike the
 // competitor notes these hold for every competitor, so they are keyed by data
@@ -2169,31 +2150,42 @@ JSON shape:
   }
   const withLogos = (integrationCoverage.integrations || []).map(i => ({ ...i, logo: logos[i.name] || null }));
 
-  // Real customer logos from LogRocket's published case studies. A customer with
-  // no case study has no asset, and its card falls back to the initial badge.
+  // Real customer logos: an approved asset in public/brand-logos/ first, then
+  // LogRocket's published case studies. A customer with neither falls back to the
+  // initial badge, so dropping a file in is all it takes to fix one.
   const examples = customerProof.customer_examples || [];
   let customerLogos = {};
   if (examples.length) {
-    try {
-      const names = examples.map(ex => ex.name).filter(Boolean);
-      const r = await fetch(`/api/integrations?customers=${encodeURIComponent(names.join(","))}`);
-      if (r.ok) customerLogos = (await r.json()).logos || {};
-    } catch { /* cards fall back to the initial badge */ }
+    const names = examples.map(ex => ex.name).filter(Boolean).join(",");
+    for (const endpoint of ["brand", "customers"]) {
+      try {
+        const r = await fetch(`/api/integrations?${endpoint}=${encodeURIComponent(names)}`);
+        if (!r.ok) continue;
+        // Earlier sources win, so only fill names still missing.
+        const map = (await r.json()).logos || {};
+        for (const [k, v] of Object.entries(map)) if (!customerLogos[k]) customerLogos[k] = v;
+      } catch { /* try the next source */ }
+    }
   }
   const examplesWithLogos = examples.map(ex => ({ ...ex, logo: customerLogos[ex.name] || null }));
 
-  // Competitor logo for the section 03 column header. Approved asset first, then
-  // the integration catalogue, which covers the competitors that are also
-  // LogRocket integrations. Neither found leaves the generic mark in place.
-  let competitorLogo = CURATED_COMPETITOR_LOGOS[String(competitor || "").trim().toLowerCase()] || null;
-  if (!competitorLogo && competitor) {
-    try {
-      const r = await fetch(`/api/integrations?logos=${encodeURIComponent(competitor)}`);
-      if (r.ok) {
-        const map = (await r.json()).logos || {};
-        competitorLogo = map[competitor] || null;
-      }
-    } catch { /* header falls back to the generic mark */ }
+  // Competitor logo for the section 03 column header, in order of preference:
+  // an approved asset in public/brand-logos/, then the integration catalogue,
+  // which covers the competitors that are also LogRocket integrations. Neither
+  // found leaves the generic mark plus the name in place.
+  let competitorLogo = null;
+  // Assets in public/brand-logos/ are full wordmarks, so they stand alone. The
+  // catalogue ships square brand marks, which need the name beside them.
+  let competitorLogoIsWordmark = false;
+  if (competitor) {
+    for (const endpoint of ["brand", "logos"]) {
+      try {
+        const r = await fetch(`/api/integrations?${endpoint}=${encodeURIComponent(competitor)}`);
+        if (!r.ok) continue;
+        competitorLogo = ((await r.json()).logos || {})[competitor] || null;
+        if (competitorLogo) { competitorLogoIsWordmark = endpoint === "brand"; break; }
+      } catch { /* try the next source */ }
+    }
   }
 
   // Searched results win over messaging on any overlapping key — they're verified.
@@ -2203,6 +2195,7 @@ JSON shape:
     ...customerProof,
     customer_examples: examplesWithLogos,
     competitor_logo: competitorLogo,
+    competitor_logo_wordmark: competitorLogoIsWordmark,
     feature_comparison: matrix.feature_comparison || [],
     integrations: withLogos,
     // LogRocket's own autonomy milestones — fixed data, not researched.
