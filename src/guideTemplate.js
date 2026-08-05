@@ -128,14 +128,14 @@ p{margin:0}
 .versus .name.lr{color:#fff}
 .versus .name.them{color:rgba(255,255,255,.45)}
 .versus .vs{font-family:var(--font-display);font-size:18px;color:var(--lr-illusion-1);width:56px;height:56px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.20);border-radius:9999px;transform:translateY(-10px);background:rgba(255,255,255,.04)}
-.hero .lede{margin-top:24px;display:grid;grid-template-columns:1fr 56px 1fr;column-gap:48px;padding-top:20px;border-top:1px solid rgba(255,255,255,.12)}
-.lede-col.lr{grid-column:1}
-.lede-col.them{grid-column:3}
+/* Single column: LogRocket's subheading over one paragraph that runs from our
+   positioning into where the competitor stops short. Measure is capped so the
+   line length stays readable across the full page width. */
+.hero .lede{margin-top:24px;padding-top:20px;border-top:1px solid rgba(255,255,255,.12)}
 .lede-col h3{font-family:var(--font-display);font-size:20px;color:#fff;line-height:1.15;margin-bottom:8px}
 .lede-col h3 .tag{font-size:11px;font-family:var(--font-body);font-weight:600;letter-spacing:.12em;text-transform:uppercase;padding:3px 8px;border-radius:4px;margin-right:10px;vertical-align:3px}
 .lede-col.lr h3 .tag{background:var(--lr-matter-0);color:#fff}
-.lede-col.them h3 .tag{background:rgba(255,255,255,.14);color:rgba(255,255,255,.85)}
-.lede-col p{color:rgba(255,255,255,.72);font-size:14px;line-height:1.55}
+.lede-col p{color:rgba(255,255,255,.72);font-size:14px;line-height:1.55;max-width:880px}
 .lede-col p strong{color:#fff;font-weight:600}
 .section-eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-display);font-size:12px;color:var(--lr-indigo-0);text-transform:uppercase;letter-spacing:.14em;margin-bottom:10px}
 .section-eyebrow .num{width:22px;height:22px;border-radius:9999px;background:var(--lr-indigo-0);color:#fff;font-size:11px;display:grid;place-items:center;letter-spacing:0}
@@ -767,13 +767,9 @@ export function buildGuideHtml({ guide, competitor, customer }) {
       <div class="name them">${comp}</div>
     </div>
     <div class="lede">
-      <div class="lede-col lr" style="grid-column:1">
+      <div class="lede-col lr">
         <h3><span class="tag">LogRocket</span>The full picture, on one platform.</h3>
-        <p>${esc(ledeLr)}</p>
-      </div>
-      <div class="lede-col them" style="grid-column:3">
-        <h3><span class="tag">${comp}</span>Where it stops short.</h3>
-        <p>${esc(ledeThem)}</p>
+        <p>${esc([ledeLr, ledeThem].filter(Boolean).join(" "))}</p>
       </div>
     </div>
   </section>

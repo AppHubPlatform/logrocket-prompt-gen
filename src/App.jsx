@@ -1738,6 +1738,33 @@ const CURATED_COMPETITOR_NOTES = {
   },
 };
 
+// Approved hero description for each competitor, written by the team rather than
+// researched. The hero is the first thing a prospect reads, so the wording is
+// fixed here instead of varying run to run.
+//
+// TO FILL IN: paste the approved sentence(s) for a competitor between the quotes.
+// An empty string falls back to the researched lede, so a slot left blank still
+// produces a working guide. Keys are matched case-insensitively; "Other" has no
+// slot because the name is free text.
+//
+// House style, matching the rest of the guide: no em or en dashes, no ranking
+// language ("market leader", "best-in-class"), and name what they actually do
+// before where they stop short.
+const CURATED_COMPETITOR_LEDES = {
+  posthog: "",
+  fullstory: "",
+  hotjar: "",
+  datadog: "",
+  sentry: "",
+  pendo: "",
+  amplitude: "",
+  heap: "",
+  glassbox: "",
+  "quantum metric": "",
+  contentsquare: "",
+  "microsoft clarity": "",
+};
+
 // LogRocket's own product copy, taken from our docs. Unlike the competitor notes
 // these hold for every competitor, so they are keyed by data source alone.
 // Keys are matched case-insensitively.
@@ -2676,6 +2703,9 @@ function CompetitorGuide() {
       // Verified competitor copy wins over the research pass.
       g.data_sources = applyCuratedNotes(g.data_sources, competitor);
       g.customer_examples = applyCuratedExamples(g.customer_examples, competitor);
+      // Approved hero copy wins; a blank slot leaves the researched lede in place.
+      const curatedLede = CURATED_COMPETITOR_LEDES[String(competitor || "").trim().toLowerCase()];
+      if (curatedLede) g.lede_competitor = curatedLede;
       setGuide(g);
       if (company && !pdfCustomer) setPdfCustomer(company);
       LogRocket.track("Competitor Guide Generated", { competitor, industry, size, persona });
