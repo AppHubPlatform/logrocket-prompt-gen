@@ -1738,12 +1738,13 @@ const CURATED_COMPETITOR_NOTES = {
   },
 };
 
-// Approved hero description for each competitor, written by the team rather than
+// Approved hero paragraph for each competitor, written by the team rather than
 // researched. The hero is the first thing a prospect reads, so the wording is
 // fixed here instead of varying run to run.
 //
-// TO FILL IN: paste the approved sentence(s) for a competitor between the quotes.
-// An empty string falls back to the researched lede, so a slot left blank still
+// Each entry is the COMPLETE hero paragraph, covering both what the competitor
+// does and where LogRocket differs, so it replaces the generated pair outright.
+// An empty string falls back to the researched ledes, so a blank slot still
 // produces a working guide. Keys are matched case-insensitively; "Other" has no
 // slot because the name is free text.
 //
@@ -1751,18 +1752,18 @@ const CURATED_COMPETITOR_NOTES = {
 // language ("market leader", "best-in-class"), and name what they actually do
 // before where they stop short.
 const CURATED_COMPETITOR_LEDES = {
-  posthog: "",
-  fullstory: "",
-  hotjar: "",
-  datadog: "",
-  sentry: "",
-  pendo: "",
-  amplitude: "",
-  heap: "",
-  glassbox: "",
-  "quantum metric": "",
-  contentsquare: "",
-  "microsoft clarity": "",
+  posthog: "PostHog bundles a lot of tools. We've gone the other direction and spent years going deep on one problem: automatically finding every issue affecting your users and explaining why. Galileo connects replays, network activity, console logs, feedback, and releases into one analysis.",
+  fullstory: "FullStory can flag behavioral signals like rage clicks and dead clicks, but a signal isn't a diagnosis. Someone still has to watch the sessions, figure out if it's real, and chase down the cause. We've put years into an issues system that closes that gap: Galileo ties sessions to backend and network data, console logs, support feedback, and releases, so what surfaces is the actual issue, with the root cause and how many users it's hitting. You log in to a prioritized list of what's broken and why, not a set of signals to investigate.",
+  hotjar: "Hotjar is built for UX research: heatmaps, recordings, surveys, tools for forming hypotheses. The recordings are behavioral only, though, so when you spot struggle you still don't know what caused it. LogRocket sessions carry the technical layer too, network activity, console logs, errors, and Galileo analyzes them alongside feedback and releases to surface the specific issues behind the struggle, ranked by impact. So instead of watching a recording and guessing at what went wrong, you get told.",
+  datadog: "Datadog watches your infrastructure. LogRocket watches your users, and a lot of what ruins their experience never trips an infrastructure alert: frontend errors, broken flows, an API that returns fine but renders wrong. Galileo sees the sessions, network activity, logs, and releases together, so it traces each issue to its source. Your dashboards can be green while your customers are stuck.",
+  sentry: "Sentry tells you when your code throws an error, and plenty of teams run both. But most of what hurts users never throws an error: a checkout that silently fails, a rage click, a flow people quietly abandon. LogRocket captures rich sessions with the network activity, console logs, feedback, and releases around it, so Galileo finds those issues too, with root cause and user impact already attached. Teams that only monitor errors are seeing a fraction of what's going wrong.",
+  pendo: "Pendo drives adoption with guides and in-app messaging, all of which assumes the underlying experience works. LogRocket is how you know it does. Galileo analyzes your sessions plus network activity, logs, feedback, and releases, surfacing the issues quietly breaking flows, with root cause included. No onboarding tooltip fixes a broken checkout.",
+  amplitude: "Amplitude can only analyze the events you send it. LogRocket works from full sessions, network activity, console logs, feedback, and releases, all connected, so Galileo finds issues nobody instrumented for and answers accurately instead of guessing from event counts. When a chart dips in Amplitude, someone has to go figure out why. In LogRocket that work is mostly done before you open it, the issue is sitting there with the cause and the affected users.",
+  heap: "Heap autocaptures clicks and pageviews, but that's only the behavioral layer. LogRocket also captures what the app was doing: network requests, console logs, errors, and the release it all ran on. That's where root causes live. When a funnel drops in Heap, you know something happened. When it drops in LogRocket, Galileo can usually tell you why, down to the failed request or Tuesday's deploy.",
+  glassbox: "Glassbox is centered on journey analytics. We've built an issues system that finds and diagnoses everything disrupting those journeys, so your team isn't doing it by hand. Galileo runs across replays, backend and network activity, console logs, feedback, and releases, catching problems journey analytics can't see because they don't have the technical data, like the failed request sitting behind a drop-off. Glassbox shows you where users leave. It can't tell you why.",
+  "quantum metric": "Quantum Metric is journey analytics: a metric moves, and the scavenger hunt starts. Someone pulls sessions, someone checks tickets, someone asks engineering what shipped. We built LogRocket's issues system so that hunt doesn't happen. Galileo connects your sessions to network activity, console logs, feedback, and releases, so when conversion drops it tells you the specific issue behind it, how many customers hit it, and what to fix.",
+  contentsquare: "Contentsquare gives you experience analytics your team then interprets to figure out where problems might be. We took a different approach: Galileo does the sifting. It analyzes your sessions alongside backend activity, console logs, feedback, and releases, and surfaces the actual issues, ranked by user impact, with the cause worked out. By the time something shows up as an issue in LogRocket, the investigating is already done.",
+  "microsoft clarity": "Clarity gives you recordings and heatmaps for free, and for basic visibility that's fine. Everything past that is manual: you're watching sessions and guessing. LogRocket captures richer data, network activity, logs, errors, feedback, releases, and Galileo analyzes all of it across your sessions, so issues surface on their own with root causes attached. The difference shows up as soon as you have more sessions than anyone has time to watch.",
 };
 
 // LogRocket's own product copy, taken from our docs. Unlike the competitor notes
@@ -2703,9 +2704,12 @@ function CompetitorGuide() {
       // Verified competitor copy wins over the research pass.
       g.data_sources = applyCuratedNotes(g.data_sources, competitor);
       g.customer_examples = applyCuratedExamples(g.customer_examples, competitor);
-      // Approved hero copy wins; a blank slot leaves the researched lede in place.
+      // Approved copy replaces the whole hero paragraph rather than just the
+      // competitor half: each one already covers both sides, so appending the
+      // researched LogRocket lede would repeat the argument. A blank slot leaves
+      // the researched pair in place.
       const curatedLede = CURATED_COMPETITOR_LEDES[String(competitor || "").trim().toLowerCase()];
-      if (curatedLede) g.lede_competitor = curatedLede;
+      if (curatedLede) g.hero_paragraph = curatedLede;
       setGuide(g);
       if (company && !pdfCustomer) setPdfCustomer(company);
       LogRocket.track("Competitor Guide Generated", { competitor, industry, size, persona });

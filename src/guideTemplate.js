@@ -769,7 +769,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
     <div class="lede">
       <div class="lede-col lr">
         <h3><span class="tag">LogRocket</span>The full picture, on one platform.</h3>
-        <p>${esc([ledeLr, ledeThem].filter(Boolean).join(" "))}</p>
+        <p>${esc(g.hero_paragraph || [ledeLr, ledeThem].filter(Boolean).join(" "))}</p>
       </div>
     </div>
   </section>
