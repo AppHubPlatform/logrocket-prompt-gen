@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fetchIntegrationCatalogue, fetchLogosFor, CATALOGUE_URL } from './api/_integrationCatalogue.js'
+import { fetchCustomerLogos } from './api/_customerLogos.js'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
@@ -26,7 +27,14 @@ export default defineConfig(({ mode }) => {
           server.middlewares.use('/api/integrations', async (req, res) => {
             res.setHeader('Content-Type', 'application/json')
             try {
-              const logos = new URL(req.url, 'http://localhost').searchParams.get('logos')
+              const params = new URL(req.url, 'http://localhost').searchParams
+              const customers = params.get('customers')
+              if (customers) {
+                const map = await fetchCustomerLogos(customers.split(',').map(s => s.trim()))
+                res.end(JSON.stringify({ logos: map }))
+                return
+              }
+              const logos = params.get('logos')
               if (logos) {
                 const map = await fetchLogosFor(logos.split(',').map(s => s.trim()))
                 res.end(JSON.stringify({ logos: map }))

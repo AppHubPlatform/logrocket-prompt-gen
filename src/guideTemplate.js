@@ -310,6 +310,12 @@ p{margin:0}
 .win-head{display:flex;align-items:center;justify-content:space-between;gap:14px}
 .win-brand{font-family:var(--font-display);font-size:22px;line-height:1;color:var(--lr-ink);display:flex;align-items:center;gap:10px}
 .win-brand .badge{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--lr-galaxy);color:#fff;font-family:var(--font-display);font-size:14px}
+/* Wordmarks vary wildly in aspect ratio, so cap both axes and let it scale.
+   The case-study assets are white, built for dark strips, so they are invisible
+   on this card as-is. brightness(0) forces any fill to black while keeping the
+   alpha, which reads on the light card and works whatever colour the source is,
+   unlike invert() which would break an already-dark logo. */
+.win-brand .win-logo{height:30px;width:auto;max-width:190px;object-fit:contain;display:block;filter:brightness(0);opacity:.85}
 .win-tag{font-size:11px;font-family:var(--font-display);color:var(--text-muted);letter-spacing:.06em}
 .win-quote{font-family:var(--font-display);font-size:17px;line-height:1.3;color:var(--lr-ink)}
 .win-quote::before{content:"\\201C";color:var(--lr-matter-0)}
@@ -746,11 +752,17 @@ export function buildGuideHtml({ guide, competitor, customer }) {
   const wins = (Array.isArray(g.customer_examples) ? g.customer_examples : []).slice(0, 2).map(ex => {
     const stats = (Array.isArray(ex.stats) ? ex.stats : []).slice(0, 3).map(s =>
       `<div class="win-stat"><div class="num">${esc(s.num)}</div><div class="lbl">${esc(s.label)}</div></div>`).join("");
+    // The real wordmark when the customer has a published case study, otherwise
+    // the initial. The logo already carries the name, so the text is dropped with
+    // it to avoid printing the brand twice.
     const badge = (ex.name || "?").trim().charAt(0).toUpperCase();
+    const brand = ex.logo
+      ? `<img class="win-logo" src="${ex.logo}" alt="${esc(ex.name || "Customer")}"/>`
+      : `<span class="badge">${esc(badge)}</span>${esc(ex.name || "Customer")}`;
     return `
     <div class="win-card">
       <div class="win-head">
-        <div class="win-brand"><span class="badge">${esc(badge)}</span>${esc(ex.name || "Customer")}</div>
+        <div class="win-brand">${brand}</div>
         ${ex.profile ? `<span class="win-tag">${esc(ex.profile)}</span>` : ""}
       </div>
       ${ex.quote ? `<div class="win-quote">${esc(ex.quote)}</div>` : ""}

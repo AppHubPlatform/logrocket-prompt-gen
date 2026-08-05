@@ -1756,7 +1756,7 @@ const CURATED_COMPETITOR_LEDES = {
   fullstory: "FullStory can flag behavioral signals like rage clicks and dead clicks, but a signal isn't a diagnosis. Someone still has to watch the sessions, figure out if it's real, and chase down the cause. We've put years into an issues system that closes that gap: Galileo ties sessions to backend and network data, console logs, support feedback, and releases, so what surfaces is the actual issue, with the root cause and how many users it's hitting. You log in to a prioritized list of what's broken and why, not a set of signals to investigate.",
   hotjar: "Hotjar is built for UX research: heatmaps, recordings, surveys, tools for forming hypotheses. The recordings are behavioral only, though, so when you spot struggle you still don't know what caused it. LogRocket sessions carry the technical layer too, network activity, console logs, errors, and Galileo analyzes them alongside feedback and releases to surface the specific issues behind the struggle, ranked by impact. So instead of watching a recording and guessing at what went wrong, you get told.",
   datadog: "Datadog watches your infrastructure. LogRocket watches your users, and a lot of what ruins their experience never trips an infrastructure alert: frontend errors, broken flows, an API that returns fine but renders wrong. Galileo sees the sessions, network activity, logs, and releases together, so it traces each issue to its source. Your dashboards can be green while your customers are stuck.",
-  sentry: "Sentry tells you when your code throws an error, and plenty of teams run both. But most of what hurts users never throws an error: a checkout that silently fails, a rage click, a flow people quietly abandon. LogRocket captures rich sessions with the network activity, console logs, feedback, and releases around it, so Galileo finds those issues too, with root cause and user impact already attached. Teams that only monitor errors are seeing a fraction of what's going wrong.",
+  sentry: "Sentry tells you when your code throws an error, but most of what hurts users never throws an error: a checkout that silently fails, a rage click, a flow people quietly abandon. LogRocket captures rich sessions with the network activity, console logs, feedback, and releases around it, so Galileo finds those issues too, with root cause and user impact already attached. Teams that only monitor errors are seeing a fraction of what's going wrong.",
   pendo: "Pendo drives adoption with guides and in-app messaging, all of which assumes the underlying experience works. LogRocket is how you know it does. Galileo analyzes your sessions plus network activity, logs, feedback, and releases, surfacing the issues quietly breaking flows, with root cause included. No onboarding tooltip fixes a broken checkout.",
   amplitude: "Amplitude can only analyze the events you send it. LogRocket works from full sessions, network activity, console logs, feedback, and releases, all connected, so Galileo finds issues nobody instrumented for and answers accurately instead of guessing from event counts. When a chart dips in Amplitude, someone has to go figure out why. In LogRocket that work is mostly done before you open it, the issue is sitting there with the cause and the affected users.",
   heap: "Heap autocaptures clicks and pageviews, but that's only the behavioral layer. LogRocket also captures what the app was doing: network requests, console logs, errors, and the release it all ran on. That's where root causes live. When a funnel drops in Heap, you know something happened. When it drops in LogRocket, Galileo can usually tell you why, down to the failed request or Tuesday's deploy.",
@@ -1766,12 +1766,19 @@ const CURATED_COMPETITOR_LEDES = {
   "microsoft clarity": "Clarity gives you recordings and heatmaps for free, and for basic visibility that's fine. Everything past that is manual: you're watching sessions and guessing. LogRocket captures richer data, network activity, logs, errors, feedback, releases, and Galileo analyzes all of it across your sessions, so issues surface on their own with root causes attached. The difference shows up as soon as you have more sessions than anyone has time to watch.",
 };
 
-// LogRocket's own product copy, taken from our docs. Unlike the competitor notes
-// these hold for every competitor, so they are keyed by data source alone.
-// Keys are matched case-insensitively.
+// Approved copy for LogRocket's own signal pieces in section 03. Unlike the
+// competitor notes these hold for every competitor, so they are keyed by data
+// source alone. Keys are matched case-insensitively.
+//
+// Team-written and deliberately terse, to sit at the same density as the
+// competitor notes opposite. This supersedes the longer Feedback sentence
+// previously taken from docs.logrocket.com/docs/feedback.
 const CURATED_LOGROCKET_NOTES = {
-  // https://docs.logrocket.com/docs/feedback
-  feedback: "Automatically surfaces and quantifies actionable UX problems from unstructured feedback data",
+  errors: "Source-mapped errors with replay, network, and console context.",
+  sessions: "Replay every user journey with complete telemetry.",
+  backend: "Correlate backend requests and deploys to sessions.",
+  releases: "Connect releases to behavioral changes automatically.",
+  feedback: "Link user feedback directly to affected sessions.",
 };
 
 // Win stories that must appear for a given competitor. These come from the field
@@ -2141,11 +2148,25 @@ JSON shape:
   }
   const withLogos = (integrationCoverage.integrations || []).map(i => ({ ...i, logo: logos[i.name] || null }));
 
+  // Real customer logos from LogRocket's published case studies. A customer with
+  // no case study has no asset, and its card falls back to the initial badge.
+  const examples = customerProof.customer_examples || [];
+  let customerLogos = {};
+  if (examples.length) {
+    try {
+      const names = examples.map(ex => ex.name).filter(Boolean);
+      const r = await fetch(`/api/integrations?customers=${encodeURIComponent(names.join(","))}`);
+      if (r.ok) customerLogos = (await r.json()).logos || {};
+    } catch { /* cards fall back to the initial badge */ }
+  }
+  const examplesWithLogos = examples.map(ex => ({ ...ex, logo: customerLogos[ex.name] || null }));
+
   // Searched results win over messaging on any overlapping key — they're verified.
   return {
     ...messaging,
     ...competitorFacts,
     ...customerProof,
+    customer_examples: examplesWithLogos,
     feature_comparison: matrix.feature_comparison || [],
     integrations: withLogos,
     // LogRocket's own autonomy milestones — fixed data, not researched.
