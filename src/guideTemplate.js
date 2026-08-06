@@ -320,9 +320,10 @@ p{margin:0}
 .team-chip h4{font-family:var(--font-display);font-size:15px;color:var(--lr-ink)}
 .team-chip p{font-size:12px;color:var(--text-regular);line-height:1.4}
 .wins{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-.win-card{background:#fff;border-radius:20px;padding:26px;border:1px solid rgba(0,0,0,.06);display:flex;flex-direction:column;gap:16px;box-shadow:var(--shadow-marketing);position:relative;overflow:hidden}
-.win-card::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,var(--lr-indigo-2) 0%,transparent 40%);pointer-events:none}
-.win-card>*{position:relative}
+/* Plain white with the same hairline border as the team chips, AI cards and
+   matrix. Previously carried a lavender wash and a marketing shadow, which made
+   this the only section whose boxes were tinted. */
+.win-card{background:#fff;border-radius:20px;padding:26px;border:1px solid rgba(0,0,0,.06);display:flex;flex-direction:column;gap:16px}
 .win-head{display:flex;align-items:center;justify-content:space-between;gap:14px}
 .win-brand{font-family:var(--font-display);font-size:22px;line-height:1;color:var(--lr-ink);display:flex;align-items:center;gap:10px}
 .win-brand .badge{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--lr-galaxy);color:#fff;font-family:var(--font-display);font-size:14px}
@@ -817,7 +818,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
 
   <section>
     <div class="section-eyebrow"><span class="num">01</span>AI Assistants</div>
-    <h2 class="section-title wide">LogRocket's <em>Ask Galileo</em></h2>
+    <h2 class="section-title wide">Ask <em>Galileo</em> connects behavior to the code. ${comp} AI stops at the behavior.</h2>
     <div class="ai">
       <div class="ai-card lr">
         <div class="ai-head"><div class="ai-glyph">✦</div><div class="ai-name"><small>LogRocket</small>Ask Galileo</div></div>
