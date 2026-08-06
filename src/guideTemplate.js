@@ -34,6 +34,19 @@ const useLogRocketName = (s) => String(s ?? "")
   // The swap can leave the company name twice over ("LogRocket's LogRocket AI").
   .replace(/\bLogRocket(?:'s)?\s+LogRocket\b/g, "LogRocket");
 
+// Section 03 piece notes are compressed summaries, not sentences, so a contrasting
+// conjunction is dead weight: "Captures frontend errors, no backend context" says
+// the same as "..., but lacks complete backend context" in fewer words.
+// Deliberately scoped to those notes. Elsewhere "but" is doing real work, not least
+// in the approved hero paragraphs.
+const noFiller = (s) => String(s ?? "")
+  .replace(/,?\s*\b(?:but|however|though|although|whereas|while)\b\s+/gi, ", ")
+  .replace(/,\s*,/g, ",")
+  .replace(/^\s*,\s*/, "")
+  .replace(/\s{2,}/g, " ")
+  .replace(/\s+([.,;:])/g, "$1")
+  .trim();
+
 // Ranking language about the competitor hands them credibility this guide exists
 // to question, and none of it is verifiable. The prompt forbids it; this strips
 // the adjectival forms, where removal leaves a clean sentence.
@@ -347,6 +360,10 @@ p{margin:0}
 .win-attr{font-size:11.5px;color:var(--text-muted);margin-top:-2px}
 .win-attr::before{content:"\\2014\\00a0"}
 .win-out{font-size:13.5px;line-height:1.5;color:var(--text-regular)}
+/* No quote above it, so the summary carries the card and is sized to lead. The
+   shared row track absorbs the height difference, so the rule and stats below stay
+   level with the other column either way. */
+.win-out.lead{font-size:16px;line-height:1.45;color:var(--lr-ink)}
 .win-replaced{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-display);font-size:11px;background:var(--lr-danger-4);color:var(--lr-danger-1);padding:4px 10px;border-radius:9999px;text-transform:uppercase;letter-spacing:.08em;justify-self:start;align-self:start}
 /* One equal column per stat rather than a fixed three, so a card with a single
    stat gives it the full width instead of squeezing it into a third. */
@@ -714,7 +731,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
     <div class="pz on">
       <span class="ico">${sourceIcon(d.name)}</span>
       <span class="nm">${esc(d.name)}</span>
-      <span class="fr">${esc(clampSentences(d.logrocket_note || d.note || "", 1))}</span>
+      <span class="fr">${esc(noFiller(clampSentences(d.logrocket_note || d.note || "", 1)))}</span>
       ${pieceChips(d.name)}
     </div>`).join("");
 
@@ -726,7 +743,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
   //                     names it, since blanking it would understate them.
   //   unfilled + "?"  - nothing verified for this source at all
   const compPieces = dataSourceList.map(d => {
-    const note = escBold(clampSentences(d.competitor_note || "", 1, { keepMarked: true }));
+    const note = escBold(noFiller(clampSentences(d.competitor_note || "", 1, { keepMarked: true })));
     if (d.competitor) {
       return `
     <div class="pz on">
@@ -786,7 +803,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
     { key: "attr", used: (ex) => !!attrOf(ex),
       render: (ex) => `<div class="win-attr">${esc(attrOf(ex))}</div>` },
     { key: "out", used: (ex) => !!ex.outcome,
-      render: (ex) => `<div class="win-out">${esc(ex.outcome)}</div>` },
+      render: (ex) => `<div class="win-out${ex.quote ? "" : " lead"}">${esc(ex.outcome)}</div>` },
     { key: "replaced", used: (ex) => !!ex.replaced,
       render: (ex) => `<span class="win-replaced"><span>✕</span> Replaced ${esc(ex.replaced)}</span>` },
     { key: "stats", used: (ex) => statsOf(ex).length > 0,

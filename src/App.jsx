@@ -1949,13 +1949,13 @@ For each of the five data sources (Errors, Sessions, Backend, Releases, Feedback
 - Where they do have a capability, the honest differentiator is usually HOW it works — behavioural vs code-level, separate tool vs same timeline, manual vs correlated — not that it is missing. Say that instead.
 - Wrap the specific gap — the part LogRocket does and they do not — in **double asterisks** so it renders bold. Bold ONLY that clause, never the whole note, and never the part describing what they DO ship. If a source has no verified gap, add no bold at all rather than inventing one.
 
-LENGTH: these are cards on a one-pager, not prose. ONE sentence, 5 to 8 WORDS, clipped. Do not explain, just characterise. This is the standard expected, for PostHog:
-  Errors:    "Captures frontend errors, but **lacks complete backend context**."
-  Sessions:  "Replay available, but **limited behavioral reasoning**."
-  Backend:   "Logs exist **separately from session analysis**."
-  Releases:  "Release data **isn't correlated with user behavior**."
-  Feedback:  "Feedback remains **disconnected from technical signals**."
-Note what those examples do NOT do: they never name the product ("Error Tracking", "Release Health"), and they never explain. Match that density for every competitor.
+LENGTH: these are cards on a one-pager, not prose. 5 to 8 WORDS, a compressed summary rather than a sentence. Do not explain, just characterise. Drop every filler word: no "but", "however", "though", "available", "exists", "ships with". A comma carries the contrast. This is the standard expected, for PostHog:
+  Errors:    "Frontend errors only, **no backend context**."
+  Sessions:  "Session replay, **limited behavioral reasoning**."
+  Backend:   "Logs **separate from session analysis**."
+  Releases:  "Release data **uncorrelated with user behavior**."
+  Feedback:  "Feedback **disconnected from technical signals**."
+Note what those examples do NOT do: they never name the product ("Error Tracking", "Release Health"), they never explain, and they never join the two halves with a conjunction. Match that density for every competitor.
 
 Before you return each competitor_note, count its words. Over 8, cut from the capability half, not the gap: drop the product name first, then adjectives, then filler like "available", "exists", "ships with". "Error Tracking ships with stack traces and session replay, but no network-request-level session correlation" is 15 words and far too long; "Captures frontend errors, but **no session correlation**" is 7 and correct.
 
@@ -2000,7 +2000,7 @@ JSON shape:
   "competitor_ai_summary": "2-3 sentences on what ${competitor}'s AI does and where it stops (behavior only, no code/errors, etc.)",
   "competitor_ai_bullets": ["3 bullets on ${competitor} AI limitations plus 1 fair strength — each ONE sentence, MAX 14 WORDS. In the limitation bullets, wrap the specific missing capability in **double asterisks** for bold"],
   "competitor_ai_timeline": [ { "date": "e.g. Mar '25", "label": "the AI capability or product shipped, MAX 4 WORDS", "note": "MAX 8 WORDS on what it does / still cannot do", "pct": 30, "pct_basis": "benchmark|capability" } ],
-  "data_sources": [ { "name": "Errors", "logrocket": true, "logrocket_note": "how LogRocket handles this data source, MAX 12 WORDS, ONE sentence", "competitor": false, "competitor_note": "how ${competitor} handles it, ONE sentence, 5 to 8 WORDS. Terse and clipped, not a full explanation. Wrap only the gap in **double asterisks**" }, { "name": "Sessions", "logrocket": true, "logrocket_note": "…", "competitor": true, "competitor_note": "…" }, { "name": "Backend", "logrocket": true, "logrocket_note": "server-side/API data — network requests, backend errors, server logs, tied to the session", "competitor": false, "competitor_note": "…" }, { "name": "Releases", "logrocket": true, "logrocket_note": "…", "competitor": false, "competitor_note": "…" }, { "name": "Feedback", "logrocket": true, "logrocket_note": "…", "competitor": false, "competitor_note": "…" } ],
+  "data_sources": [ { "name": "Errors", "logrocket": true, "logrocket_note": "how LogRocket handles this data source, MAX 12 WORDS, ONE sentence", "competitor": false, "competitor_note": "how ${competitor} handles it, 5 to 8 WORDS. A compressed summary, not a sentence. No "but", "however" or "though": use a comma. Wrap only the gap in **double asterisks**" }, { "name": "Sessions", "logrocket": true, "logrocket_note": "…", "competitor": true, "competitor_note": "…" }, { "name": "Backend", "logrocket": true, "logrocket_note": "server-side/API data — network requests, backend errors, server logs, tied to the session", "competitor": false, "competitor_note": "…" }, { "name": "Releases", "logrocket": true, "logrocket_note": "…", "competitor": false, "competitor_note": "…" }, { "name": "Feedback", "logrocket": true, "logrocket_note": "…", "competitor": false, "competitor_note": "…" } ],
   (return exactly these five data_sources rows, in this order; set each "logrocket"/"competitor" boolean from what you actually verified)
   "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
 }`;
