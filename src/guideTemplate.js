@@ -360,10 +360,11 @@ p{margin:0}
 .win-attr{font-size:11.5px;color:var(--text-muted);margin-top:-2px}
 .win-attr::before{content:"\\2014\\00a0"}
 .win-out{font-size:13.5px;line-height:1.5;color:var(--text-regular)}
-/* No quote above it, so the summary carries the card and is sized to lead. The
-   shared row track absorbs the height difference, so the rule and stats below stay
-   level with the other column either way. */
-.win-out.lead{font-size:16px;line-height:1.45;color:var(--lr-ink)}
+/* No quote above it, so the summary is the card's lead line: it takes the quote's
+   typography and its starting row, so it sits level with the other column's quote
+   rather than below an empty gap. align-self keeps it at the top of the rows it
+   spans, leaving the rule and stats on their own tracks. */
+.win-out.lead{font-family:var(--font-display);font-size:17px;line-height:1.35;color:var(--lr-ink);align-self:start}
 .win-replaced{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-display);font-size:11px;background:var(--lr-danger-4);color:var(--lr-danger-1);padding:4px 10px;border-radius:9999px;text-transform:uppercase;letter-spacing:.08em;justify-self:start;align-self:start}
 /* One equal column per stat rather than a fixed three, so a card with a single
    stat gives it the full width instead of squeezing it into a third. */
@@ -793,23 +794,26 @@ export function buildGuideHtml({ guide, competitor, customer }) {
   const statsOf = (ex) => (Array.isArray(ex.stats) ? ex.stats : []).slice(0, 3);
 
   // Both cards share row tracks via subgrid, so the quote, attribution, summary,
-  // rule and stats line up across the two columns. That only holds if every card
-  // has the same children in the same order, so a slot the other card fills is
-  // emitted empty here. Slots no card uses are skipped entirely, otherwise their
-  // row gap would leave a band of dead space.
+  // rule and stats line up across the two columns. Slots no card uses are dropped
+  // entirely, otherwise their row gap would leave a band of dead space.
   const winSlots = [
     { key: "quote", used: (ex) => !!ex.quote,
       render: (ex) => `<div class="win-quote">${esc(ex.quote)}</div>` },
     { key: "attr", used: (ex) => !!attrOf(ex),
       render: (ex) => `<div class="win-attr">${esc(attrOf(ex))}</div>` },
     { key: "out", used: (ex) => !!ex.outcome,
-      render: (ex) => `<div class="win-out${ex.quote ? "" : " lead"}">${esc(ex.outcome)}</div>` },
+      render: (ex) => `<div class="win-out">${esc(ex.outcome)}</div>` },
     { key: "replaced", used: (ex) => !!ex.replaced,
       render: (ex) => `<span class="win-replaced"><span>✕</span> Replaced ${esc(ex.replaced)}</span>` },
     { key: "stats", used: (ex) => statsOf(ex).length > 0,
       render: (ex) => `<div class="win-stats">${statsOf(ex).map(s =>
         `<div class="win-stat"><div class="num">${esc(s.num)}</div><div class="lbl">${esc(s.label)}</div></div>`).join("")}</div>` },
   ].filter(slot => winExamples.some(slot.used));
+
+  // Row 1 is the header; the slots follow in order. Every child is placed
+  // explicitly, so absorbing rows below cannot shift what comes after.
+  const slotRow = {};
+  winSlots.forEach((slot, i) => { slotRow[slot.key] = i + 2; });
 
   const wins = winExamples.map(ex => {
     // The real wordmark when the customer has a published case study, otherwise
@@ -819,13 +823,30 @@ export function buildGuideHtml({ guide, competitor, customer }) {
     const brand = ex.logo
       ? `<img class="win-logo" src="${ex.logo}" alt="${esc(ex.name || "Customer")}"/>`
       : `<span class="badge">${esc(badge)}</span>${esc(ex.name || "Customer")}`;
+
+    // With no quote, the summary starts where the other card's quote starts and
+    // takes the quote and attribution rows with it, rather than leaving a gap above
+    // itself. The rule and stats keep their own rows, so they stay level.
+    const leads = !ex.quote && ex.outcome && slotRow.out !== undefined;
+    const leadFrom = slotRow.quote ?? slotRow.attr ?? slotRow.out;
+
+    const body = winSlots.map(slot => {
+      if (leads && (slot.key === "quote" || slot.key === "attr")) return "";
+      if (leads && slot.key === "out") {
+        return `<div class="win-out lead" style="grid-row:${leadFrom} / ${slotRow.out + 1}">${esc(ex.outcome)}</div>`;
+      }
+      const row = ` style="grid-row:${slotRow[slot.key]}"`;
+      if (!slot.used(ex)) return `<div class="win-empty"${row}></div>`;
+      return slot.render(ex).replace(/^(<\w+)/, `$1${row}`);
+    }).join("");
+
     return `
     <div class="win-card">
-      <div class="win-head">
+      <div class="win-head" style="grid-row:1">
         <div class="win-brand">${brand}</div>
         ${ex.profile ? `<span class="win-tag">${esc(ex.profile)}</span>` : ""}
       </div>
-      ${winSlots.map(slot => slot.used(ex) ? slot.render(ex) : `<div class="win-empty"></div>`).join("")}
+      ${body}
     </div>`;
   }).join("");
 
