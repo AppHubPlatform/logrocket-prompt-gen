@@ -910,7 +910,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
 
   ${dataTiles ? `<section>
     <div class="section-eyebrow"><span class="num">03</span>One Reasoning Layer</div>
-    <h2 class="section-title ctx">AI is only as good as the <em>context</em> it receives. LogRocket reasons across every technical and user signal to explain why, not just what.</h2>
+    <h2 class="section-title ctx">AI is only as good as the <em>context</em> it receives. LogRocket looks across all your data to surface every user experience issue.</h2>
     ${(() => {
       const n = Math.min(Math.max(dataSourceList.length, 1), 5);
       const cols = `grid-template-columns:repeat(${n},1fr)`;
