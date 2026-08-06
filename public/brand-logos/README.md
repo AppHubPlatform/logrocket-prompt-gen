@@ -27,20 +27,21 @@ Anything over 400KB is ignored, to keep the rasterised PDF a sane size.
 
 ## Currently present
 
-Scraped from each vendor's own site and visually checked:
+Taken from each vendor's own site header and visually checked before installing:
 
 - `posthog.svg` — full wordmark
 - `glassbox.svg` — full wordmark
+- `contentsquare.svg` — stacked wordmark, brand maroon
+- `fullstory.svg` — full wordmark with the burst mark
+- `quantummetric.svg` — Q mark plus wordmark
 - `hotjar.svg` — flame mark only, no wordmark. Worth replacing with a real wordmark.
 
 ## Still needed
 
-No asset found, so these fall back to a generic mark plus the name:
-
-- FullStory, Contentsquare, Quantum Metric, Microsoft Clarity — their sites build
-  the header logo as inline SVG or opaque CDN filenames, so there was nothing safe
-  to pull without risking grabbing one of *their* customers' logos by mistake.
-- Arhaus (customer) — no published LogRocket case study, and their site blocks
+- **Microsoft Clarity** — the header logo is not a self-contained inline SVG; the
+  candidate extracted from the page would not render standalone. Falls back to a
+  generic mark plus the name.
+- **Arhaus** (customer) — no published LogRocket case study, and their site blocks
   scraping.
 
 Datadog, Sentry, Pendo, Amplitude and Heap need nothing here: they are LogRocket
