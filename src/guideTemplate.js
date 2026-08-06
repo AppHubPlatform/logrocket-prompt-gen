@@ -319,11 +319,16 @@ p{margin:0}
 .team-chip .role{font-family:var(--font-display);font-size:10px;color:var(--lr-galaxy);text-transform:uppercase;letter-spacing:.12em}
 .team-chip h4{font-family:var(--font-display);font-size:15px;color:var(--lr-ink)}
 .team-chip p{font-size:12px;color:var(--text-regular);line-height:1.4}
+/* Row tracks are declared inline with the markup, since the number of slots
+   depends on which fields the examples actually have. Each card is a subgrid of
+   them, so the quote, attribution, summary, rule and stats sit on the same
+   baseline across both columns. */
 .wins{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.win-empty{display:block}
 /* Plain white with the same hairline border as the team chips, AI cards and
    matrix. Previously carried a lavender wash and a marketing shadow, which made
    this the only section whose boxes were tinted. */
-.win-card{background:#fff;border-radius:20px;padding:26px;border:1px solid rgba(0,0,0,.06);display:flex;flex-direction:column;gap:16px}
+.win-card{background:#fff;border-radius:20px;padding:26px;border:1px solid rgba(0,0,0,.06);grid-row:1/-1;display:grid;grid-template-rows:subgrid;row-gap:16px}
 .win-head{display:flex;align-items:center;justify-content:space-between;gap:14px}
 .win-brand{font-family:var(--font-display);font-size:22px;line-height:1;color:var(--lr-ink);display:flex;align-items:center;gap:10px}
 .win-brand .badge{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--lr-galaxy);color:#fff;font-family:var(--font-display);font-size:14px}
@@ -342,10 +347,10 @@ p{margin:0}
 .win-attr{font-size:11.5px;color:var(--text-muted);margin-top:-2px}
 .win-attr::before{content:"\\2014\\00a0"}
 .win-out{font-size:13.5px;line-height:1.5;color:var(--text-regular)}
-.win-replaced{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-display);font-size:11px;background:var(--lr-danger-4);color:var(--lr-danger-1);padding:4px 10px;border-radius:9999px;text-transform:uppercase;letter-spacing:.08em;align-self:flex-start}
+.win-replaced{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-display);font-size:11px;background:var(--lr-danger-4);color:var(--lr-danger-1);padding:4px 10px;border-radius:9999px;text-transform:uppercase;letter-spacing:.08em;justify-self:start;align-self:start}
 /* One equal column per stat rather than a fixed three, so a card with a single
    stat gives it the full width instead of squeezing it into a third. */
-.win-stats{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;padding-top:14px;border-top:1px solid rgba(0,0,0,.08);margin-top:auto}
+.win-stats{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;padding-top:14px;border-top:1px solid rgba(0,0,0,.08)}
 .win-stat .num{font-family:var(--font-display);font-size:28px;color:var(--lr-galaxy);letter-spacing:-.025em;line-height:1}
 .win-stat .lbl{font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.3}
 @page{size:A4;margin:10mm}
@@ -764,9 +769,32 @@ export function buildGuideHtml({ guide, competitor, customer }) {
       <p>${t.p}</p>
     </div>`).join("");
 
-  const wins = (Array.isArray(g.customer_examples) ? g.customer_examples : []).slice(0, 2).map(ex => {
-    const stats = (Array.isArray(ex.stats) ? ex.stats : []).slice(0, 3).map(s =>
-      `<div class="win-stat"><div class="num">${esc(s.num)}</div><div class="lbl">${esc(s.label)}</div></div>`).join("");
+  const winExamples = (Array.isArray(g.customer_examples) ? g.customer_examples : []).slice(0, 2);
+  const attrOf = (ex) => ex.quote
+    ? [ex.quote_author || "", ex.quote_title || ""].filter(Boolean).join(", ")
+    : "";
+  const statsOf = (ex) => (Array.isArray(ex.stats) ? ex.stats : []).slice(0, 3);
+
+  // Both cards share row tracks via subgrid, so the quote, attribution, summary,
+  // rule and stats line up across the two columns. That only holds if every card
+  // has the same children in the same order, so a slot the other card fills is
+  // emitted empty here. Slots no card uses are skipped entirely, otherwise their
+  // row gap would leave a band of dead space.
+  const winSlots = [
+    { key: "quote", used: (ex) => !!ex.quote,
+      render: (ex) => `<div class="win-quote">${esc(ex.quote)}</div>` },
+    { key: "attr", used: (ex) => !!attrOf(ex),
+      render: (ex) => `<div class="win-attr">${esc(attrOf(ex))}</div>` },
+    { key: "out", used: (ex) => !!ex.outcome,
+      render: (ex) => `<div class="win-out">${esc(ex.outcome)}</div>` },
+    { key: "replaced", used: (ex) => !!ex.replaced,
+      render: (ex) => `<span class="win-replaced"><span>✕</span> Replaced ${esc(ex.replaced)}</span>` },
+    { key: "stats", used: (ex) => statsOf(ex).length > 0,
+      render: (ex) => `<div class="win-stats">${statsOf(ex).map(s =>
+        `<div class="win-stat"><div class="num">${esc(s.num)}</div><div class="lbl">${esc(s.label)}</div></div>`).join("")}</div>` },
+  ].filter(slot => winExamples.some(slot.used));
+
+  const wins = winExamples.map(ex => {
     // The real wordmark when the customer has a published case study, otherwise
     // the initial. The logo already carries the name, so the text is dropped with
     // it to avoid printing the brand twice.
@@ -780,13 +808,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
         <div class="win-brand">${brand}</div>
         ${ex.profile ? `<span class="win-tag">${esc(ex.profile)}</span>` : ""}
       </div>
-      ${ex.quote ? `<div class="win-quote">${esc(ex.quote)}</div>` : ""}
-      ${ex.quote && (ex.quote_author || ex.quote_title) ? `<div class="win-attr">${
-        [esc(ex.quote_author || ""), esc(ex.quote_title || "")].filter(Boolean).join(", ")
-      }</div>` : ""}
-      ${ex.outcome ? `<div class="win-out">${esc(ex.outcome)}</div>` : ""}
-      ${ex.replaced ? `<span class="win-replaced"><span>✕</span> Replaced ${esc(ex.replaced)}</span>` : ""}
-      ${stats ? `<div class="win-stats">${stats}</div>` : ""}
+      ${winSlots.map(slot => slot.used(ex) ? slot.render(ex) : `<div class="win-empty"></div>`).join("")}
     </div>`;
   }).join("");
 
@@ -930,7 +952,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
   ${wins ? `<section>
     <div class="section-eyebrow"><span class="num">06</span>Customer proof</div>
     <h2 class="section-title">Teams that chose LogRocket.</h2>
-    <div class="wins">${wins}</div>
+    <div class="wins" style="grid-template-rows:repeat(${winSlots.length + 1},auto)">${wins}</div>
   </section>` : ""}
 
 </div>
