@@ -517,8 +517,45 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
   const all = [...lr, ...compCurve, ...releases];
   const minT = lrStart;
   const maxT = lrEnd;
-  const span = Math.max(maxT - minT, 1);
-  const x = (t) => L + (pw * (t - minT)) / span;
+
+  // A strictly linear time axis wastes most of its width on empty years: with the
+  // timeline starting in 2017, the six years to 2025 carry two milestones while the
+  // last ten months carry four, squeezing the recent detail against the right edge.
+  // So long empty stretches are compressed. Each gap between consecutive marked
+  // dates keeps its first FULL months at full width and is scaled down beyond that,
+  // which removes the dead space while keeping the axis chronological and keeping
+  // bigger gaps visibly bigger than smaller ones.
+  const FULL = 3;
+  const BEYOND = 0.06;
+  const squash = (months) => months <= FULL ? months : FULL + (months - FULL) * BEYOND;
+
+  // Anchors are only the dates the chart actually marks: LogRocket's milestones and
+  // the competitor's releases. The competitor curve's interpolated midpoints are
+  // deliberately excluded, since each anchor earns its own full-width allowance and
+  // a synthetic point sitting mid-gap would re-inflate the stretch it sits in.
+  // Positions between anchors interpolate, so anything unmarked still lands in the
+  // right relative place.
+  const anchors = [...new Set([minT, maxT, ...lr.map(p => p.t), ...releases.map(p => p.t)])]
+    .filter(t => t >= minT && t <= maxT)
+    .sort((a, b) => a - b);
+  const cumulative = [0];
+  for (let i = 1; i < anchors.length; i++) {
+    cumulative.push(cumulative[i - 1] + squash(anchors[i] - anchors[i - 1]));
+  }
+  const total = Math.max(cumulative[cumulative.length - 1], 1);
+
+  const axisPos = (t) => {
+    const clamped = Math.max(minT, Math.min(maxT, t));
+    for (let i = 1; i < anchors.length; i++) {
+      if (clamped <= anchors[i]) {
+        const span = anchors[i] - anchors[i - 1];
+        const frac = span > 0 ? (clamped - anchors[i - 1]) / span : 0;
+        return cumulative[i - 1] + (cumulative[i] - cumulative[i - 1]) * frac;
+      }
+    }
+    return total;
+  };
+  const x = (t) => L + (pw * axisPos(t)) / total;
   const y = (pct) => T + ph - (ph * Math.max(0, Math.min(100, Number(pct)))) / 100;
 
   // Smooth a series with mid-point cubics.
