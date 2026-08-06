@@ -161,6 +161,8 @@ p{margin:0}
 .lede-col p strong{color:#fff;font-weight:600}
 .section-eyebrow{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-display);font-size:12px;color:var(--lr-indigo-0);text-transform:uppercase;letter-spacing:.14em;margin-bottom:10px}
 .section-eyebrow .num{width:22px;height:22px;border-radius:9999px;background:var(--lr-indigo-0);color:#fff;font-size:11px;display:grid;place-items:center;letter-spacing:0}
+/* No title beneath it, so the eyebrow carries the spacing the title would have. */
+.section-eyebrow.solo{margin-bottom:20px}
 .section-title{font-family:var(--font-display);font-size:30px;line-height:1.08;letter-spacing:-.025em;color:var(--lr-ink);max-width:820px;margin-bottom:20px}
 .section-title em{font-style:normal;color:var(--lr-matter-0)}
 /* Shared row track so both cards' head / prompt / answer / bullets / foot line
@@ -973,8 +975,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
   </section>` : ""}
 
   ${rows ? `<section>
-    <div class="section-eyebrow"><span class="num">04</span>Capability Matrix</div>
-    <h2 class="section-title">Side by side, where it counts.</h2>
+    <div class="section-eyebrow solo"><span class="num">04</span>Capability Matrix</div>
     <div class="matrix"><table>
       <thead><tr><th>Capability</th><th class="lr-col">LogRocket</th><th>${comp}</th></tr></thead>
       <tbody>${rows}</tbody>
