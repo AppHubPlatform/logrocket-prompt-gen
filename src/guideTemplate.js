@@ -289,10 +289,10 @@ p{margin:0}
 .ctx-bar svg{width:15px;height:15px;flex-shrink:0}
 .ctx-panel.lr .ctx-bar{background:var(--lr-galaxy);color:#fff}
 .ctx-panel.them .ctx-bar{background:var(--lr-gray-5);color:var(--text-regular)}
-.ctx-foot{display:flex;align-items:center;gap:13px;margin-top:14px;border-radius:14px;padding:12px 16px;background:var(--lr-indigo-2);border:1px solid rgba(99,63,160,.18)}
-.ctx-foot .hd{font-family:var(--font-display);font-size:12.5px;color:var(--lr-galaxy);flex-shrink:0}
-.ctx-foot .sep{width:1px;height:18px;background:rgba(99,63,160,.25);flex-shrink:0}
-.ctx-foot .tx{font-size:11.2px;color:var(--text-regular);line-height:1.4}
+.ctx-foot{display:flex;align-items:center;gap:15px;margin-top:14px;border-radius:14px;padding:15px 18px;background:var(--lr-indigo-2);border:1px solid rgba(99,63,160,.18)}
+.ctx-foot .hd{font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--lr-galaxy);flex-shrink:0}
+.ctx-foot .sep{width:1px;height:22px;background:rgba(99,63,160,.25);flex-shrink:0}
+.ctx-foot .tx{font-size:14px;color:var(--text-regular);line-height:1.45}
 /* Integrations, inside the LogRocket card they belong to */
 .ds-integ{margin-top:2px;padding-top:9px;border-top:1px solid rgba(99,63,160,.14)}
 .ds-integ .lbl{display:block;font-family:var(--font-mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px}
