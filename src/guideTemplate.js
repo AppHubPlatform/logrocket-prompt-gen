@@ -26,6 +26,14 @@ const noDash = (s) => String(s ?? "")
   .replace(/,\s*$/, "")
   .split(RANGE).join("-");
 
+// The guide calls the AI LogRocket, keeping "Ask Galileo" only as the product name.
+// Enforced at render because the model still writes "Galileo AI" in generated
+// fields however the prompt is worded.
+const useLogRocketName = (s) => String(s ?? "")
+  .replace(/(?<!Ask )\bGalileo\b/g, "LogRocket")
+  // The swap can leave the company name twice over ("LogRocket's LogRocket AI").
+  .replace(/\bLogRocket(?:'s)?\s+LogRocket\b/g, "LogRocket");
+
 // Ranking language about the competitor hands them credibility this guide exists
 // to question, and none of it is verifiable. The prompt forbids it; this strips
 // the adjectival forms, where removal leaves a clean sentence.
@@ -45,7 +53,7 @@ const noRankingClaims = (s) => String(s ?? "")
   .replace(/\s{2,}/g, " ")
   .trim();
 
-const esc = (s) => noDash(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const esc = (s) => useLogRocketName(noDash(s)).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 // Escape first, then turn **…** markers into <strong>. Escaping before the
 // substitution keeps model/rep-authored text safe — only our own tags survive.
