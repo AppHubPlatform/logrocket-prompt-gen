@@ -818,7 +818,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
 
   <section>
     <div class="section-eyebrow"><span class="num">01</span>AI Assistants</div>
-    <h2 class="section-title wide">Ask <em>Galileo</em> connects behavior to the code. ${comp} AI stops at the behavior.</h2>
+    <h2 class="section-title wide">LogRocket's <em>Ask Galileo</em> connects behavior to the code. ${comp} AI stops at the behavior.</h2>
     <div class="ai">
       <div class="ai-card lr">
         <div class="ai-head"><div class="ai-glyph">✦</div><div class="ai-name"><small>LogRocket</small>Ask Galileo</div></div>
