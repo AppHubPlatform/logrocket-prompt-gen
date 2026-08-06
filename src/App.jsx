@@ -1835,7 +1835,8 @@ function applyCuratedNotes(dataSources, competitor) {
 }
 
 const LOGROCKET_AI_TIMELINE = [
-  { date: "Jan '25", label: "Human-in-the-Loop", sub: "", pct: 0 },
+  { date: "Jan '17", label: "Began AI journey", sub: "", pct: 10 },
+  { date: "Mar '19", label: "Launched Proactive Insights", sub: "", pct: 20 },
   { date: "May '25", label: "Analytics Only", sub: "", pct: 30 },
   { date: "Jul '25", label: "+Sessions & Issues", sub: "", pct: 60 },
   { date: "Dec '25", label: "Context Layer", sub: "Gemini 3", pct: 80 },
