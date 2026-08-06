@@ -34,6 +34,8 @@ Taken from each vendor's own site header and visually checked before installing:
 - `contentsquare.svg` — stacked wordmark, brand maroon
 - `fullstory.svg` — full wordmark with the burst mark
 - `quantummetric.svg` — Q mark plus wordmark
+- `arhaus.png` — wordmark, from ir.arhaus.com. 1079x253 transparent PNG; arhaus.com
+  itself hard-blocks automated requests, so the investor-relations host was used.
 - `hotjar.svg` — flame mark only, no wordmark. Worth replacing with a real wordmark.
 
 ## Still needed
@@ -41,8 +43,6 @@ Taken from each vendor's own site header and visually checked before installing:
 - **Microsoft Clarity** — the header logo is not a self-contained inline SVG; the
   candidate extracted from the page would not render standalone. Falls back to a
   generic mark plus the name.
-- **Arhaus** (customer) — no published LogRocket case study, and their site blocks
-  scraping.
 
 Datadog, Sentry, Pendo, Amplitude and Heap need nothing here: they are LogRocket
 integrations, so their logo already comes from the integration catalogue.
