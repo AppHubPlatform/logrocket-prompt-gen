@@ -2150,10 +2150,13 @@ JSON shape:
   }
   const withLogos = (integrationCoverage.integrations || []).map(i => ({ ...i, logo: logos[i.name] || null }));
 
+  // Merge the pinned examples in before logos are looked up. They used to be added
+  // after this function returned, which meant a pinned customer never got a logo.
+  const examples = applyCuratedExamples(customerProof.customer_examples || [], competitor);
+
   // Real customer logos: an approved asset in public/brand-logos/ first, then
   // LogRocket's published case studies. A customer with neither falls back to the
   // initial badge, so dropping a file in is all it takes to fix one.
-  const examples = customerProof.customer_examples || [];
   let customerLogos = {};
   if (examples.length) {
     const names = examples.map(ex => ex.name).filter(Boolean).join(",");
@@ -2764,7 +2767,8 @@ function CompetitorGuide() {
       if (!includeFeatureComparison) g.feature_comparison = [];
       // Verified competitor copy wins over the research pass.
       g.data_sources = applyCuratedNotes(g.data_sources, competitor);
-      g.customer_examples = applyCuratedExamples(g.customer_examples, competitor);
+      // Pinned customer examples are merged inside generateCompetitorGuide, before
+      // logo lookup, so they are already present here.
       // Approved copy replaces the whole hero paragraph rather than just the
       // competitor half: each one already covers both sides, so appending the
       // researched LogRocket lede would repeat the argument. A blank slot leaves
