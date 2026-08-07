@@ -1058,7 +1058,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
           <span class="orb">${ICO_ATOM}</span>
           <span>
             <span class="lbl">${comp} AI</span>
-            <h4>Unclear Answers. Gaps in Analysis.</h4>
+            <h4>${gapCount ? "Unclear Answers. Gaps in Analysis." : "Signals analysed separately."}</h4>
             <p>${gapCount
               ? "Disconnected signals. Missing context.<br/>Slower investigations. Uncertain decisions."
               : "No single layer reasons across all of them at once.<br/>More stitching together, slower answers."}</p>
