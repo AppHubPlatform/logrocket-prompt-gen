@@ -2037,6 +2037,11 @@ ${audience}
 
 ACCURACY IS CRITICAL — this is customer-facing. Verify with web_search first: 2 targeted searches of ${competitor}'s own site (and logrocket.com if needed), then write. Nothing else — other passes handle the AI comparison and customer proof.
 
+GROUND TRUTH on LogRocket's own capabilities. Use these rather than researching us; understating LogRocket is as damaging as overstating ${competitor}.
+- Voice of Customer and surveys: LogRocket ships BUILT-IN SURVEYS (docs.logrocket.com/docs/surveys). Four templates, all question types, audience targeting, and every response is linked to the session replay behind it. Surveys are web today; mobile is on the waitlist, so only raise that if ${competitor} verifiably ships mobile surveys and the buyer needs them.
+- LogRocket Feedback (docs.logrocket.com/docs/feedback) also INGESTS the VoC, survey, support and review tools the customer already runs, Intercom, Zendesk, Gong, G2, Productboard, Gladly, HubSpot Service Hub, Alchemer, Qualtrics and the app stores among them, then uses AI to cluster and tag every piece of feedback, track sentiment, score impact, and pair each insight with the session replays that prove it.
+- So on any Voice of Customer, surveys or feedback row, LogRocket is "full". Never mark us "none" or "partial" there, and never write that we lack surveys or VoC. The honest framing is that we both collect feedback directly AND analyse everything the customer already collects elsewhere, tied to session behaviour.
+
 ${VERIFY_RULES}
 
 ${LENGTH_RULES}
