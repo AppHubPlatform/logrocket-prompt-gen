@@ -1896,6 +1896,37 @@ function capCompetitorMarks(rows, dataSources) {
   });
 }
 
+// Everything applied to a generated guide before it is shown or exported: approved
+// copy over researched copy, plus the consistency rules. Shared so the review sweep
+// produces exactly what a rep would get, rather than a near-copy that drifts.
+function finalizeGuide(guide, competitor, includeFeatureComparison) {
+  const g = { ...guide };
+  const key = String(competitor || "").trim().toLowerCase();
+
+  // Hard-guarantee the toggle: if the rep opted out, drop the comparison so it is
+  // absent from both the on-screen preview and the PDF, whatever the model returned.
+  if (!includeFeatureComparison) g.feature_comparison = [];
+  // Approved matrix wording wins, and excluded rows are dropped.
+  g.feature_comparison = applyCuratedMatrix(g.feature_comparison);
+  // Verified competitor copy wins over the research pass.
+  g.data_sources = applyCuratedNotes(g.data_sources, competitor);
+  // Runs after the data sources are settled, since it reads their coverage.
+  g.feature_comparison = capCompetitorMarks(g.feature_comparison, g.data_sources);
+  // Verified milestones replace the researched timeline outright, rather than
+  // merging: a partial list from search alongside the approved one would double up
+  // the same release under two different names.
+  const curatedTimeline = CURATED_COMPETITOR_TIMELINES[key];
+  if (curatedTimeline) g.competitor_ai_timeline = curatedTimeline;
+  // Approved copy replaces the whole hero paragraph rather than just the competitor
+  // half: each one already covers both sides, so appending the researched LogRocket
+  // lede would repeat the argument. A blank slot leaves the researched pair in place.
+  const curatedLede = CURATED_COMPETITOR_LEDES[key];
+  if (curatedLede) g.hero_paragraph = curatedLede;
+  // Pinned customer examples are merged inside generateCompetitorGuide, before the
+  // logo lookup, so they are already present.
+  return g;
+}
+
 function applyCuratedMatrix(rows) {
   const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   return (Array.isArray(rows) ? rows : [])
@@ -2873,6 +2904,9 @@ function CompetitorGuide() {
   const [error, setError] = useState("");
   const [pdfCustomer, setPdfCustomer] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [sweeping, setSweeping] = useState(false);
+  const [sweepStatus, setSweepStatus] = useState("");
+  const [sweepLog, setSweepLog] = useState([]);
   const [editing, setEditing] = useState(false);
 
   const competitor = (preset === "Other" ? customCompetitor.trim() : preset);
@@ -2905,27 +2939,7 @@ function CompetitorGuide() {
       // Hard-guarantee the toggle: if the rep opted out, drop the comparison so
       // it's absent from both the on-screen preview and the PDF, regardless of
       // what the model returned.
-      if (!includeFeatureComparison) g.feature_comparison = [];
-      // Approved matrix wording wins, and excluded rows are dropped.
-      g.feature_comparison = applyCuratedMatrix(g.feature_comparison);
-      // Verified competitor copy wins over the research pass.
-      g.data_sources = applyCuratedNotes(g.data_sources, competitor);
-      // Runs after the data sources are settled, since it reads their coverage.
-      g.feature_comparison = capCompetitorMarks(g.feature_comparison, g.data_sources);
-      // Verified milestones replace the researched timeline outright, rather than
-      // merging: a partial list from search alongside the approved one would double
-      // up the same release under two different names.
-      const curatedTimeline = CURATED_COMPETITOR_TIMELINES[String(competitor || "").trim().toLowerCase()];
-      if (curatedTimeline) g.competitor_ai_timeline = curatedTimeline;
-      // Pinned customer examples are merged inside generateCompetitorGuide, before
-      // logo lookup, so they are already present here.
-      // Approved copy replaces the whole hero paragraph rather than just the
-      // competitor half: each one already covers both sides, so appending the
-      // researched LogRocket lede would repeat the argument. A blank slot leaves
-      // the researched pair in place.
-      const curatedLede = CURATED_COMPETITOR_LEDES[String(competitor || "").trim().toLowerCase()];
-      if (curatedLede) g.hero_paragraph = curatedLede;
-      setGuide(g);
+      setGuide(finalizeGuide(g, competitor, includeFeatureComparison));
       if (company && !pdfCustomer) setPdfCustomer(company);
       LogRocket.track("Competitor Guide Generated", { competitor, industry, size, persona });
     } catch (e) {
@@ -2937,6 +2951,48 @@ function CompetitorGuide() {
   const pdfFileName = () => {
     const base = (pdfCustomer || company || `logrocket-vs-${competitor}`).trim().replace(/[^a-z0-9]+/gi, "-").toLowerCase();
     return `${base}-competitor-guide.pdf`;
+  };
+
+  // QA sweep: one PDF per competitor so the whole set can be read in one sitting.
+  // Sequential on purpose. Each guide is four model calls, and firing twelve at once
+  // invites rate limiting halfway through, which is worse than waiting.
+  const runReviewSweep = async () => {
+    const list = COMPETITORS.filter(c => c !== "Other");
+    if (!confirm(
+      `Generate a review PDF for all ${list.length} competitors?\n\n` +
+      `This runs a full guide for each, so expect roughly ${Math.ceil(list.length * 45 / 60)} minutes ` +
+      `and ${list.length} downloads. Leave this tab open.`
+    )) return;
+
+    setSweeping(true);
+    setSweepLog([]);
+    const note = (line) => setSweepLog(prev => [...prev, line]);
+
+    for (let i = 0; i < list.length; i++) {
+      const name = list[i];
+      setSweepStatus(`${i + 1} of ${list.length}: ${name}`);
+      try {
+        const raw = await generateCompetitorGuide({
+          competitor: name, company: "", industry, size, persona,
+          includeFeatureComparison: true, featureFocus, integrations, rogExamples: "",
+        });
+        const g = finalizeGuide(raw, name, true);
+        const { pages } = await downloadGuidePdf({
+          guide: g,
+          competitor: name,
+          customer: "",
+          fileName: `review-logrocket-vs-${name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.pdf`,
+        });
+        note(`✓ ${name} — ${pages} page${pages === 1 ? "" : "s"}`);
+      } catch (e) {
+        // One competitor failing should not cost the other eleven.
+        note(`✕ ${name} — ${e.message}`);
+        LogRocket.captureException(e, { tags: { source: "guide-review-sweep", competitor: name } });
+      }
+    }
+    setSweepStatus("");
+    setSweeping(false);
+    LogRocket.track("Competitor Guide Review Sweep", { count: list.length });
   };
 
   // Primary: build and download the branded PDF directly (no print dialog).
@@ -3069,6 +3125,28 @@ function CompetitorGuide() {
           <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "10px" }}>{rogStatus}</div>
         )}
         {error && <div style={{ fontSize: "13px", color: "#b91c1c", marginTop: "12px" }}>⚠️ {error}</div>}
+
+        {/* QA sweep, for reviewing the whole set of guides at once. */}
+        <div style={{ marginTop: "18px", paddingTop: "16px", borderTop: `1px solid ${BORDER}` }}>
+          <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "8px" }}>
+            Reviewing the content? Build one PDF per competitor in a single run. Uses the
+            industry, size, persona and capability settings above, and takes a few minutes.
+          </div>
+          <button
+            style={{ ...S.btnGhost, opacity: (sweeping || loading) ? 0.55 : 1 }}
+            onClick={runReviewSweep}
+            disabled={sweeping || loading}
+          >
+            {sweeping ? `Building… ${sweepStatus}` : "◆ Build a review PDF for every competitor"}
+          </button>
+          {sweepLog.length > 0 && (
+            <div style={{ marginTop: "10px", fontSize: "12px", lineHeight: 1.6, fontFamily: "ui-monospace, monospace" }}>
+              {sweepLog.map((line, i) => (
+                <div key={i} style={{ color: line.startsWith("✕") ? "#b91c1c" : "#4b5563" }}>{line}</div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {guide && (
