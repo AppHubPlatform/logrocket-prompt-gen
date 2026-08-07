@@ -486,20 +486,6 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
   const gap = () => 0.30 + rng() * 0.07;
   const midGap = () => 0.30 + rng() * 0.04;
 
-  const compCurve = [];
-  lr.forEach((p, i) => {
-    // Left unrounded — rounding a small value can nudge the gap outside the band.
-    compCurve.push({ t: p.t, date: p.date, pct: Number(p.pct) * (1 - gap()) });
-    const next = lr[i + 1];
-    if (next) {
-      const midT = Math.round((p.t + next.t) / 2);
-      if (midT > p.t && midT < next.t) {
-        const midPct = (Number(p.pct) + Number(next.pct)) / 2;
-        compCurve.push({ t: midT, date: null, pct: midPct * (1 - midGap()) });
-      }
-    }
-  });
-
   // The window is exactly LogRocket's own timeline, so every guide shares the same
   // axis regardless of competitor and neither line runs past the other.
   const lrStart = Math.min(...lr.map(p => p.t));
@@ -514,7 +500,21 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
     .filter(p => p.t !== null && p.t >= lrStart && p.t <= lrEnd)
     .sort((a, b) => a.t - b.t);
 
-  const all = [...lr, ...compCurve, ...releases];
+  // LogRocket's own percentage at any date, interpolated between milestones.
+  const lrPctAt = (t) => {
+    if (t <= lr[0].t) return Number(lr[0].pct);
+    const last = lr[lr.length - 1];
+    if (t >= last.t) return Number(last.pct);
+    for (let i = 1; i < lr.length; i++) {
+      const a = lr[i - 1], b = lr[i];
+      if (t <= b.t) {
+        const f = (t - a.t) / Math.max(b.t - a.t, 1);
+        return Number(a.pct) + (Number(b.pct) - Number(a.pct)) * f;
+      }
+    }
+    return Number(last.pct);
+  };
+
   const minT = lrStart;
   const maxT = lrEnd;
 
@@ -557,6 +557,62 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
   };
   const x = (t) => L + (pw * axisPos(t)) / total;
   const y = (pct) => T + ph - (ph * Math.max(0, Math.min(100, Number(pct)))) / 100;
+
+  // The line starts at their first known release rather than at the start of our
+  // timeline: running it back to 2017 would draw them as having AI years before they
+  // shipped any. With no known release it spans the window, there being no date to
+  // start from.
+  const curveStart = releases.length ? releases[0].t : lrStart;
+
+  // One point per LogRocket milestone, at exactly the same date, each scaled down by
+  // its own gap. That placement is what holds the 30-37% band along the whole line:
+  // the smoothing puts every point between two anchors on a weighted average of
+  // them, so with both lines sharing x positions the competitor's height is always
+  // an average of two values that are each 30-37% below LogRocket's, and therefore
+  // in band too. Sampling at other dates, or adding midpoints derived from a
+  // straight line between milestones, breaks that and the real on-screen gap
+  // wandered between 19% and 41%.
+  const anchorGaps = lr.map(() => 0.30 + rng() * 0.07);
+  const compCurve = lr
+    .map((p, i) => ({ t: p.t, date: p.date, pct: Number(p.pct) * (1 - anchorGaps[i]) }))
+    .filter(p => p.t >= curveStart);
+
+  if (curveStart > lrStart && compCurve.length) {
+    // Begin exactly at the release, part way along one of LogRocket's segments.
+    // Weighting by date alone put these points off the scaled curve, because the
+    // renderer blends a segment with a smoothstep rather than a straight line, so
+    // the same blend is reproduced here. The partial segment is then subdivided, as
+    // its endpoints no longer share x positions with LogRocket's and only dense
+    // points keep the smoothed result on the scaled curve.
+    const i = Math.max(lr.findIndex(p => p.t >= curveStart), 1);
+    const before = lr[i - 1], after = lr[i];
+    const beforePct = Number(before.pct) * (1 - anchorGaps[i - 1]);
+    const afterPct = Number(after.pct) * (1 - anchorGaps[i]);
+
+    // Solve the renderer's cubic for the parameter at a given x, then take its
+    // smoothstep weight: y(s) = y0(1-s)^2(1+2s) + y1 s^2(3-2s).
+    const xb = x(before.t), xa = x(after.t), mx = (xb + xa) / 2;
+    const xAt = (s) => xb * (1 - s) ** 3 + 3 * mx * s * (1 - s) + xa * s ** 3;
+    const weightAtX = (targetX) => {
+      let lo = 0, hi = 1;
+      for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; xAt(m) < targetX ? lo = m : hi = m; }
+      const s = (lo + hi) / 2;
+      return s * s * (3 - 2 * s);
+    };
+    const pctAtX = (targetX) => {
+      const w = weightAtX(targetX);
+      return beforePct + (afterPct - beforePct) * w;
+    };
+
+    const STEPS = 10;
+    const head = [];
+    for (let k = 0; k < STEPS; k++) {
+      const t = curveStart + ((after.t - curveStart) * k) / STEPS;
+      head.push({ t, date: null, pct: pctAtX(x(t)) });
+    }
+    compCurve.unshift(...head);
+  }
+
 
   // Smooth a series with mid-point cubics.
   const linePath = (pts) => {
@@ -674,6 +730,7 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
   }).join("");
 
   // Date ticks across both series, thinned so near-identical dates don't collide.
+  const all = [...lr, ...compCurve, ...releases];
   const ticks = [...new Map(all.filter(p => p.t >= minT && p.date).map(p => [p.t, p.date])).entries()].sort((a, b) => a[0] - b[0]);
   let lastTickX = -Infinity;
   const xlabels = ticks.filter(([t]) => {

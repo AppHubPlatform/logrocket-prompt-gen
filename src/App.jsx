@@ -1820,10 +1820,20 @@ const CURATED_COMPETITOR_TIMELINES = {
     { date: "Jan '25", label: "AI Survey Insights" },
     { date: "Dec '25", label: "AI Summaries" },
   ],
-  // FullStory is deliberately absent: its StoryAI Agents date falls after
-  // LogRocket's last milestone, so it would be dropped when plotting anyway.
+  fullstory: [
+    { date: "Dec '25", label: "StoryAI & Ask StoryAI" },
+    { date: "Jan '26", label: "StoryAI Opportunities" },
+    // Jun '26 is after LogRocket's last milestone, so it is outside the window and
+    // will not plot until that timeline extends. Kept so it is not lost.
+    { date: "Jun '26", label: "StoryAI Agents" },
+  ],
   amplitude: [
     { date: "Feb '26", label: "AI Agents Platform" },
+  ],
+  "microsoft clarity": [
+    { date: "Feb '24", label: "Clarity Copilot" },
+    { date: "Mar '24", label: "Copilot expansion" },
+    { date: "Jan '26", label: "Copilot improvements" },
   ],
   datadog: [
     { date: "Jun '25", label: "Bits AI Agents" },
