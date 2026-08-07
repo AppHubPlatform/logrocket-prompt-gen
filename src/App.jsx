@@ -1774,6 +1774,12 @@ const CURATED_COMPETITOR_LEDES = {
 // own timeline window are dropped when plotting, so a release later than our last
 // milestone will not appear. Keys are matched case-insensitively.
 const CURATED_COMPETITOR_TIMELINES = {
+  posthog: [
+    { date: "Jan '25", label: "AI Product Assistant" },
+    { date: "May '25", label: "AI Enhancements" },
+    { date: "Nov '25", label: "AI Relaunch" },
+    { date: "Jan '26", label: "MCP Launch" },
+  ],
   sentry: [
     { date: "Nov '24", label: "Sentry AI early adopter" },
     { date: "Mar '25", label: "Autofix beta (paid)" },
