@@ -1847,6 +1847,37 @@ const CURATED_COMPETITOR_TIMELINES = {
 // Team-written and deliberately terse, to sit at the same density as the
 // competitor notes opposite. This supersedes the longer Feedback sentence
 // previously taken from docs.logrocket.com/docs/feedback.
+// Approved wording for LogRocket's side of specific capability matrix rows. The
+// research pass kept understating us on Voice of Customer, so this replaces whatever
+// it writes for the rows listed, and marks us "full" there.
+//
+// Matched on the row's feature name, normalised, so "Voice of Customer / Surveys",
+// "VoC" and "Customer Feedback" all resolve to the same entry.
+const CURATED_MATRIX_LOGROCKET = [
+  {
+    match: /(voiceofcustomer|voc|survey|feedback)/,
+    text: "Surveys and feedback insights connected directly to session replay. AI-powered Feedback Hub aggregates feedback across channels, surfaces trends, prioritizes impact, and links insights to actual user experiences.",
+  },
+  {
+    match: /(deployment|datareside|residency|hosting|selfhost|onprem)/,
+    text: "Cloud, plus a self-hosted deployment for teams that need data to stay inside their own environment.",
+  },
+];
+
+// Rows the matrix never carries, whatever the research pass returns. Pricing moves,
+// varies by contract and dates the guide, so a rep quoting it from here is a risk.
+const MATRIX_EXCLUDED = /(pricing|price|cost|licen[cs]|billing|contract|plan)/;
+
+function applyCuratedMatrix(rows) {
+  const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return (Array.isArray(rows) ? rows : [])
+    .filter(r => !MATRIX_EXCLUDED.test(norm(r.feature)))
+    .map(r => {
+      const hit = CURATED_MATRIX_LOGROCKET.find(c => c.match.test(norm(r.feature)));
+      return hit ? { ...r, logrocket: hit.text, logrocket_mark: "full" } : r;
+    });
+}
+
 const CURATED_LOGROCKET_NOTES = {
   errors: "Source-mapped errors with replay, network, and console context.",
   sessions: "Replay every user journey with complete telemetry.",
@@ -2114,6 +2145,8 @@ GROUND TRUTH on LogRocket's own capabilities. Use these rather than researching 
 - Voice of Customer and surveys: LogRocket ships BUILT-IN SURVEYS (docs.logrocket.com/docs/surveys). Four templates, all question types, audience targeting, and every response is linked to the session replay behind it. Surveys are web today; mobile is on the waitlist, so only raise that if ${competitor} verifiably ships mobile surveys and the buyer needs them.
 - LogRocket Feedback (docs.logrocket.com/docs/feedback) also INGESTS the VoC, survey, support and review tools the customer already runs, Intercom, Zendesk, Gong, G2, Productboard, Gladly, HubSpot Service Hub, Alchemer, Qualtrics and the app stores among them, then uses AI to cluster and tag every piece of feedback, track sentiment, score impact, and pair each insight with the session replays that prove it.
 - So on any Voice of Customer, surveys or feedback row, LogRocket is "full". Never mark us "none" or "partial" there, and never write that we lack surveys or VoC. The honest framing is that we both collect feedback directly AND analyse everything the customer already collects elsewhere, tied to session behaviour.
+- Deployment: LogRocket offers a self-hosted deployment alongside the cloud, for teams that need data to stay in their own environment. Include a "Deployment and data residency" row and state that. Do not invent specific regions, certifications or residency guarantees you cannot verify.
+- NEVER include a pricing, cost, licensing or plan row. Pricing moves and varies by contract, so a rep quoting it from this guide is a liability. Compare capabilities only.
 
 ${VERIFY_RULES}
 
@@ -2844,6 +2877,8 @@ function CompetitorGuide() {
       // it's absent from both the on-screen preview and the PDF, regardless of
       // what the model returned.
       if (!includeFeatureComparison) g.feature_comparison = [];
+      // Approved matrix wording wins, and excluded rows are dropped.
+      g.feature_comparison = applyCuratedMatrix(g.feature_comparison);
       // Verified competitor copy wins over the research pass.
       g.data_sources = applyCuratedNotes(g.data_sources, competitor);
       // Verified milestones replace the researched timeline outright, rather than
