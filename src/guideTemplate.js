@@ -286,10 +286,9 @@ p{margin:0}
 .ctx-panel.lr .ctx-out .orb{background:var(--lr-galaxy);color:#fff}
 .ctx-panel.them .ctx-out .orb{background:var(--lr-gray-5);color:var(--lr-gray-2)}
 .ctx-out .lbl{display:block;font-family:var(--font-mono);font-size:8.4px;letter-spacing:.10em;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px}
-.ctx-out h4{font-family:var(--font-display);font-size:13.5px;line-height:1.2;margin-bottom:4px}
+.ctx-out h4{font-family:var(--font-display);font-size:15px;line-height:1.25}
 .ctx-panel.lr .ctx-out h4{color:var(--lr-ink)}
 .ctx-panel.them .ctx-out h4{color:var(--text-regular)}
-.ctx-out p{font-size:10.6px;line-height:1.4;color:var(--text-regular);margin:0}
 .ctx-tri{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .ctx-tri .it{display:flex;gap:7px;align-items:flex-start}
 .ctx-tri .bg{width:22px;height:22px;border-radius:7px;flex-shrink:0;display:grid;place-items:center}
@@ -1032,7 +1031,6 @@ export function buildGuideHtml({ guide, competitor, customer }) {
           <span>
             <span class="lbl">LogRocket AI</span>
             <h4>Complete Picture. Clear Explanation.</h4>
-            <p>Connected signals. Full context.<br/>Faster root cause. Confident decisions.</p>
           </span>
         </div>
         <div class="ctx-tri">
@@ -1059,9 +1057,6 @@ export function buildGuideHtml({ guide, competitor, customer }) {
           <span>
             <span class="lbl">${comp} AI</span>
             <h4>${gapCount ? "Unclear Answers. Gaps in Analysis." : "Signals analysed separately."}</h4>
-            <p>${gapCount
-              ? "Disconnected signals. Missing context.<br/>Slower investigations. Uncertain decisions."
-              : "No single layer reasons across all of them at once.<br/>More stitching together, slower answers."}</p>
           </span>
         </div>
         <div class="ctx-tri">
