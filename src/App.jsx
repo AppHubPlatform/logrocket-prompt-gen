@@ -1788,6 +1788,25 @@ const CURATED_COMPETITOR_TIMELINES = {
     { date: "May '25", label: "Sense" },
     { date: "Sep '25", label: "Sense Analyst" },
   ],
+  pendo: [
+    { date: "Oct '25", label: "Agent Mode" },
+    { date: "Dec '25", label: "Agent Analytics GA" },
+    { date: "Jan '26", label: "Agent Analytics enhanced" },
+    { date: "Mar '26", label: "Leo" },
+    // Apr '26 falls after LogRocket's last milestone, so it is outside the window
+    // and will not plot until that timeline extends. Kept so it is not lost.
+    { date: "Apr '26", label: "MCP rollout" },
+  ],
+  heap: [
+    { date: "Jun '24", label: "AI CoPilot (open beta)" },
+    { date: "Apr '26", label: "AI Summaries" }, // outside the window, as above
+  ],
+  hotjar: [
+    { date: "Jun '23", label: "AI for Surveys" },
+    { date: "Jan '24", label: "AI Sentiment Analysis" },
+    { date: "Jan '25", label: "AI Survey Insights" },
+    { date: "Dec '25", label: "AI Summaries" },
+  ],
   // FullStory is deliberately absent: its StoryAI Agents date falls after
   // LogRocket's last milestone, so it would be dropped when plotting anyway.
   amplitude: [
