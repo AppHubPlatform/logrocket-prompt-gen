@@ -1807,6 +1807,13 @@ const CURATED_COMPETITOR_TIMELINES = {
     { date: "Jun '24", label: "AI CoPilot (open beta)" },
     { date: "Apr '26", label: "AI Summaries" }, // outside the window, as above
   ],
+  glassbox: [
+    { date: "Jan '22", label: "AI experience analytics" },
+    { date: "Mar '23", label: "Automated journey analysis" },
+    { date: "Jan '24", label: "AI generated summaries" },
+    { date: "Jun '24", label: "AI enhancements" },
+    { date: "Jan '25", label: "AI insights and summaries" },
+  ],
   hotjar: [
     { date: "Jun '23", label: "AI for Surveys" },
     { date: "Jan '24", label: "AI Sentiment Analysis" },
