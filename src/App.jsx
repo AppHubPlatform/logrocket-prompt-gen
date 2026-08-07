@@ -1767,6 +1767,37 @@ const CURATED_COMPETITOR_LEDES = {
 };
 
 
+// Verified competitor AI milestones, supplied by the team. These replace the
+// research pass for any competitor listed, so the chart stops depending on whatever
+// a search happens to surface. Labels are kept short because they render inside a
+// pill on the chart, and a long one crowds its neighbours. Dates outside LogRocket's
+// own timeline window are dropped when plotting, so a release later than our last
+// milestone will not appear. Keys are matched case-insensitively.
+const CURATED_COMPETITOR_TIMELINES = {
+  sentry: [
+    { date: "Nov '24", label: "Sentry AI early adopter" },
+    { date: "Mar '25", label: "Autofix beta (paid)" },
+    { date: "Mar '25", label: "Automatic Autofix runs" },
+    { date: "Mar '25", label: "Autofix improvements" },
+    { date: "Jun '25", label: "Seer GA" },
+  ],
+  "quantum metric": [
+    { date: "May '25", label: "Felix AI" },
+  ],
+  contentsquare: [
+    { date: "May '25", label: "Sense" },
+    { date: "Sep '25", label: "Sense Analyst" },
+  ],
+  // FullStory is deliberately absent: its StoryAI Agents date falls after
+  // LogRocket's last milestone, so it would be dropped when plotting anyway.
+  amplitude: [
+    { date: "Feb '26", label: "AI Agents Platform" },
+  ],
+  datadog: [
+    { date: "Jun '25", label: "Bits AI Agents" },
+  ],
+};
+
 // Approved copy for LogRocket's own signal pieces in section 03. Unlike the
 // competitor notes these hold for every competitor, so they are keyed by data
 // source alone. Keys are matched case-insensitively.
@@ -2773,6 +2804,11 @@ function CompetitorGuide() {
       if (!includeFeatureComparison) g.feature_comparison = [];
       // Verified competitor copy wins over the research pass.
       g.data_sources = applyCuratedNotes(g.data_sources, competitor);
+      // Verified milestones replace the researched timeline outright, rather than
+      // merging: a partial list from search alongside the approved one would double
+      // up the same release under two different names.
+      const curatedTimeline = CURATED_COMPETITOR_TIMELINES[String(competitor || "").trim().toLowerCase()];
+      if (curatedTimeline) g.competitor_ai_timeline = curatedTimeline;
       // Pinned customer examples are merged inside generateCompetitorGuide, before
       // logo lookup, so they are already present here.
       // Approved copy replaces the whole hero paragraph rather than just the
