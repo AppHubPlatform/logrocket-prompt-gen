@@ -1859,8 +1859,11 @@ const CURATED_MATRIX_LOGROCKET = [
     text: "Surveys and feedback insights connected directly to session replay. AI-powered Feedback Hub aggregates feedback across channels, surfaces trends, prioritizes impact, and links insights to actual user experiences.",
   },
   {
-    match: /(deployment|datareside|residency|hosting|selfhost|onprem)/,
-    text: "Cloud, plus a self-hosted deployment for teams that need data to stay inside their own environment.",
+    // "Streaming Data Export" is LogRocket's own product name for this, so it is
+    // used as-is. Deliberately not called real-time: the docs say the data is
+    // exported once an hour, and a prospect can check that.
+    match: /(deployment|datareside|residency|hosting|selfhost|onprem|dataexport|warehouse)/,
+    text: "Cloud or self-hosted, so data can stay inside your own environment. Streaming Data Export sends session and event data into Snowflake, BigQuery, Databricks, Redshift, S3 and other warehouses.",
   },
 ];
 
@@ -2204,7 +2207,7 @@ GROUND TRUTH on LogRocket's own capabilities. Use these rather than researching 
 - Voice of Customer and surveys: LogRocket ships BUILT-IN SURVEYS (docs.logrocket.com/docs/surveys). Four templates, all question types, audience targeting, and every response is linked to the session replay behind it. Surveys are web today; mobile is on the waitlist, so only raise that if ${competitor} verifiably ships mobile surveys and the buyer needs them.
 - LogRocket Feedback (docs.logrocket.com/docs/feedback) also INGESTS the VoC, survey, support and review tools the customer already runs, Intercom, Zendesk, Gong, G2, Productboard, Gladly, HubSpot Service Hub, Alchemer, Qualtrics and the app stores among them, then uses AI to cluster and tag every piece of feedback, track sentiment, score impact, and pair each insight with the session replays that prove it.
 - So on any Voice of Customer, surveys or feedback row, LogRocket is "full". Never mark us "none" or "partial" there, and never write that we lack surveys or VoC. The honest framing is that we both collect feedback directly AND analyse everything the customer already collects elsewhere, tied to session behaviour.
-- Deployment: LogRocket offers a self-hosted deployment alongside the cloud, for teams that need data to stay in their own environment. Include a "Deployment and data residency" row and state that. Do not invent specific regions, certifications or residency guarantees you cannot verify.
+- Deployment and data: LogRocket offers a self-hosted deployment alongside the cloud, for teams that need data to stay in their own environment, and Streaming Data Export pushes session and event data into Snowflake, BigQuery, Databricks, Redshift, S3 and other warehouses. Include a "Deployment and data residency" row and state both. Do not call the export real-time, since it runs hourly, and do not invent regions, certifications or residency guarantees you cannot verify.
 - The matrix must not contradict the data-source comparison elsewhere in the guide. On an AI row, ${competitor} is at most "partial" whenever they are missing any of the five data sources, since an AI that cannot see backend or release data is not equivalent to one that can. On a surveys, VoC or feedback row they are at most "partial" too: collecting responses is not the same as aggregating feedback across channels, scoring impact and tying it back to sessions. "Partial" not "none" in both cases, as they do ship something.
 - NEVER include a pricing, cost, licensing or plan row. Pricing moves and varies by contract, so a rep quoting it from this guide is a liability. Compare capabilities only.
 
