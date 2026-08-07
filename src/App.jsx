@@ -1868,6 +1868,34 @@ const CURATED_MATRIX_LOGROCKET = [
 // varies by contract and dates the guide, so a rep quoting it from here is a risk.
 const MATRIX_EXCLUDED = /(pricing|price|cost|licen[cs]|billing|contract|plan)/;
 
+// Two matrix rows must not show the competitor at full, because the rest of the
+// guide says otherwise and a full tick there contradicts it in front of a prospect.
+//
+//  - AI rows, whenever section 03 shows the competitor missing a data source. An AI
+//    that cannot see backend or release data is not equivalent to one that can, so
+//    a tick beside our own tick reads as parity we have just spent a section denying.
+//  - Survey and feedback rows, always. Collecting responses is not the same as
+//    aggregating feedback across channels, scoring impact and tying it to sessions.
+//
+// Only "full" is lowered, and only ever to "partial": the competitor genuinely ships
+// something in both cases, so dropping them to "none" would be its own overstatement.
+const MATRIX_AI_ROW = /\bAI\b|\bA\.I\b|artificial intelligence|co-?pilot|assistant|agentic/i;
+const MATRIX_FEEDBACK_ROW = /survey|voice of customer|\bvoc\b|feedback/i;
+
+function capCompetitorMarks(rows, dataSources) {
+  const missingSources = (Array.isArray(dataSources) ? dataSources : [])
+    .filter(d => !d.competitor).length;
+  return (Array.isArray(rows) ? rows : []).map(r => {
+    if (r.competitor_mark !== "full") return r;
+    const isAi = MATRIX_AI_ROW.test(r.feature || "");
+    const isFeedback = MATRIX_FEEDBACK_ROW.test(r.feature || "");
+    if ((isAi && missingSources > 0) || isFeedback) {
+      return { ...r, competitor_mark: "partial" };
+    }
+    return r;
+  });
+}
+
 function applyCuratedMatrix(rows) {
   const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   return (Array.isArray(rows) ? rows : [])
@@ -2146,6 +2174,7 @@ GROUND TRUTH on LogRocket's own capabilities. Use these rather than researching 
 - LogRocket Feedback (docs.logrocket.com/docs/feedback) also INGESTS the VoC, survey, support and review tools the customer already runs, Intercom, Zendesk, Gong, G2, Productboard, Gladly, HubSpot Service Hub, Alchemer, Qualtrics and the app stores among them, then uses AI to cluster and tag every piece of feedback, track sentiment, score impact, and pair each insight with the session replays that prove it.
 - So on any Voice of Customer, surveys or feedback row, LogRocket is "full". Never mark us "none" or "partial" there, and never write that we lack surveys or VoC. The honest framing is that we both collect feedback directly AND analyse everything the customer already collects elsewhere, tied to session behaviour.
 - Deployment: LogRocket offers a self-hosted deployment alongside the cloud, for teams that need data to stay in their own environment. Include a "Deployment and data residency" row and state that. Do not invent specific regions, certifications or residency guarantees you cannot verify.
+- The matrix must not contradict the data-source comparison elsewhere in the guide. On an AI row, ${competitor} is at most "partial" whenever they are missing any of the five data sources, since an AI that cannot see backend or release data is not equivalent to one that can. On a surveys, VoC or feedback row they are at most "partial" too: collecting responses is not the same as aggregating feedback across channels, scoring impact and tying it back to sessions. "Partial" not "none" in both cases, as they do ship something.
 - NEVER include a pricing, cost, licensing or plan row. Pricing moves and varies by contract, so a rep quoting it from this guide is a liability. Compare capabilities only.
 
 ${VERIFY_RULES}
@@ -2881,6 +2910,8 @@ function CompetitorGuide() {
       g.feature_comparison = applyCuratedMatrix(g.feature_comparison);
       // Verified competitor copy wins over the research pass.
       g.data_sources = applyCuratedNotes(g.data_sources, competitor);
+      // Runs after the data sources are settled, since it reads their coverage.
+      g.feature_comparison = capCompetitorMarks(g.feature_comparison, g.data_sources);
       // Verified milestones replace the researched timeline outright, rather than
       // merging: a partial list from search alongside the approved one would double
       // up the same release under two different names.
