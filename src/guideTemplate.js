@@ -636,15 +636,20 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
     <line x1="${L}" y1="${y(v)}" x2="${W - R}" y2="${y(v)}" stroke="#E6DEF3" stroke-width="1" stroke-dasharray="${v === 0 ? "0" : "3 4"}"/>
     <text x="${L - 10}" y="${y(v) + 4}" text-anchor="end" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#AA82FF">${v}%</text>`).join("");
 
-  // Legend, top-right inside the plot.
+  // Legend, top-left inside the plot. It used to sit top-right, which is where the
+  // final milestone's callout needs to go: that callout belongs directly above its
+  // own dot at the right edge, and with the legend there it was displaced halfway
+  // down the chart, stranded far from the point it labels. The left is free, since
+  // LogRocket's line starts low.
+  const LEGEND = { x: L + 4, y: 14, w: 250 + esc(competitorName).length * 6, h: 26 };
   const legend = `
     <g font-family="Inter, sans-serif" font-size="12" font-weight="600">
-      <line x1="${W - R - 250}" y1="26" x2="${W - R - 226}" y2="26" stroke="#5B2BC4" stroke-width="3.5" stroke-linecap="round"/>
-      <circle cx="${W - R - 238}" cy="26" r="4" fill="#fff" stroke="#633FA0" stroke-width="2.5"/>
-      <text x="${W - R - 219}" y="30" fill="#3B0A63">LogRocket</text>
-      <line x1="${W - R - 130}" y1="26" x2="${W - R - 106}" y2="26" stroke="#D97856" stroke-width="3" stroke-dasharray="6 4" stroke-linecap="round"/>
-      <circle cx="${W - R - 118}" cy="26" r="4" fill="#fff" stroke="#D97856" stroke-width="2.5"/>
-      <text x="${W - R - 99}" y="30" fill="#8a5a3f">${esc(competitorName)}</text>
+      <line x1="${L + 6}" y1="26" x2="${L + 30}" y2="26" stroke="#5B2BC4" stroke-width="3.5" stroke-linecap="round"/>
+      <circle cx="${L + 18}" cy="26" r="4" fill="#fff" stroke="#633FA0" stroke-width="2.5"/>
+      <text x="${L + 37}" y="30" fill="#3B0A63">LogRocket</text>
+      <line x1="${L + 126}" y1="26" x2="${L + 150}" y2="26" stroke="#D97856" stroke-width="3" stroke-dasharray="6 4" stroke-linecap="round"/>
+      <circle cx="${L + 138}" cy="26" r="4" fill="#fff" stroke="#D97856" stroke-width="2.5"/>
+      <text x="${L + 157}" y="30" fill="#8a5a3f">${esc(competitorName)}</text>
     </g>`;
 
   // LogRocket callouts sit above its line; competitor labels below theirs.
@@ -656,7 +661,7 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
   // Milestones can land close together in time (a competitor shipping twice in
   // one quarter), so nudge each box away from any already placed to keep every
   // label readable.
-  const placed = [];
+  const placed = [LEGEND];
   const clashes = (bx, y0, boxW, boxH) => placed.some(r =>
     bx < r.x + r.w + 4 && bx + boxW + 4 > r.x && y0 < r.y + r.h + 3 && y0 + boxH + 3 > r.y);
 
@@ -669,7 +674,14 @@ function buildEvolutionChart(lrPoints, compPoints, competitorName) {
       for (let guard = 0; guard < 14; guard++) {
         if (!clashes(bx, y0, boxW, boxH)) return y0;
         y0 += step * (boxH + 5);
-        if (y0 < minY || y0 > maxY) return null;
+        if (y0 < minY || y0 > maxY) {
+          // One step past the edge does not mean there is no room at the edge. The
+          // last milestone sits high, so its only free slot is often flush against
+          // the top; without this it was rejected and the label fell to the far side
+          // of the chart, stranded well below its own dot.
+          const edge = y0 < minY ? minY : maxY;
+          return clashes(bx, edge, boxW, boxH) ? null : edge;
+        }
       }
       return null;
     };
@@ -1019,7 +1031,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
           <span class="orb">${ICO_ATOM}</span>
           <span>
             <span class="lbl">LogRocket AI</span>
-            <h4>Complete picture. Clear explanation.</h4>
+            <h4>Complete Picture. Clear Explanation.</h4>
             <p>Connected signals. Full context.<br/>Faster root cause. Confident decisions.</p>
           </span>
         </div>
@@ -1046,7 +1058,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
           <span class="orb">${ICO_ATOM}</span>
           <span>
             <span class="lbl">${comp} AI</span>
-            <h4>${gapCount ? "Incomplete picture. Unclear answers." : "Signals analysed separately."}</h4>
+            <h4>Unclear Answers. Gaps in Analysis.</h4>
             <p>${gapCount
               ? "Disconnected signals. Missing context.<br/>Slower investigations. Uncertain decisions."
               : "No single layer reasons across all of them at once.<br/>More stitching together, slower answers."}</p>
