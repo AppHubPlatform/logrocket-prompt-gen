@@ -1724,6 +1724,43 @@ const GUIDE_PERSONAS = [
   "Product", "Marketing", "Engineering", "Support", "Executive", "UI/Design",
 ];
 
+// The section 01 demo question, per persona. Each entry carries the example handed to
+// the model and the vocabulary that marks a question as belonging to that persona.
+//
+// Both halves are needed. The example alone is advisory, and the model has a habit of
+// reaching for the funnel-drop scenario whoever is reading, which lands wrong when the
+// guide is going to a support or engineering audience. `domain` is what catches that at
+// render time, so `question` doubles as the fallback.
+const PERSONA_QUESTIONS = {
+  product: {
+    question: "Why did checkout conversion drop 18% on Tuesday?",
+    domain: /funnel|checkout|convert|conversion|drop-?off|adopt|activat|feature|sign-?up|signup|retention|onboard|adoption|abandon/i,
+  },
+  marketing: {
+    question: "Which landing page is losing the most signups, and why?",
+    domain: /campaign|landing|sign-?up|signup|acquisi|traffic|\bads?\b|\bseo\b|form|funnel|convert|conversion|attribut|bounce|source/i,
+  },
+  engineering: {
+    question: "What is causing the spike in checkout errors since yesterday's deploy?",
+    domain: /error|exception|deploy|release|regress|\bapi\b|latency|stack|\bbug\b|crash|perform|slow|timeout|fail|console|network|code/i,
+  },
+  support: {
+    question: "Why did this customer's payment fail in their last session?",
+    domain: /ticket|customer|user|escalat|reproduc|repro\b|session|fail|complain|refund|account|report|issue|contact|resolve/i,
+  },
+  executive: {
+    question: "Where are we losing the most revenue to broken experiences?",
+    domain: /revenue|cost|impact|churn|\broi\b|retention|business|trend|quarter|growth|spend|risk|priorit/i,
+  },
+  "ui/design": {
+    question: "Where are users struggling most in the new onboarding flow?",
+    domain: /usab|rage|friction|struggl|flow|navigat|layout|click|scroll|form|onboard|confus|tap|hesitat|design|experience/i,
+  },
+};
+
+const personaQuestion = (persona) =>
+  PERSONA_QUESTIONS[String(persona || "").trim().toLowerCase()] || null;
+
 const COMPANY_SIZES = [
   "1–50 employees", "51–200 employees", "201–1,000 employees",
   "1,001–5,000 employees", "5,000+ employees",
@@ -1912,9 +1949,15 @@ function capCompetitorMarks(rows, dataSources) {
 // Everything applied to a generated guide before it is shown or exported: approved
 // copy over researched copy, plus the consistency rules. Shared so the review sweep
 // produces exactly what a rep would get, rather than a near-copy that drifts.
-function finalizeGuide(guide, competitor, includeFeatureComparison) {
+function finalizeGuide(guide, competitor, includeFeatureComparison, persona) {
   const g = { ...guide };
   const key = String(competitor || "").trim().toLowerCase();
+
+  // Keep the demo question answerable by the person reading the guide. The model is
+  // asked for one in the persona's world and usually obliges, so this only steps in
+  // when the question has no trace of that persona's vocabulary.
+  const pq = personaQuestion(persona);
+  if (pq && !pq.domain.test(g.ai_example_question || "")) g.ai_example_question = pq.question;
 
   // Hard-guarantee the toggle: if the rep opted out, drop the comparison so it is
   // absent from both the on-screen preview and the PDF, whatever the model returned.
@@ -2291,7 +2334,7 @@ JSON shape:
   "headline": "One-line positioning statement — LogRocket's core promise vs ${competitor}",
   "overview": "2-3 sentence overview framing the comparison for this specific prospect",
   "lede_logrocket": "1-2 sentence 'the full picture' pitch for LogRocket (hero left column)",
-  "ai_example_question": "A short, realistic question a ${persona || industry || "product"} team would ask their AI assistant (e.g. 'Why did checkout drop 18% on Tuesday?'). ILLUSTRATIVE demo scenario, not a claim about the real prospect.",
+  "ai_example_question": "A short, realistic question a ${persona || industry || "product"} team would ask their AI assistant. It MUST be a question that specific audience would actually ask about work they own${personaQuestion(persona) ? `, in the spirit of '${personaQuestion(persona).question}'` : ""}. Ground it in ${industry || "this prospect's"} terms. ILLUSTRATIVE demo scenario, not a claim about the real prospect.",
   "ai_example_lr_answer": "How Ask Galileo would answer — MAX 30 WORDS, 1-2 clipped sentences. Name the root cause + the release or code detail. Terse and telegraphic; no preamble, no hedging. ILLUSTRATIVE example. Wrap the specific details ${competitor} could NOT surface (release/deploy, source-mapped error, code-level cause) in **double asterisks** for bold.",
   "ai_example_competitor_answer": "How ${competitor}'s AI would answer the SAME question — MAX 30 WORDS, 1-2 clipped sentences. Behavioral symptoms only (drop-off, rage clicks, which page), no root cause. Terse. Wrap the explicit gap (e.g. **No root cause identified**) in **double asterisks** for bold.",
   "ai_accuracy": "2-3 sentences making message #1 concrete for this prospect. End by citing the independent study.",
@@ -2971,7 +3014,7 @@ function CompetitorGuide() {
       // Hard-guarantee the toggle: if the rep opted out, drop the comparison so
       // it's absent from both the on-screen preview and the PDF, regardless of
       // what the model returned.
-      setGuide(finalizeGuide(g, competitor, includeFeatureComparison));
+      setGuide(finalizeGuide(g, competitor, includeFeatureComparison, persona));
       if (company && !pdfCustomer) setPdfCustomer(company);
       LogRocket.track("Competitor Guide Generated", { competitor, industry, size, persona });
     } catch (e) {
@@ -3008,7 +3051,7 @@ function CompetitorGuide() {
           competitor: name, company: "", industry, size, persona,
           includeFeatureComparison: true, featureFocus, integrations, rogExamples: "",
         });
-        const g = finalizeGuide(raw, name, true);
+        const g = finalizeGuide(raw, name, true, persona);
         const { pages } = await downloadGuidePdf({
           guide: g,
           competitor: name,
