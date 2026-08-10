@@ -1728,35 +1728,47 @@ const GUIDE_PERSONAS = [
 // what it is being asked about, so the two compose instead of needing a question per
 // pair. `{flow}` is the slot the industry fills.
 //
-// Each persona also carries the vocabulary that marks a question as its own. The
-// example in the prompt is advisory, and the model has a habit of reaching for the
-// funnel-drop scenario whoever is reading, which lands wrong for a support or
-// engineering audience. `domain` catches that at render time, so the filled-in template
-// doubles as the fallback.
+// Each persona also carries `stance`, the thing that makes a question theirs, and
+// `asks`, which tells the model what they are accountable for.
+//
+// `stance` is deliberately narrow. It began as a broad list of loosely related words
+// and that enforced nothing: support's included "user", "fail" and "session", so a
+// question written for any persona passed it, and six of thirty cross-persona pairs
+// were accepted. A question can only be corrected if a wrong one is detectable, so
+// each pattern now holds only what that persona alone would say. What survives is the
+// stance, not the subject matter, because the subject is the industry's job.
 const PERSONA_QUESTIONS = {
   product: {
     template: "Why did {flow} conversion drop 18% on Tuesday?",
-    domain: /funnel|convert|conversion|drop-?off|adopt|activat|feature|retention|onboard|abandon|complet/i,
+    stance: /\b(conversion|funnel|drop-?off|adoption|retention|activation|completion rate|cohort)\b/i,
+    asks: "owns conversion and adoption, and asks about aggregate behaviour across a cohort rather than one person",
   },
   marketing: {
     template: "Which landing page is losing the most {flow} starts, and why?",
-    domain: /campaign|landing|acquisi|traffic|\bads?\b|\bseo\b|form|funnel|convert|conversion|attribut|bounce|source|visit/i,
+    stance: /\b(campaign|landing page|ads?|seo|attribution|traffic source|bounce rate|acquisition|channel)\b/i,
+    asks: "owns acquisition, and asks which campaign, channel or landing page is underperforming",
   },
   engineering: {
     template: "What is causing the spike in {flow} errors since yesterday's deploy?",
-    domain: /error|exception|deploy|release|regress|\bapi\b|latency|stack|\bbug\b|crash|perform|slow|timeout|fail|console|network|code/i,
+    stance: /\b(deploy|deployed|deployment|release|regression|errors?|exception|stack trace|api|latency|timeout|crash|console)\b/i,
+    asks: "owns correctness and uptime, and asks what broke, which release caused it, and where in the code",
   },
   support: {
     template: "Why did this customer's {flow} fail in their last session?",
-    domain: /ticket|customer|user|escalat|reproduc|repro\b|session|fail|complain|refund|account|report|issue|contact|resolve/i,
+    stance: /\b(this (customer|user|shopper|patient|member|guest|visitor|person)|their (last )?session|ticket|escalat\w*|refund|complain\w*)\b/i,
+    asks: "owns individual tickets, and asks about one specific user's failed session rather than a trend",
   },
   executive: {
     template: "How much revenue are we losing to broken {flow} experiences?",
-    domain: /revenue|cost|impact|churn|\broi\b|retention|business|trend|quarter|growth|spend|risk|priorit/i,
+    // Not a bare "cost": it matched "shipping cost recalculation" in an engineering
+    // question, which is a noun in the product, not a question about money.
+    stance: /\b(revenue|costing|costs? us|churn|roi|quarter|business impact|at risk|margin|spend|bottom line)\b/i,
+    asks: "owns the number, and asks what something costs in revenue, churn or risk at company scale",
   },
   "ui/design": {
     template: "Where are users struggling most in the {flow} flow?",
-    domain: /usab|rage|friction|struggl|flow|navigat|layout|click|scroll|form|onboard|confus|tap|hesitat|design|experience/i,
+    stance: /\b(rage[- ]click\w*|friction|struggl\w*|confus\w*|hesitat\w*|scroll\w*|navigat\w*|usab\w*|dead click\w*|misclick\w*)\b/i,
+    asks: "owns the interface, and asks where on a screen users hesitate, rage click or get confused",
   },
 };
 
@@ -2129,7 +2141,7 @@ function finalizeGuide(guide, { competitor, includeFeatureComparison, persona, i
   // either miss still lands somewhere specific.
   const pq = personaQuestion(persona, industry);
   const q = g.ai_example_question || "";
-  if (pq && (!pq.domain.test(q) || (pq.industry && !pq.industry.vocab.test(q)))) {
+  if (pq && (!pq.stance.test(q) || (pq.industry && !pq.industry.vocab.test(q)))) {
     g.ai_example_question = pq.question;
   }
 
@@ -2370,7 +2382,10 @@ async function generateCompetitorGuide({ competitor, company, industry, size, pe
     // defaulting to a generic cart-and-checkout story.
     pq && pq.industry ? `Every illustrative example, question and answer must be set in a real ${industry} user flow. Use this vocabulary: ${pq.industry.nouns}` : "",
     size ? `Company size: ${size}` : "",
-    persona ? `Primary persona this guide is for: ${persona} — frame the value, examples and language for what a ${persona} audience cares about` : "",
+    // Spelled out to the same degree as the industry line below. When persona was one
+    // vague sentence and industry carried an explicit noun list, the nouns won and every
+    // persona's example came out orbiting the same flow.
+    persona ? `Primary persona this guide is for: ${persona}. Frame the value, examples and language for them. A ${persona} audience ${pq ? pq.asks : `cares about what a ${persona} team is measured on`}. The industry decides WHAT the examples are about; this persona decides HOW they are asked, so two guides in the same industry for different personas must not ask the same question.` : "",
   ].filter(Boolean).join("\n");
 
   const VERIFY_RULES = `- Do NOT state any feature, pricing, rating, or capability claim you have not verified. Omit or hedge instead.
