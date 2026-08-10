@@ -1997,6 +1997,56 @@ const LOGROCKET_DOCS = [
   { match: /(access|permission|rbac|\bsso\b|rolebased|usermanagement)/, name: "Role-based access", url: "https://docs.logrocket.com/docs/role-based-access" },
 ];
 
+// Which matrix rows earn their place for each persona, named by the LOGROCKET_DOCS
+// feature they resolve to. Reusing those names rather than inventing a second set of
+// patterns means a row already resolved to a feature can be judged without a fresh
+// guess at what it is about.
+//
+// Ordered most to least relevant, and that order is what the rows are sorted into. A
+// support rep opens with replay and the ticket integrations; an executive opens with
+// what they are accountable for, which is insight, compliance and where data lives.
+const PERSONA_CAPABILITIES = {
+  product: ["Funnels", "Session Replay", "Galileo AI", "Metrics", "LogRocket Feedback", "Surveys", "Heatmaps", "Dashboards"],
+  // Leads with analytics and the martech stack rather than replay and surveys, which
+  // would have made this all but identical to the design set.
+  marketing: ["Funnels", "Metrics", "Heatmaps", "Dashboards", "Integrations", "Surveys", "Session Replay"],
+  engineering: ["Issues", "Network Monitoring", "Performance Monitoring", "Session Replay", "Integrations", "Alerts", "Conditional Recording"],
+  support: ["Session Replay", "Issues", "Integrations", "LogRocket Feedback", "Ask Galileo", "Alerts", "Privacy controls"],
+  executive: ["Galileo AI", "Dashboards", "Metrics", "SaaS or Self-hosted", "Privacy controls", "Role-based access", "Streaming Data Export"],
+  "ui/design": ["Heatmaps", "Session Replay", "Funnels", "Surveys", "Ask Galileo", "Performance Monitoring"],
+};
+
+const personaCapabilities = (persona) =>
+  PERSONA_CAPABILITIES[String(persona || "").trim().toLowerCase()] || null;
+
+// Feature names double as row titles above, but a few read as product names rather
+// than as a capability being compared. These are how they are put to the model.
+const CAPABILITY_ROW_LABEL = {
+  "Galileo AI": "AI-powered insights",
+  "Ask Galileo": "Natural-language querying",
+  "LogRocket Feedback": "Voice of Customer and feedback",
+  "Metrics": "Product analytics and metrics",
+  "Network Monitoring": "Network request monitoring",
+  "Conditional Recording": "Recording controls and sampling",
+  "Privacy controls": "Privacy and compliance controls",
+  "SaaS or Self-hosted": "Deployment and data residency",
+  "Streaming Data Export": "Data export to your warehouse",
+  "Role-based access": "Access control and permissions",
+};
+
+// The six rows to ask for: the persona's top capabilities, with deployment and data
+// residency always last, since every buyer's security review reaches it eventually and
+// the guide has promised that row since self-hosted was added. Executives already carry
+// it in their own list, so it is moved rather than repeated.
+const DEPLOYMENT_CAP = "SaaS or Self-hosted";
+
+const capabilityRows = (persona) => {
+  const caps = personaCapabilities(persona);
+  if (!caps) return null;
+  const rest = caps.filter(c => c !== DEPLOYMENT_CAP).slice(0, 5);
+  return [...rest, DEPLOYMENT_CAP].map(c => CAPABILITY_ROW_LABEL[c] || c);
+};
+
 const CURATED_MATRIX_LOGROCKET = [
   {
     match: /(voiceofcustomer|voc|survey|feedback)/,
@@ -2043,10 +2093,32 @@ function capCompetitorMarks(rows, dataSources) {
   });
 }
 
+// Sort the matrix into the persona's order of priority, so the row a reader cares about
+// most is the first one they meet.
+//
+// This reorders and does not drop. A row the persona would not be judged on is still a
+// true row, and the cell content behind it was researched; throwing it away to satisfy
+// the ordering would cost more than it gains. A rep who typed their own capability
+// focus has already stated the order they want, so this stands aside for them.
+function orderMatrixForPersona(rows, persona, featureFocus) {
+  const caps = personaCapabilities(persona);
+  if (!caps || (featureFocus && featureFocus.trim())) return rows;
+  const rank = (r) => {
+    const i = caps.indexOf(r.logrocket_doc && r.logrocket_doc.name);
+    return i === -1 ? caps.length : i;
+  };
+  // Decorated sort: Array.prototype.sort is stable in practice, but the index tiebreak
+  // makes the order of equally ranked rows explicit rather than relying on that.
+  return (Array.isArray(rows) ? rows : [])
+    .map((r, i) => ({ r, i, k: rank(r) }))
+    .sort((a, b) => a.k - b.k || a.i - b.i)
+    .map(x => x.r);
+}
+
 // Everything applied to a generated guide before it is shown or exported: approved
 // copy over researched copy, plus the consistency rules. Shared so the review sweep
 // produces exactly what a rep would get, rather than a near-copy that drifts.
-function finalizeGuide(guide, competitor, includeFeatureComparison, persona, industry) {
+function finalizeGuide(guide, { competitor, includeFeatureComparison, persona, industry, featureFocus } = {}) {
   const g = { ...guide };
   const key = String(competitor || "").trim().toLowerCase();
 
@@ -2070,6 +2142,8 @@ function finalizeGuide(guide, competitor, includeFeatureComparison, persona, ind
   g.data_sources = applyCuratedNotes(g.data_sources, competitor);
   // Runs after the data sources are settled, since it reads their coverage.
   g.feature_comparison = capCompetitorMarks(g.feature_comparison, g.data_sources);
+  // Persona order last, so it sorts the rows that actually survived the steps above.
+  g.feature_comparison = orderMatrixForPersona(g.feature_comparison, persona, featureFocus);
   // Verified milestones replace the researched timeline outright, rather than
   // merging: a partial list from search alongside the approved one would double up
   // the same release under two different names.
@@ -2422,7 +2496,11 @@ ${LENGTH_RULES}
 
 JSON shape:
 {
-  "feature_comparison": [ { "feature": "Session Replay", "logrocket": "short text", "logrocket_mark": "full|partial|none", "competitor": "short text", "competitor_mark": "full|partial|none" }, … ${featureFocus && featureFocus.trim() ? `one row for EACH of these rep-specified capabilities (in this order), plus any clearly essential: ${featureFocus.trim()}` : "5-7 rows covering the capabilities that matter most to this buyer"} ],
+  "feature_comparison": [ { "feature": "Session Replay", "logrocket": "short text", "logrocket_mark": "full|partial|none", "competitor": "short text", "competitor_mark": "full|partial|none" }, … ${featureFocus && featureFocus.trim()
+    ? `one row for EACH of these rep-specified capabilities (in this order), plus any clearly essential: ${featureFocus.trim()}`
+    : capabilityRows(persona)
+      ? `EXACTLY these 6 rows, in this order, because these are what a ${persona} audience is accountable for: ${capabilityRows(persona).map((r, i) => `${i + 1}. ${r}`).join(" ")}. Title each row however reads best for a ${persona} buyer, but keep it recognisably about that capability. Do NOT add rows covering capabilities a ${persona} audience would not be judged on, and do NOT drop any of the six.`
+      : "5-7 rows covering the capabilities that matter most to this buyer"} ],
   "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
 }`;
 
@@ -3147,7 +3225,7 @@ function CompetitorGuide() {
       // Hard-guarantee the toggle: if the rep opted out, drop the comparison so
       // it's absent from both the on-screen preview and the PDF, regardless of
       // what the model returned.
-      setGuide(finalizeGuide(g, competitor, includeFeatureComparison, persona, industry));
+      setGuide(finalizeGuide(g, { competitor, includeFeatureComparison, persona, industry, featureFocus }));
       if (company && !pdfCustomer) setPdfCustomer(company);
       LogRocket.track("Competitor Guide Generated", { competitor, industry, size, persona });
     } catch (e) {
@@ -3184,7 +3262,9 @@ function CompetitorGuide() {
           competitor: name, company: "", industry, size, persona,
           includeFeatureComparison: true, featureFocus, integrations, rogExamples: "",
         });
-        const g = finalizeGuide(raw, name, true, persona, industry);
+        const g = finalizeGuide(raw, {
+          competitor: name, includeFeatureComparison: true, persona, industry, featureFocus,
+        });
         const { pages } = await downloadGuidePdf({
           guide: g,
           competitor: name,
