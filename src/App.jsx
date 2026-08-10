@@ -1634,8 +1634,18 @@ Respond ONLY as valid JSON, no markdown:
   const raw = data.content?.find(b => b.type === "text")?.text || "";
   if (!raw) throw new Error("Empty response from API");
 
+  // Same failure the guide hit: running out of output tokens truncates the JSON, and
+  // the parser then complains about a character offset rather than the real cause.
+  if (data.stop_reason === "max_tokens") {
+    throw new Error("The model's reply was cut off before it finished. Try again.");
+  }
+
   const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-  return JSON.parse(cleaned);
+  try {
+    return JSON.parse(cleaned);
+  } catch (e) {
+    throw new Error(`The model returned malformed JSON (${e.message}). Try again.`);
+  }
 }
 
 // ─── Rog Fetch ───────────────────────────────────────────────────────────────
@@ -2082,10 +2092,29 @@ async function callAnthropicOnce({ system, tools, maxTokens, userMessage }) {
   }
   const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
   if (!text) throw new Error("Empty response from API");
+
+  // Running out of output tokens truncates the JSON mid-structure, which surfaced as
+  // a raw parser complaint about a missing comma. Catch it here so the retry gets a
+  // fresh attempt and, if it keeps happening, the message says what actually went
+  // wrong instead of pointing at a character offset.
+  if (data.stop_reason === "max_tokens") {
+    const err = new Error("The model's reply was cut off before it finished. Try again.");
+    err.retryable = true;
+    throw err;
+  }
+
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start < 0 || end < 0) throw new Error("No JSON found in response");
-  return JSON.parse(text.slice(start, end + 1));
+  try {
+    return JSON.parse(text.slice(start, end + 1));
+  } catch (e) {
+    // A formatting slip is a one-off, so it is worth another attempt rather than
+    // failing the whole guide on a stray comma.
+    const err = new Error(`The model returned malformed JSON (${e.message}). Try again.`);
+    err.retryable = true;
+    throw err;
+  }
 }
 
 async function generateCompetitorGuide({ competitor, company, industry, size, persona, includeFeatureComparison, featureFocus, integrations = "", rogExamples }) {
@@ -2285,14 +2314,14 @@ JSON shape:
     }),
     callAnthropic({
       system: customerPrompt,
-      maxTokens: 1500,
+      maxTokens: 2200,
       tools: searchTool(3),
       userMessage: "Find the real named customer proof points.",
     }),
     includeFeatureComparison
       ? callAnthropic({
           system: matrixPrompt,
-          maxTokens: 1800,
+          maxTokens: 3000,
           tools: searchTool(2),
           userMessage: "Build the verified capability comparison table.",
         })
@@ -2300,7 +2329,7 @@ JSON shape:
     integrations.trim()
       ? callAnthropic({
           system: integrationsPrompt,
-          maxTokens: 1200,
+          maxTokens: 2000,
           tools: searchTool(1),
           userMessage: "Verify LogRocket's integration coverage for these technologies.",
         })
