@@ -1959,6 +1959,44 @@ const CURATED_COMPETITOR_TIMELINES = {
 //
 // Matched on the row's feature name, normalised, so "Voice of Customer / Surveys",
 // "VoC" and "Customer Feedback" all resolve to the same entry.
+// The LogRocket feature that answers each matrix row, by its real product name, with
+// the page that proves it. A rep should be able to hand over the row and have the
+// prospect land somewhere that backs it up.
+//
+// Every URL here was checked to resolve. Order matters: the first match wins, so the
+// specific rows sit above the general ones. Self-hosted is the one entry pointing off
+// the docs site, as there is no public docs page for it.
+//
+// "Galileo AI" prints as "LogRocket AI". The template rewrites Galileo to LogRocket
+// everywhere except after "Ask", so the name is written here as the product is
+// documented and that one rule keeps deciding how it reads.
+const LOGROCKET_DOCS = [
+  { match: /(voiceofcustomer|\bvoc\b|feedbackhub|feedback)/, name: "LogRocket Feedback", url: "https://docs.logrocket.com/docs/feedback" },
+  { match: /survey/, name: "Surveys", url: "https://docs.logrocket.com/docs/surveys" },
+  { match: /(selfhost|onprem|residency|datareside|hosting|deployment)/, name: "SaaS or Self-hosted", url: "https://logrocket.com/products/saas-self-hosted" },
+  { match: /(dataexport|warehouse|snowflake|bigquery|redshift|databricks|streaming)/, name: "Streaming Data Export", url: "https://docs.logrocket.com/docs/streaming-data-export" },
+  { match: /(askgalileo|askai|naturallanguage|querying|conversational)/, name: "Ask Galileo", url: "https://docs.logrocket.com/docs/ask-galileo" },
+  { match: /(^ai|aipowered|aidriven|artificialintelligence|copilot|assistant|agentic|insight|machinelearning)/, name: "Galileo AI", url: "https://docs.logrocket.com/docs/galileo" },
+  // These three are order-sensitive against each other. Conditional Recording leads,
+  // because "conditional recording" and "session sampling" both contain what the
+  // Session Replay pattern looks for. Session Replay then leads Issues, so a row named
+  // "Session replay and error triage" cites the feature it opens with.
+  { match: /(conditionalrecording|sampling|quota)/, name: "Conditional Recording", url: "https://docs.logrocket.com/docs/conditional-recording" },
+  { match: /(sessionreplay|replay|recording|sessions)/, name: "Session Replay", url: "https://docs.logrocket.com/docs/session-replay" },
+  { match: /(error|exception|crash|issue|bug|regression|rootcause)/, name: "Issues", url: "https://docs.logrocket.com/docs/issues" },
+  { match: /(funnel|conversion)/, name: "Funnels", url: "https://docs.logrocket.com/docs/funnels-1" },
+  { match: /(heatmap|clickmap|scrollmap)/, name: "Heatmaps", url: "https://docs.logrocket.com/docs/heatmaps" },
+  { match: /(performance|webvital|corewebvital|speed|latency|lighthouse)/, name: "Performance Monitoring", url: "https://docs.logrocket.com/docs/performance-monitoring" },
+  { match: /(network|apirequest|xhr|fetch)/, name: "Network Monitoring", url: "https://docs.logrocket.com/docs/network-definitions" },
+  { match: /(dashboard|reporting|report)/, name: "Dashboards", url: "https://docs.logrocket.com/docs/dashboards" },
+  { match: /(metric|analytics|timeseries|segmentation)/, name: "Metrics", url: "https://docs.logrocket.com/docs/logrocket-metrics" },
+  { match: /(alert|notification|digest)/, name: "Alerts", url: "https://docs.logrocket.com/docs/alerts-page" },
+  { match: /(mobile|ios|android|reactnative|flutter)/, name: "LogRocket Mobile", url: "https://docs.logrocket.com/docs/introduction-to-logrocket-mobile" },
+  { match: /(privacy|pii|redact|sanitiz|compliance|gdpr|hipaa)/, name: "Privacy controls", url: "https://docs.logrocket.com/docs/privacy" },
+  { match: /(integration|ecosystem|thirdparty)/, name: "Integrations", url: "https://docs.logrocket.com/docs/integrations" },
+  { match: /(access|permission|rbac|\bsso\b|rolebased|usermanagement)/, name: "Role-based access", url: "https://docs.logrocket.com/docs/role-based-access" },
+];
+
 const CURATED_MATRIX_LOGROCKET = [
   {
     match: /(voiceofcustomer|voc|survey|feedback)/,
@@ -2047,13 +2085,38 @@ function finalizeGuide(guide, competitor, includeFeatureComparison, persona, ind
   return g;
 }
 
+// A URL written into a cell would sit next to the one the row already carries, so it
+// comes out. Trailing punctuation and an empty bracket pair go with it, otherwise
+// removing "(see docs.logrocket.com/docs/issues)" leaves "()" behind.
+const stripUrls = (s) => String(s || "")
+  .replace(/\(?\s*(?:see\s+|more\s+at\s+)?(?:https?:\/\/)?(?:docs\.)?logrocket\.com\/[^\s)]*\)?/gi, "")
+  .replace(/\(\s*\)/g, "")
+  .replace(/\s{2,}/g, " ")
+  .replace(/\s+([.,;])/g, "$1")
+  .trim();
+
 function applyCuratedMatrix(rows) {
   const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
   return (Array.isArray(rows) ? rows : [])
     .filter(r => !MATRIX_EXCLUDED.test(norm(r.feature)))
     .map(r => {
       const hit = CURATED_MATRIX_LOGROCKET.find(c => c.match.test(norm(r.feature)));
-      return hit ? { ...r, logrocket: hit.text, logrocket_mark: "full" } : r;
+      const row = hit
+        ? { ...r, logrocket: hit.text, logrocket_mark: "full" }
+        : { ...r, logrocket: stripUrls(r.logrocket) };
+      // Named here rather than left to the model, so the row cites a feature that
+      // exists and a page that resolves.
+      //
+      // The row title decides it, and the prose is consulted only when the title
+      // matches nothing, as with a row called "Root cause analysis". Letting both
+      // compete at once meant whichever entry sat higher in the list won on a passing
+      // mention: "Funnel and journey analysis" cited Session Replay purely because the
+      // sentence underneath happened to say "session".
+      const feat = norm(r.feature);
+      const doc = LOGROCKET_DOCS.find(d => d.match.test(feat))
+        || LOGROCKET_DOCS.find(d => d.match.test(norm(row.logrocket)));
+      if (doc) row.logrocket_doc = doc;
+      return row;
     });
 }
 
@@ -2349,6 +2412,8 @@ GROUND TRUTH on LogRocket's own capabilities. Use these rather than researching 
 - So on any Voice of Customer, surveys or feedback row, LogRocket is "full". Never mark us "none" or "partial" there, and never write that we lack surveys or VoC. The honest framing is that we both collect feedback directly AND analyse everything the customer already collects elsewhere, tied to session behaviour.
 - Deployment and data: LogRocket offers a self-hosted deployment alongside the cloud, for teams that need data to stay in their own environment, and Streaming Data Export pushes session and event data into Snowflake, BigQuery, Databricks, Redshift, S3 and other warehouses. Include a "Deployment and data residency" row and state both. Do not call the export real-time, since it runs hourly, and do not invent regions, certifications or residency guarantees you cannot verify.
 - The matrix must not contradict the data-source comparison elsewhere in the guide. On an AI row, ${competitor} is at most "partial" whenever they are missing any of the five data sources, since an AI that cannot see backend or release data is not equivalent to one that can. On a surveys, VoC or feedback row they are at most "partial" too: collecting responses is not the same as aggregating feedback across channels, scoring impact and tying it back to sessions. "Partial" not "none" in both cases, as they do ship something.
+- NAME THE FEATURE. Every LogRocket cell must name the actual product feature that does the job, not a generic capability. Write "Session Replay shows…", "Issues groups…", "Ask Galileo answers…", not "we offer replay" or "our AI can". Use LogRocket's real product names, which are: Session Replay, Issues, Galileo AI, Ask Galileo, Surveys, LogRocket Feedback, Funnels, Heatmaps, Metrics, Dashboards, Alerts, Performance Monitoring, Network Monitoring, Conditional Recording, Streaming Data Export, LogRocket Mobile, Privacy controls, Integrations, Role-based access, SaaS or Self-hosted. If none of these fits a row, describe the behaviour plainly rather than inventing a product name.
+- Do NOT put documentation URLs in the matrix cells. The guide attaches the right docs.logrocket.com link for each row on its own, and a URL you write in a cell will be duplicated or wrong.
 - NEVER include a pricing, cost, licensing or plan row. Pricing moves and varies by contract, so a rep quoting it from this guide is a liability. Compare capabilities only.
 
 ${VERIFY_RULES}

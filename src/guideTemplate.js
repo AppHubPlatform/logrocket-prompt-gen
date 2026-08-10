@@ -323,6 +323,8 @@ p{margin:0}
 .matrix .cap{font-family:var(--font-display);font-size:14px;color:var(--lr-ink);font-weight:450}
 .matrix .lr-col{background:rgba(244,231,253,.5)}
 .matrix .mark{display:inline-flex;align-items:flex-start;gap:8px}
+.matrix .cap-doc{display:block;margin-top:5px;font-family:var(--font-display);font-size:11px;font-weight:450;color:var(--lr-galaxy);text-decoration:none}
+.matrix .cap-doc .cap-doc-url{display:block;font-family:var(--font-mono,monospace);font-size:9.5px;font-weight:400;color:var(--text-muted);letter-spacing:0;margin-top:1px;word-break:break-all}
 .matrix .mark .pip{width:18px;height:18px;border-radius:9999px;flex-shrink:0;display:grid;place-items:center;font-size:11px;margin-top:1px}
 .mark.full .pip{background:var(--lr-galaxy);color:#fff}
 .mark.partial .pip{background:var(--lr-info-2);color:var(--lr-caution-1)}
@@ -424,10 +426,16 @@ const sourceIcon = (name) => {
 };
 const MARK_LABEL = { full: "✓", partial: "~", none: "✕" };
 
-function markCell(mark, text, isLr) {
+function markCell(mark, text, isLr, doc) {
   const m = (mark || (text ? "full" : "none")).toLowerCase();
   const cls = ["full", "partial", "none"].includes(m) ? m : "full";
-  return `<div class="mark ${cls}"><span class="pip">${MARK_LABEL[cls]}</span><span>${esc(text || "")}</span></div>`;
+  // The feature name and its doc page, so the row points at something the prospect can
+  // open. Printed as visible text rather than a bare hyperlink because this is read as
+  // often on paper, from the PDF, as it is on screen.
+  const cite = doc
+    ? `<a class="cap-doc" href="${esc(doc.url)}">${esc(doc.name)}<span class="cap-doc-url">${esc(doc.url.replace(/^https:\/\//, ""))}</span></a>`
+    : "";
+  return `<div class="mark ${cls}"><span class="pip">${MARK_LABEL[cls]}</span><span>${esc(text || "")}${cite}</span></div>`;
 }
 
 // Ask Galileo autonomy chart. Deterministic inline SVG (no chart library) so it
@@ -882,7 +890,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
   const rows = (Array.isArray(g.feature_comparison) ? g.feature_comparison : []).map(r => `
     <tr>
       <td class="cap">${esc(r.feature)}</td>
-      <td class="lr-col">${markCell(r.logrocket_mark, r.logrocket, true)}</td>
+      <td class="lr-col">${markCell(r.logrocket_mark, r.logrocket, true, r.logrocket_doc)}</td>
       <td>${markCell(r.competitor_mark, r.competitor, false)}</td>
     </tr>`).join("");
 
