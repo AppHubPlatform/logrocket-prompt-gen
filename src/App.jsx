@@ -1724,42 +1724,101 @@ const GUIDE_PERSONAS = [
   "Product", "Marketing", "Engineering", "Support", "Executive", "UI/Design",
 ];
 
-// The section 01 demo question, per persona. Each entry carries the example handed to
-// the model and the vocabulary that marks a question as belonging to that persona.
+// The section 01 demo question. Persona decides what is being asked, industry decides
+// what it is being asked about, so the two compose instead of needing a question per
+// pair. `{flow}` is the slot the industry fills.
 //
-// Both halves are needed. The example alone is advisory, and the model has a habit of
-// reaching for the funnel-drop scenario whoever is reading, which lands wrong when the
-// guide is going to a support or engineering audience. `domain` is what catches that at
-// render time, so `question` doubles as the fallback.
+// Each persona also carries the vocabulary that marks a question as its own. The
+// example in the prompt is advisory, and the model has a habit of reaching for the
+// funnel-drop scenario whoever is reading, which lands wrong for a support or
+// engineering audience. `domain` catches that at render time, so the filled-in template
+// doubles as the fallback.
 const PERSONA_QUESTIONS = {
   product: {
-    question: "Why did checkout conversion drop 18% on Tuesday?",
-    domain: /funnel|checkout|convert|conversion|drop-?off|adopt|activat|feature|sign-?up|signup|retention|onboard|adoption|abandon/i,
+    template: "Why did {flow} conversion drop 18% on Tuesday?",
+    domain: /funnel|convert|conversion|drop-?off|adopt|activat|feature|retention|onboard|abandon|complet/i,
   },
   marketing: {
-    question: "Which landing page is losing the most signups, and why?",
-    domain: /campaign|landing|sign-?up|signup|acquisi|traffic|\bads?\b|\bseo\b|form|funnel|convert|conversion|attribut|bounce|source/i,
+    template: "Which landing page is losing the most {flow} starts, and why?",
+    domain: /campaign|landing|acquisi|traffic|\bads?\b|\bseo\b|form|funnel|convert|conversion|attribut|bounce|source|visit/i,
   },
   engineering: {
-    question: "What is causing the spike in checkout errors since yesterday's deploy?",
+    template: "What is causing the spike in {flow} errors since yesterday's deploy?",
     domain: /error|exception|deploy|release|regress|\bapi\b|latency|stack|\bbug\b|crash|perform|slow|timeout|fail|console|network|code/i,
   },
   support: {
-    question: "Why did this customer's payment fail in their last session?",
+    template: "Why did this customer's {flow} fail in their last session?",
     domain: /ticket|customer|user|escalat|reproduc|repro\b|session|fail|complain|refund|account|report|issue|contact|resolve/i,
   },
   executive: {
-    question: "Where are we losing the most revenue to broken experiences?",
+    template: "How much revenue are we losing to broken {flow} experiences?",
     domain: /revenue|cost|impact|churn|\broi\b|retention|business|trend|quarter|growth|spend|risk|priorit/i,
   },
   "ui/design": {
-    question: "Where are users struggling most in the new onboarding flow?",
+    template: "Where are users struggling most in the {flow} flow?",
     domain: /usab|rage|friction|struggl|flow|navigat|layout|click|scroll|form|onboard|confus|tap|hesitat|design|experience/i,
   },
 };
 
-const personaQuestion = (persona) =>
-  PERSONA_QUESTIONS[String(persona || "").trim().toLowerCase()] || null;
+// Per industry: the revenue-critical flow its users actually move through, plus the
+// vocabulary that marks a question as set in that industry. `nouns` is handed to the
+// model so it has more than one word to reach for, and is what the render check tests.
+const INDUSTRY_FLOWS = {
+  "e-commerce": {
+    flow: "checkout",
+    nouns: "cart, checkout, payment, product page, promo code, shipping, order, return",
+    vocab: /cart|checkout|payment|product page|promo|coupon|shipping|order|return|basket|\bsku\b|storefront|purchase|buy/i,
+  },
+  "saas / software": {
+    flow: "trial signup",
+    nouns: "trial signup, onboarding, workspace setup, invite, seat, upgrade, plan change, integration setup",
+    vocab: /trial|sign-?up|signup|onboard|workspace|invite|seat|upgrade|plan|subscri|integration|activat|dashboard|\bapp\b/i,
+  },
+  fintech: {
+    flow: "account funding",
+    nouns: "account opening, identity verification, KYC, account funding, transfer, card issuance, statement",
+    vocab: /account|fund|transfer|deposit|withdraw|\bkyc\b|verif|identit|card|payment|statement|balance|loan|onboard|appl/i,
+  },
+  healthcare: {
+    flow: "appointment booking",
+    nouns: "appointment booking, patient registration, insurance verification, intake form, portal login, prescription refill",
+    vocab: /appointment|book|patient|registrat|insur|intake|portal|prescription|refill|provider|claim|schedul|visit|record/i,
+  },
+  "media & entertainment": {
+    flow: "subscription signup",
+    nouns: "subscription signup, paywall, video playback, watchlist, article page, ad break, plan upgrade",
+    vocab: /subscri|paywall|play|stream|video|watch|article|content|\bad\b|episode|listen|sign-?up|signup|renew/i,
+  },
+  "travel & hospitality": {
+    flow: "booking",
+    nouns: "search, date selection, booking, seat or room selection, payment, check-in, itinerary change",
+    vocab: /book|reserv|search|date|seat|room|flight|hotel|trip|itinerar|check-?in|payment|fare|cancel|guest/i,
+  },
+  marketplace: {
+    flow: "order placement",
+    nouns: "search, listing page, order placement, seller onboarding, listing creation, payout, review",
+    vocab: /listing|seller|buyer|order|search|payout|review|match|bid|offer|marketplace|vendor|checkout|payment/i,
+  },
+  education: {
+    flow: "course enrollment",
+    nouns: "course enrollment, application, lesson playback, assignment submission, tuition payment, student portal",
+    vocab: /course|enroll|appl|lesson|class|assignment|submit|tuition|student|portal|module|quiz|grade|learn|program/i,
+  },
+  gaming: {
+    flow: "in-game purchase",
+    nouns: "account creation, tutorial, matchmaking, in-game purchase, store page, level load, party invite",
+    vocab: /game|player|match|purchase|store|level|tutorial|account|party|invite|session|load|skin|currency|quest/i,
+  },
+};
+
+const personaQuestion = (persona, industry) => {
+  const p = PERSONA_QUESTIONS[String(persona || "").trim().toLowerCase()];
+  if (!p) return null;
+  // "Other" and an empty selection both land here, keeping the generic flow rather than
+  // borrowing some other industry's nouns.
+  const ind = INDUSTRY_FLOWS[String(industry || "").trim().toLowerCase()] || null;
+  return { ...p, industry: ind, question: p.template.replace("{flow}", ind ? ind.flow : "checkout") };
+};
 
 const COMPANY_SIZES = [
   "1–50 employees", "51–200 employees", "201–1,000 employees",
@@ -1949,15 +2008,20 @@ function capCompetitorMarks(rows, dataSources) {
 // Everything applied to a generated guide before it is shown or exported: approved
 // copy over researched copy, plus the consistency rules. Shared so the review sweep
 // produces exactly what a rep would get, rather than a near-copy that drifts.
-function finalizeGuide(guide, competitor, includeFeatureComparison, persona) {
+function finalizeGuide(guide, competitor, includeFeatureComparison, persona, industry) {
   const g = { ...guide };
   const key = String(competitor || "").trim().toLowerCase();
 
-  // Keep the demo question answerable by the person reading the guide. The model is
-  // asked for one in the persona's world and usually obliges, so this only steps in
-  // when the question has no trace of that persona's vocabulary.
-  const pq = personaQuestion(persona);
-  if (pq && !pq.domain.test(g.ai_example_question || "")) g.ai_example_question = pq.question;
+  // Keep the demo question answerable by the person reading it and set in their own
+  // product. The model is asked for both and usually obliges, so this only steps in
+  // when the question carries no trace of the persona's or the industry's vocabulary.
+  // The fallback is the persona template with the industry's flow already in it, so
+  // either miss still lands somewhere specific.
+  const pq = personaQuestion(persona, industry);
+  const q = g.ai_example_question || "";
+  if (pq && (!pq.domain.test(q) || (pq.industry && !pq.industry.vocab.test(q)))) {
+    g.ai_example_question = pq.question;
+  }
 
   // Hard-guarantee the toggle: if the rep opted out, drop the comparison so it is
   // absent from both the on-screen preview and the PDF, whatever the model returned.
@@ -2161,9 +2225,13 @@ async function callAnthropicOnce({ system, tools, maxTokens, userMessage }) {
 }
 
 async function generateCompetitorGuide({ competitor, company, industry, size, persona, includeFeatureComparison, featureFocus, integrations = "", rogExamples }) {
+  const pq = personaQuestion(persona, industry);
   const audience = [
     company ? `Prospect/customer: ${company}` : "",
     industry ? `Industry: ${industry}` : "",
+    // Naming the flows keeps every example in this prospect's product rather than
+    // defaulting to a generic cart-and-checkout story.
+    pq && pq.industry ? `Every illustrative example, question and answer must be set in a real ${industry} user flow. Use this vocabulary: ${pq.industry.nouns}` : "",
     size ? `Company size: ${size}` : "",
     persona ? `Primary persona this guide is for: ${persona} — frame the value, examples and language for what a ${persona} audience cares about` : "",
   ].filter(Boolean).join("\n");
@@ -2334,7 +2402,7 @@ JSON shape:
   "headline": "One-line positioning statement — LogRocket's core promise vs ${competitor}",
   "overview": "2-3 sentence overview framing the comparison for this specific prospect",
   "lede_logrocket": "1-2 sentence 'the full picture' pitch for LogRocket (hero left column)",
-  "ai_example_question": "A short, realistic question a ${persona || industry || "product"} team would ask their AI assistant. It MUST be a question that specific audience would actually ask about work they own${personaQuestion(persona) ? `, in the spirit of '${personaQuestion(persona).question}'` : ""}. Ground it in ${industry || "this prospect's"} terms. ILLUSTRATIVE demo scenario, not a claim about the real prospect.",
+  "ai_example_question": "A short, realistic question a ${persona || industry || "product"} team would ask their AI assistant. It MUST be a question that specific audience would actually ask about work they own${pq ? `, in the spirit of '${pq.question}'` : ""}.${pq && pq.industry ? ` It MUST name a concrete ${industry} flow or screen — draw on this vocabulary: ${pq.industry.nouns}. Do NOT use generic e-commerce checkout language unless it genuinely fits ${industry}.` : ` Ground it in ${industry || "this prospect's"} terms.`} ILLUSTRATIVE demo scenario, not a claim about the real prospect.",
   "ai_example_lr_answer": "How Ask Galileo would answer — MAX 30 WORDS, 1-2 clipped sentences. Name the root cause + the release or code detail. Terse and telegraphic; no preamble, no hedging. ILLUSTRATIVE example. Wrap the specific details ${competitor} could NOT surface (release/deploy, source-mapped error, code-level cause) in **double asterisks** for bold.",
   "ai_example_competitor_answer": "How ${competitor}'s AI would answer the SAME question — MAX 30 WORDS, 1-2 clipped sentences. Behavioral symptoms only (drop-off, rage clicks, which page), no root cause. Terse. Wrap the explicit gap (e.g. **No root cause identified**) in **double asterisks** for bold.",
   "ai_accuracy": "2-3 sentences making message #1 concrete for this prospect. End by citing the independent study.",
@@ -3014,7 +3082,7 @@ function CompetitorGuide() {
       // Hard-guarantee the toggle: if the rep opted out, drop the comparison so
       // it's absent from both the on-screen preview and the PDF, regardless of
       // what the model returned.
-      setGuide(finalizeGuide(g, competitor, includeFeatureComparison, persona));
+      setGuide(finalizeGuide(g, competitor, includeFeatureComparison, persona, industry));
       if (company && !pdfCustomer) setPdfCustomer(company);
       LogRocket.track("Competitor Guide Generated", { competitor, industry, size, persona });
     } catch (e) {
@@ -3051,7 +3119,7 @@ function CompetitorGuide() {
           competitor: name, company: "", industry, size, persona,
           includeFeatureComparison: true, featureFocus, integrations, rogExamples: "",
         });
-        const g = finalizeGuide(raw, name, true, persona);
+        const g = finalizeGuide(raw, name, true, persona, industry);
         const { pages } = await downloadGuidePdf({
           guide: g,
           competitor: name,
