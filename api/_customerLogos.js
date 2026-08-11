@@ -40,16 +40,47 @@ export async function fetchCustomerLogoIndex() {
 
 const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
+// Slugs that no amount of string matching reaches from the name a guide actually
+// writes. LogRocket's own case-study slug is an abbreviation, and the guide spells the
+// customer out in full, so there is no shared substring to find: "bcbsma" against
+// "bluecrossblueshieldofmassachusetts". An acronym cannot be derived safely either,
+// since initialising words would have "htech" collide with anything starting H and T.
+//
+// Only genuine gaps belong here. Cox Automotive, Speedway Motors, Tower Loan and
+// 7-Eleven all contain their slug once normalised and are matched without help.
+const SLUG_ALIASES = {
+  bcbsma: [
+    "Blue Cross Blue Shield of Massachusetts",
+    "Blue Cross Blue Shield of MA",
+    "Blue Cross Blue Shield",
+    "BCBS Massachusetts",
+    "BCBSMA",
+  ],
+};
+
 // Company names are written loosely ("ThredUp", "Cushman & Wakefield"), so match on
-// the normalised slug, then on containment either way, longest match winning.
+// the normalised slug, then on a known alias, then on containment either way, longest
+// match winning. Aliases outrank containment: they are curated, so when one applies it
+// is a better answer than a coincidental substring.
+// Containment needs a query with enough letters to mean something. A one or two
+// character name is a substring of half the index: "H" sits inside both "htech" and
+// "blue cross blue shield of massachusetts", and whichever it landed on would be a
+// coincidence presented as a customer's logo. Shorter names must match exactly. The
+// shortest real customer here is Dojo, at four.
+const MIN_PARTIAL = 4;
+
 export function findLogoSlug(index, company) {
   const q = norm(company);
   if (!q) return null;
   const slugs = [...index.keys()];
   const exact = slugs.find(s => norm(s) === q);
   if (exact) return exact;
+  const contains = (n) => n === q || (q.length >= MIN_PARTIAL && n.length >= MIN_PARTIAL
+    && (n.includes(q) || q.includes(n)));
+  const aliased = slugs.find(s => (SLUG_ALIASES[s] || []).some(a => contains(norm(a))));
+  if (aliased) return aliased;
   const partial = slugs
-    .filter(s => { const n = norm(s); return n.includes(q) || q.includes(n); })
+    .filter(s => contains(norm(s)))
     .sort((a, b) => norm(b).length - norm(a).length);
   return partial[0] || null;
 }
