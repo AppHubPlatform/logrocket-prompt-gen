@@ -29,8 +29,13 @@ const noDash = (s) => String(s ?? "")
 // The guide calls the AI LogRocket, keeping "Ask Galileo" only as the product name.
 // Enforced at render because the model still writes "Galileo AI" in generated
 // fields however the prompt is worded.
+//
+// "AI, Galileo" is the second exception. The approved hero paragraphs introduce it that
+// way, as in "our AI, Galileo, connects sessions", and rewriting the name there produced
+// "our AI, LogRocket". An appositive naming the AI is the one place the name belongs, so
+// it is kept, while a bare "Galileo does X" elsewhere is still normalised.
 const useLogRocketName = (s) => String(s ?? "")
-  .replace(/(?<!Ask )\bGalileo\b/g, "LogRocket")
+  .replace(/(?<!Ask )(?<!AI, )\bGalileo\b/g, "LogRocket")
   // The swap can leave the company name twice over ("LogRocket's LogRocket AI").
   .replace(/\bLogRocket(?:'s)?\s+LogRocket\b/g, "LogRocket");
 
