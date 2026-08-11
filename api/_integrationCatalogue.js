@@ -54,17 +54,20 @@ export function parseCatalogue(html) {
 
 // Inline a logo as a data URI. The guide is captured to canvas for the PDF, so a
 // remote image would be blocked or race the capture; embedding avoids both.
-async function inlineLogo(url) {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const type = res.headers.get("content-type") || "image/svg+xml";
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length > 60_000) return null; // keep the payload sane
-    return `data:${type};base64,${buf.toString("base64")}`;
-  } catch {
-    return null;
+// One retry, since up to thirty of these are fetched at once and a dropped connection
+// should not be the difference between a logo and a name.
+async function inlineLogo(url, attempts = 2) {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const type = res.headers.get("content-type") || "image/svg+xml";
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length > 60_000) return null; // too big to inline; retrying will not help
+      return `data:${type};base64,${buf.toString("base64")}`;
+    } catch { /* fall through to the next attempt */ }
   }
+  return null;
 }
 
 // Cached for an hour so the follow-up logo lookup doesn't refetch the page.
@@ -112,10 +115,14 @@ export async function fetchLogosFor(names) {
   await Promise.all(wanted.map(async (name) => {
     const entry = findEntry(catalogue, name);
     if (!entry?.logoUrl) return;
-    if (!logoCache.has(entry.logoUrl)) {
-      logoCache.set(entry.logoUrl, await inlineLogo(entry.logoUrl));
+    // Successes only. Caching the failure meant one dropped fetch dropped that logo for
+    // the life of the process, so a card showed a name instead of a mark until the
+    // instance recycled. A miss now retries on the next guide.
+    let uri = logoCache.get(entry.logoUrl);
+    if (!uri) {
+      uri = await inlineLogo(entry.logoUrl);
+      if (uri) logoCache.set(entry.logoUrl, uri);
     }
-    const uri = logoCache.get(entry.logoUrl);
     if (uri) out[name] = uri;
   }));
   return out;
