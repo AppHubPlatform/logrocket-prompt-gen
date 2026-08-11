@@ -1014,7 +1014,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
 
   <section>
     <div class="section-eyebrow"><span class="num">02</span>AI Agent Evolution</div>
-    <h2 class="section-title wide">LogRocket has been working on this problem since 2017</h2>
+    <h2 class="section-title wide">LogRocket has been working on using AI to help improve user experiences since 2017</h2>
     <div class="evo">
       ${evoChart}
       <p class="evo-foot">Information is based on LogRocket research and feedback from previous users.</p>
