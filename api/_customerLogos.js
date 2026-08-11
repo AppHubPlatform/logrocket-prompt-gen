@@ -87,17 +87,21 @@ export function findLogoSlug(index, company) {
 
 // Inline as a data URI: the guide is rasterised for the PDF, so a remote image
 // would either be blocked or race the capture.
-async function inline(url) {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length > 400_000) return null; // some of these SVGs are large
-    const type = res.headers.get("content-type") || "image/svg+xml";
-    return `data:${type};base64,${buf.toString("base64")}`;
-  } catch {
-    return null;
+//
+// One retry, because these are fetched several at a time and the larger assets run to
+// 300KB or so. A single dropped connection used to cost a logo for good.
+async function inline(url, attempts = 2) {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length > 400_000) return null; // too big to inline; retrying will not help
+      const type = res.headers.get("content-type") || "image/svg+xml";
+      return `data:${type};base64,${buf.toString("base64")}`;
+    } catch { /* fall through to the next attempt */ }
   }
+  return null;
 }
 
 const logoCache = new Map();
@@ -110,8 +114,15 @@ export async function fetchCustomerLogos(names) {
     const slug = findLogoSlug(index, name);
     if (!slug) return;
     const url = index.get(slug);
-    if (!logoCache.has(url)) logoCache.set(url, await inline(url));
-    const uri = logoCache.get(url);
+    // Only successes are cached. Caching the failure too meant one dropped fetch
+    // removed that customer's logo for the life of the process, which on Cloud Run is
+    // until the instance recycles: the logo works, then silently stops, and nothing
+    // short of a redeploy brings it back. A miss now simply retries on the next guide.
+    let uri = logoCache.get(url);
+    if (!uri) {
+      uri = await inline(url);
+      if (uri) logoCache.set(url, uri);
+    }
     if (uri) out[name] = uri;
   }));
   return out;
