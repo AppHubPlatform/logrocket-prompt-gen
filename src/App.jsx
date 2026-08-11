@@ -20,9 +20,10 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import LogRocket from 'logrocket';
 import { jsPDF } from "jspdf";
+import { buildGuideHtml, downloadGuidePdf } from "./guideTemplate";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -410,6 +411,7 @@ const S = {
     color: "#171320",
   },
   header: {
+    position: "relative",
     backgroundColor: "#FFFFFF",
     borderBottom: `1px solid ${BORDER}`,
     padding: "16px 32px",
@@ -417,6 +419,63 @@ const S = {
     alignItems: "center",
     gap: "14px",
   },
+  hamburger: {
+    display: "inline-flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    gap: "4px",
+    width: "34px",
+    height: "34px",
+    padding: "8px",
+    borderRadius: "8px",
+    border: `1px solid ${BORDER}`,
+    backgroundColor: "white",
+    cursor: "pointer",
+    flexShrink: 0,
+  },
+  hamburgerLine: {
+    display: "block",
+    height: "2px",
+    width: "100%",
+    backgroundColor: "#171320",
+    borderRadius: "2px",
+  },
+  navBackdrop: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 40,
+  },
+  navMenu: {
+    position: "absolute",
+    top: "60px",
+    left: "24px",
+    zIndex: 50,
+    backgroundColor: "white",
+    border: `1px solid ${BORDER}`,
+    borderRadius: "14px",
+    boxShadow: CARD_SHADOW,
+    padding: "6px",
+    minWidth: "230px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+  },
+  navItem: (active) => ({
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "10px 12px",
+    borderRadius: "9px",
+    border: "none",
+    backgroundColor: active ? ACCENT_SOFT : "transparent",
+    color: active ? ACCENT_DARK : "#374151",
+    fontSize: "14px",
+    fontWeight: active ? "600" : "500",
+    fontFamily: "inherit",
+    cursor: "pointer",
+    textAlign: "left",
+    width: "100%",
+  }),
   headerTitle: {
     color: "#171320",
     fontSize: "17px",
@@ -1575,8 +1634,18 @@ Respond ONLY as valid JSON, no markdown:
   const raw = data.content?.find(b => b.type === "text")?.text || "";
   if (!raw) throw new Error("Empty response from API");
 
+  // Same failure the guide hit: running out of output tokens truncates the JSON, and
+  // the parser then complains about a character offset rather than the real cause.
+  if (data.stop_reason === "max_tokens") {
+    throw new Error("The model's reply was cut off before it finished. Try again.");
+  }
+
   const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-  return JSON.parse(cleaned);
+  try {
+    return JSON.parse(cleaned);
+  } catch (e) {
+    throw new Error(`The model returned malformed JSON (${e.message}). Try again.`);
+  }
 }
 
 // ─── Rog Fetch ───────────────────────────────────────────────────────────────
@@ -1594,9 +1663,1201 @@ async function fetchRogContext(company) {
   return data.answer || "";
 }
 
+// ─── Competitor Guide ─────────────────────────────────────────────────────────
+
+// LogRocket's published integration catalogue, by category.
+// Source of truth: https://logrocket.com/products/integrations
+// Used as ground truth so known integrations resolve correctly without relying
+// on a web search to rediscover them.
+const LOGROCKET_INTEGRATIONS = {
+  "A/B & Feature Flags": ["AB Tasty", "Google Optimize", "LaunchDarkly", "Optimizely"],
+  "Analytics": ["Adobe Analytics", "Amplitude", "Firebase", "Google Analytics", "Heap", "Mixpanel", "Pendo", "Segment"],
+  "Customer Support": ["Drift", "FreshDesk", "Gladly", "Gorgias", "HubSpot", "Intercom", "Kustomer", "RingCentral", "Salesforce", "ServiceNow", "TalkDesk", "Zendesk", "HelpScout"],
+  "Data Warehouse": ["BigQuery", "Databricks", "Google Cloud Storage", "MySQL", "Postgres", "Redshift", "S3", "Snowflake"],
+  "Error Reporting": ["Airbrake", "BugHerd", "Bugsnag", "Errorception", "GitHub", "Jam", "Jira", "Linear", "PagerDuty", "Raygun", "Rollbar", "Sentry", "TrackJS", "Trello"],
+  "Observability": ["AppDynamics", "Datadog", "Dynatrace", "Honeybadger", "Kibana", "New Relic", "Solarwinds", "Splunk", "Sumo Logic"],
+  "Voice of Customer": ["Alchemer", "Apple App Store", "Bazaarvoice", "Canny", "Chorus.ai", "Delighted", "Doorbell", "G2", "Gong", "Google Play Store", "Jotform", "Medallia", "NiCE", "Productboard", "Qualtrics", "Survicate", "UserVoice", "Wootric"],
+  "Other": ["Google Tag Manager"],
+};
+
+// Fallback text, used only if the live catalogue fetch fails.
+const INTEGRATION_CATALOGUE_TEXT = Object.entries(LOGROCKET_INTEGRATIONS)
+  .map(([cat, names]) => `${cat}: ${names.join(", ")}`)
+  .join("\n");
+
+// Pulls the live catalogue (name + category + LogRocket's own description) so the
+// guide reflects the current published list. Falls back to the bundled snapshot.
+async function fetchIntegrationCatalogueText() {
+  try {
+    const res = await fetch("/api/integrations");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { integrations } = await res.json();
+    if (!Array.isArray(integrations) || integrations.length < 20) throw new Error("catalogue too short");
+    const byCategory = {};
+    integrations.forEach(i => {
+      (byCategory[i.category || "Other"] ||= []).push(
+        i.description ? `${i.name} (${i.description})` : i.name
+      );
+    });
+    return {
+      text: Object.entries(byCategory).map(([cat, list]) => `${cat}:\n  - ${list.join("\n  - ")}`).join("\n"),
+      live: true,
+      count: integrations.length,
+    };
+  } catch {
+    return { text: INTEGRATION_CATALOGUE_TEXT, live: false, count: 0 };
+  }
+}
+
+const COMPETITORS = [
+  "PostHog", "FullStory", "Hotjar", "Datadog", "Sentry", "Pendo",
+  "Amplitude", "Heap", "Glassbox", "Quantum Metric", "Contentsquare",
+  "Microsoft Clarity", "Other",
+];
+
+const GUIDE_INDUSTRIES = [
+  "E-commerce", "SaaS / Software", "Fintech", "Healthcare", "Media & Entertainment",
+  "Travel & Hospitality", "Marketplace", "Education", "Gaming", "Other",
+];
+
+const GUIDE_PERSONAS = [
+  "Product", "Marketing", "Engineering", "Support", "Executive", "UI/Design",
+];
+
+// The section 01 demo question. Persona decides what is being asked, industry decides
+// what it is being asked about, so the two compose instead of needing a question per
+// pair. `{flow}` is the slot the industry fills.
+//
+// Each persona also carries `stance`, the thing that makes a question theirs, and
+// `asks`, which tells the model what they are accountable for.
+//
+// `stance` is deliberately narrow. It began as a broad list of loosely related words
+// and that enforced nothing: support's included "user", "fail" and "session", so a
+// question written for any persona passed it, and six of thirty cross-persona pairs
+// were accepted. A question can only be corrected if a wrong one is detectable, so
+// each pattern now holds only what that persona alone would say. What survives is the
+// stance, not the subject matter, because the subject is the industry's job.
+const PERSONA_QUESTIONS = {
+  product: {
+    template: "Why did {flow} conversion drop 18% on Tuesday?",
+    stance: /\b(conversion|funnel|drop-?off|adoption|retention|activation|completion rate|cohort)\b/i,
+    asks: "owns conversion and adoption, and asks about aggregate behaviour across a cohort rather than one person",
+  },
+  marketing: {
+    template: "Which landing page is losing the most {flow} starts, and why?",
+    stance: /\b(campaign|landing page|ads?|seo|attribution|traffic source|bounce rate|acquisition|channel)\b/i,
+    asks: "owns acquisition, and asks which campaign, channel or landing page is underperforming",
+  },
+  engineering: {
+    template: "What is causing the spike in {flow} errors since yesterday's deploy?",
+    stance: /\b(deploy|deployed|deployment|release|regression|errors?|exception|stack trace|api|latency|timeout|crash|console)\b/i,
+    asks: "owns correctness and uptime, and asks what broke, which release caused it, and where in the code",
+  },
+  support: {
+    template: "Why did this customer's {flow} fail in their last session?",
+    stance: /\b(this (customer|user|shopper|patient|member|guest|visitor|person)|their (last )?session|ticket|escalat\w*|refund|complain\w*)\b/i,
+    asks: "owns individual tickets, and asks about one specific user's failed session rather than a trend",
+  },
+  executive: {
+    template: "How much revenue are we losing to broken {flow} experiences?",
+    // Not a bare "cost": it matched "shipping cost recalculation" in an engineering
+    // question, which is a noun in the product, not a question about money.
+    stance: /\b(revenue|costing|costs? us|churn|roi|quarter|business impact|at risk|margin|spend|bottom line)\b/i,
+    asks: "owns the number, and asks what something costs in revenue, churn or risk at company scale",
+  },
+  "ui/design": {
+    template: "Where are users struggling most in the {flow} flow?",
+    stance: /\b(rage[- ]click\w*|friction|struggl\w*|confus\w*|hesitat\w*|scroll\w*|navigat\w*|usab\w*|dead click\w*|misclick\w*)\b/i,
+    asks: "owns the interface, and asks where on a screen users hesitate, rage click or get confused",
+  },
+};
+
+// Per industry: the revenue-critical flow its users actually move through, plus the
+// vocabulary that marks a question as set in that industry. `nouns` is handed to the
+// model so it has more than one word to reach for, and is what the render check tests.
+const INDUSTRY_FLOWS = {
+  "e-commerce": {
+    flow: "checkout",
+    nouns: "cart, checkout, payment, product page, promo code, shipping, order, return",
+    vocab: /cart|checkout|payment|product page|promo|coupon|shipping|order|return|basket|\bsku\b|storefront|purchase|buy/i,
+  },
+  "saas / software": {
+    flow: "trial signup",
+    nouns: "trial signup, onboarding, workspace setup, invite, seat, upgrade, plan change, integration setup",
+    vocab: /trial|sign-?up|signup|onboard|workspace|invite|seat|upgrade|plan|subscri|integration|activat|dashboard|\bapp\b/i,
+  },
+  fintech: {
+    flow: "account funding",
+    nouns: "account opening, identity verification, KYC, account funding, transfer, card issuance, statement",
+    vocab: /account|fund|transfer|deposit|withdraw|\bkyc\b|verif|identit|card|payment|statement|balance|loan|onboard|appl/i,
+  },
+  healthcare: {
+    flow: "appointment booking",
+    nouns: "appointment booking, patient registration, insurance verification, intake form, portal login, prescription refill",
+    vocab: /appointment|book|patient|registrat|insur|intake|portal|prescription|refill|provider|claim|schedul|visit|record/i,
+  },
+  "media & entertainment": {
+    flow: "subscription signup",
+    nouns: "subscription signup, paywall, video playback, watchlist, article page, ad break, plan upgrade",
+    vocab: /subscri|paywall|play|stream|video|watch|article|content|\bad\b|episode|listen|sign-?up|signup|renew/i,
+  },
+  "travel & hospitality": {
+    flow: "booking",
+    nouns: "search, date selection, booking, seat or room selection, payment, check-in, itinerary change",
+    vocab: /book|reserv|search|date|seat|room|flight|hotel|trip|itinerar|check-?in|payment|fare|cancel|guest/i,
+  },
+  marketplace: {
+    flow: "order placement",
+    nouns: "search, listing page, order placement, seller onboarding, listing creation, payout, review",
+    vocab: /listing|seller|buyer|order|search|payout|review|match|bid|offer|marketplace|vendor|checkout|payment/i,
+  },
+  education: {
+    flow: "course enrollment",
+    nouns: "course enrollment, application, lesson playback, assignment submission, tuition payment, student portal",
+    vocab: /course|enroll|appl|lesson|class|assignment|submit|tuition|student|portal|module|quiz|grade|learn|program/i,
+  },
+  gaming: {
+    flow: "in-game purchase",
+    nouns: "account creation, tutorial, matchmaking, in-game purchase, store page, level load, party invite",
+    vocab: /game|player|match|purchase|store|level|tutorial|account|party|invite|session|load|skin|currency|quest/i,
+  },
+};
+
+const personaQuestion = (persona, industry) => {
+  const p = PERSONA_QUESTIONS[String(persona || "").trim().toLowerCase()];
+  if (!p) return null;
+  // "Other" and an empty selection both land here, keeping the generic flow rather than
+  // borrowing some other industry's nouns.
+  const ind = INDUSTRY_FLOWS[String(industry || "").trim().toLowerCase()] || null;
+  return { ...p, industry: ind, question: p.template.replace("{flow}", ind ? ind.flow : "checkout") };
+};
+
+const COMPANY_SIZES = [
+  "1–50 employees", "51–200 employees", "201–1,000 employees",
+  "1,001–5,000 employees", "5,000+ employees",
+];
+
+// Independent AI-accuracy study referenced in every guide.
+const AI_STUDY_URL = "https://www.linkedin.com/posts/matthew-arbesfeld-04b5429b_aakash-gupta-evaluated-logrocket-vs-posthog-share-7462578059741859840-yt4l/";
+
+// Ask Galileo's autonomy milestones — LogRocket's own internal figures, so these
+// are fixed rather than researched. Percentages are autonomous-accuracy.
+// Verified competitor copy that must not be left to the model. Research gets a
+// competitor's capabilities right most of the time but not every time, and a wrong
+// note here is the kind of thing a prospect corrects live. Anything listed below
+// overrides the generated note for that competitor + data source.
+// Keys are matched case-insensitively.
+const CURATED_COMPETITOR_NOTES = {
+  fullstory: {
+    releases: {
+      competitor: true,
+      competitor_note: "Ask StoryAI Launch Analysis assesses behavioral impact post-release, but is behavioral only, with **no deploy marker or error-regression grouping**",
+    },
+  },
+};
+
+// Approved hero paragraph for each competitor, written by the team rather than
+// researched. The hero is the first thing a prospect reads, so the wording is
+// fixed here instead of varying run to run.
+//
+// Each entry is the COMPLETE hero paragraph, covering both what the competitor
+// does and where LogRocket differs, so it replaces the generated pair outright.
+// An empty string falls back to the researched ledes, so a blank slot still
+// produces a working guide. Keys are matched case-insensitively; "Other" has no
+// slot because the name is free text.
+//
+// House style, matching the rest of the guide: no em or en dashes, no ranking
+// language ("market leader", "best-in-class"), and name what they actually do
+// before where they stop short.
+const CURATED_COMPETITOR_LEDES = {
+  posthog: "PostHog gives product teams a broad set of tools for understanding product behavior, analytics, and experimentation. LogRocket takes a deeper approach to understanding what is actually impacting the product experience. Our AI, Galileo, connects sessions, network activity, console logs, feedback, and releases to automatically surface issues, explain their causes, and show their impact on users. Teams get a clearer path from something changing in the product to understanding what needs attention.",
+  fullstory: "FullStory helps product teams watch sessions and spot behavioral signals like rage clicks and dead clicks, but those signals tend to be noisy and not give the full picture of customer experience. LogRocket brings together session analysis, user feedback, code releases and technical data so product and engineering teams can see every customer experience issue that affects their users.",
+  hotjar: "Hotjar helps product teams understand user behavior through recordings, heatmaps, and surveys, but seeing users struggle does not always explain what caused it. LogRocket connects the user experience with the technical context behind it, including network activity, console logs, errors, feedback, and releases. Our AI, Galileo, analyzes that context together to surface the issues behind the struggle and show their impact. Instead of watching a recording and forming a hypothesis, teams can understand what went wrong and why.",
+  datadog: "Datadog gives teams visibility into infrastructure and application health, but many problems that hurt the user experience do not show up as infrastructure issues. A frontend error, broken flow, or request that succeeds but renders incorrectly can leave customers stuck while dashboards still look healthy. LogRocket connects the user experience with network activity, logs, feedback, and releases, so our AI, Galileo, can identify what users are experiencing, trace it back to the underlying issue, and show its impact.",
+  sentry: "Sentry tells you when your code throws an error, but teams need to understand what's going wrong across the entire user experience and not just what breaks technically. A checkout that silently fails, a rage click, or a flow users quietly abandon can have just as much impact without generating an error. LogRocket captures the full user experience, including sessions, network activity, console logs, feedback, and releases, so our AI, Galileo, can surface every user experience issue.",
+  pendo: "Pendo helps product teams drive adoption through guides, messaging, and in-app experiences, but those efforts depend on the underlying product experience working as expected. LogRocket helps teams understand when it does not. Our AI, Galileo, connects sessions with network activity, logs, feedback, and releases to surface the issues disrupting key flows and explain their impact. Product teams can see when users are struggling and understand what is causing the problem, whether that is a broken checkout or an issue somewhere else in the experience.",
+  amplitude: "Amplitude helps product teams understand their product through the events they instrument, but those events only tell you about what you chose to measure. LogRocket starts with the full user experience and connects sessions with customer feedback, network activity, console logs, and code releases. Our AI, Galileo, surfaces issues that were never explicitly instrumented and connects them to their underlying cause and user impact. When a metric changes, teams can move from seeing what happened to understanding why.",
+  heap: "Heap gives product teams a strong view of user behavior through clicks, pageviews, and other events, but behavior alone does not explain what caused a change. LogRocket captures the experience alongside the technical context, including network activity, console logs, errors, and releases. LogRocket's AI, Galileo, connects those signals to show why a funnel dropped, whether it was a failed request, a product issue, or a recent release. Teams get the context behind the behavior, not just the behavior itself.",
+  glassbox: "Glassbox helps product teams understand where users are dropping off across their journeys, but understanding why often requires additional investigation. LogRocket connects journey behavior with the technical context behind it. Our AI, Galileo, analyzes replays alongside network activity, console logs, feedback, and releases to surface the issues disrupting those journeys and connect them to their underlying causes. Product teams can see where users are struggling and understand what is driving the drop-off.",
+  "quantum metric": "Quantum Metric helps product teams watch customer sessions and track metrics, but understanding where customers are struggling means pulling together sessions, support tickets, and engineering context. LogRocket brings that context together. Our AI, Galileo, connects sessions with user feedback, code releases and technical data, so that when conversion drops, product and engineering teams are alerted immediately and see what led to the problem.",
+  contentsquare: "Contentsquare helps product teams watch customer sessions and track metrics, but understanding why customers are struggling requires pulling together sessions, support tickets, and engineering context. LogRocket brings the context together. Our AI, Galileo, analyzes sessions alongside user feedback, code releases and technical data to surface the issues affecting users, explain what is causing them, and prioritize them by impact. Teams can spend less time figuring out what happened and more time deciding what to improve.",
+  "microsoft clarity": "Microsoft Clarity gives product teams recordings and heatmaps to understand how users interact with their products. LogRocket adds the technical and product context needed to understand what is happening behind those behaviors. Our AI, Galileo, connects sessions with network activity, logs, errors, feedback, and releases to surface issues automatically and explains their root cause and user impact. The difference becomes especially important as session volume grows and teams need more than recordings to understand what is going wrong.",
+};
+
+
+// Verified competitor AI milestones, supplied by the team. These replace the
+// research pass for any competitor listed, so the chart stops depending on whatever
+// a search happens to surface. Labels are kept short because they render inside a
+// pill on the chart, and a long one crowds its neighbours. Dates outside LogRocket's
+// own timeline window are dropped when plotting, so a release later than our last
+// milestone will not appear. Keys are matched case-insensitively.
+const CURATED_COMPETITOR_TIMELINES = {
+  posthog: [
+    { date: "Jan '25", label: "AI Product Assistant" },
+    { date: "May '25", label: "AI Enhancements" },
+    { date: "Nov '25", label: "AI Relaunch" },
+    { date: "Jan '26", label: "MCP Launch" },
+  ],
+  sentry: [
+    { date: "Nov '24", label: "Sentry AI early adopter" },
+    { date: "Mar '25", label: "Autofix beta (paid)" },
+    { date: "Mar '25", label: "Automatic Autofix runs" },
+    { date: "Mar '25", label: "Autofix improvements" },
+    { date: "Jun '25", label: "Seer GA" },
+  ],
+  "quantum metric": [
+    { date: "May '25", label: "Felix AI" },
+  ],
+  contentsquare: [
+    { date: "May '25", label: "Sense" },
+    { date: "Sep '25", label: "Sense Analyst" },
+  ],
+  pendo: [
+    { date: "Oct '25", label: "Agent Mode" },
+    { date: "Dec '25", label: "Agent Analytics GA" },
+    { date: "Jan '26", label: "Agent Analytics enhanced" },
+    { date: "Mar '26", label: "Leo" },
+    // Apr '26 falls after LogRocket's last milestone, so it is outside the window
+    // and will not plot until that timeline extends. Kept so it is not lost.
+    { date: "Apr '26", label: "MCP rollout" },
+  ],
+  heap: [
+    { date: "Jun '24", label: "AI CoPilot (open beta)" },
+    { date: "Apr '26", label: "AI Summaries" }, // outside the window, as above
+  ],
+  glassbox: [
+    { date: "Jan '22", label: "AI experience analytics" },
+    { date: "Mar '23", label: "Automated journey analysis" },
+    { date: "Jan '24", label: "AI generated summaries" },
+    { date: "Jun '24", label: "AI enhancements" },
+    { date: "Jan '25", label: "AI insights and summaries" },
+  ],
+  hotjar: [
+    { date: "Jun '23", label: "AI for Surveys" },
+    { date: "Jan '24", label: "AI Sentiment Analysis" },
+    { date: "Jan '25", label: "AI Survey Insights" },
+    { date: "Dec '25", label: "AI Summaries" },
+  ],
+  fullstory: [
+    { date: "Dec '25", label: "StoryAI & Ask StoryAI" },
+    { date: "Jan '26", label: "StoryAI Opportunities" },
+    // Jun '26 is after LogRocket's last milestone, so it is outside the window and
+    // will not plot until that timeline extends. Kept so it is not lost.
+    { date: "Jun '26", label: "StoryAI Agents" },
+  ],
+  amplitude: [
+    { date: "Feb '26", label: "AI Agents Platform" },
+  ],
+  "microsoft clarity": [
+    { date: "Feb '24", label: "Clarity Copilot" },
+    { date: "Mar '24", label: "Copilot expansion" },
+    { date: "Jan '26", label: "Copilot improvements" },
+  ],
+  datadog: [
+    { date: "Jun '25", label: "Bits AI Agents" },
+  ],
+};
+
+// Approved copy for LogRocket's own signal pieces in section 03. Unlike the
+// competitor notes these hold for every competitor, so they are keyed by data
+// source alone. Keys are matched case-insensitively.
+//
+// Team-written and deliberately terse, to sit at the same density as the
+// competitor notes opposite. This supersedes the longer Feedback sentence
+// previously taken from docs.logrocket.com/docs/feedback.
+// Approved wording for LogRocket's side of specific capability matrix rows. The
+// research pass kept understating us on Voice of Customer, so this replaces whatever
+// it writes for the rows listed, and marks us "full" there.
+//
+// Matched on the row's feature name, normalised, so "Voice of Customer / Surveys",
+// "VoC" and "Customer Feedback" all resolve to the same entry.
+// The LogRocket feature that answers each matrix row, by its real product name, with
+// the page that proves it. A rep should be able to hand over the row and have the
+// prospect land somewhere that backs it up.
+//
+// Every URL here was checked to resolve. Order matters: the first match wins, so the
+// specific rows sit above the general ones. Self-hosted is the one entry pointing off
+// the docs site, as there is no public docs page for it.
+//
+// "Galileo AI" prints as "LogRocket AI". The template rewrites Galileo to LogRocket
+// everywhere except after "Ask", so the name is written here as the product is
+// documented and that one rule keeps deciding how it reads.
+const LOGROCKET_DOCS = [
+  { match: /(voiceofcustomer|\bvoc\b|feedbackhub|feedback)/, name: "LogRocket Feedback", url: "https://docs.logrocket.com/docs/feedback" },
+  { match: /survey/, name: "Surveys", url: "https://docs.logrocket.com/docs/surveys" },
+  { match: /(selfhost|onprem|residency|datareside|hosting|deployment)/, name: "SaaS or Self-hosted", url: "https://logrocket.com/products/saas-self-hosted" },
+  { match: /(dataexport|warehouse|snowflake|bigquery|redshift|databricks|streaming)/, name: "Streaming Data Export", url: "https://docs.logrocket.com/docs/streaming-data-export" },
+  { match: /(askgalileo|askai|naturallanguage|querying|conversational)/, name: "Ask Galileo", url: "https://docs.logrocket.com/docs/ask-galileo" },
+  { match: /(^ai|aipowered|aidriven|artificialintelligence|copilot|assistant|agentic|insight|machinelearning)/, name: "Galileo AI", url: "https://docs.logrocket.com/docs/galileo" },
+  // These three are order-sensitive against each other. Conditional Recording leads,
+  // because "conditional recording" and "session sampling" both contain what the
+  // Session Replay pattern looks for. Session Replay then leads Issues, so a row named
+  // "Session replay and error triage" cites the feature it opens with.
+  { match: /(conditionalrecording|sampling|quota)/, name: "Conditional Recording", url: "https://docs.logrocket.com/docs/conditional-recording" },
+  { match: /(sessionreplay|replay|recording|sessions)/, name: "Session Replay", url: "https://docs.logrocket.com/docs/session-replay" },
+  { match: /(error|exception|crash|issue|bug|regression|rootcause)/, name: "Issues", url: "https://docs.logrocket.com/docs/issues" },
+  { match: /(funnel|conversion)/, name: "Funnels", url: "https://docs.logrocket.com/docs/funnels-1" },
+  { match: /(heatmap|clickmap|scrollmap)/, name: "Heatmaps", url: "https://docs.logrocket.com/docs/heatmaps" },
+  { match: /(performance|webvital|corewebvital|speed|latency|lighthouse)/, name: "Performance Monitoring", url: "https://docs.logrocket.com/docs/performance-monitoring" },
+  { match: /(network|apirequest|xhr|fetch)/, name: "Network Monitoring", url: "https://docs.logrocket.com/docs/network-definitions" },
+  { match: /(dashboard|reporting|report)/, name: "Dashboards", url: "https://docs.logrocket.com/docs/dashboards" },
+  { match: /(metric|analytics|timeseries|segmentation)/, name: "Metrics", url: "https://docs.logrocket.com/docs/logrocket-metrics" },
+  { match: /(alert|notification|digest)/, name: "Alerts", url: "https://docs.logrocket.com/docs/alerts-page" },
+  { match: /(mobile|ios|android|reactnative|flutter)/, name: "LogRocket Mobile", url: "https://docs.logrocket.com/docs/introduction-to-logrocket-mobile" },
+  { match: /(privacy|pii|redact|sanitiz|compliance|gdpr|hipaa)/, name: "Privacy controls", url: "https://docs.logrocket.com/docs/privacy" },
+  { match: /(integration|ecosystem|thirdparty)/, name: "Integrations", url: "https://docs.logrocket.com/docs/integrations" },
+  { match: /(access|permission|rbac|\bsso\b|rolebased|usermanagement)/, name: "Role-based access", url: "https://docs.logrocket.com/docs/role-based-access" },
+];
+
+// Which matrix rows earn their place for each persona, named by the LOGROCKET_DOCS
+// feature they resolve to. Reusing those names rather than inventing a second set of
+// patterns means a row already resolved to a feature can be judged without a fresh
+// guess at what it is about.
+//
+// Ordered most to least relevant, and that order is what the rows are sorted into. A
+// support rep opens with replay and the ticket integrations; an executive opens with
+// what they are accountable for, which is insight, compliance and where data lives.
+const PERSONA_CAPABILITIES = {
+  product: ["Funnels", "Session Replay", "Galileo AI", "Metrics", "LogRocket Feedback", "Surveys", "Heatmaps", "Dashboards"],
+  // Leads with analytics and the martech stack rather than replay and surveys, which
+  // would have made this all but identical to the design set.
+  marketing: ["Funnels", "Metrics", "Heatmaps", "Dashboards", "Integrations", "Surveys", "Session Replay"],
+  engineering: ["Issues", "Network Monitoring", "Performance Monitoring", "Session Replay", "Integrations", "Alerts", "Conditional Recording"],
+  support: ["Session Replay", "Issues", "Integrations", "LogRocket Feedback", "Ask Galileo", "Alerts", "Privacy controls"],
+  executive: ["Galileo AI", "Dashboards", "Metrics", "SaaS or Self-hosted", "Privacy controls", "Role-based access", "Streaming Data Export"],
+  "ui/design": ["Heatmaps", "Session Replay", "Funnels", "Surveys", "Ask Galileo", "Performance Monitoring"],
+};
+
+const personaCapabilities = (persona) =>
+  PERSONA_CAPABILITIES[String(persona || "").trim().toLowerCase()] || null;
+
+// Feature names double as row titles above, but a few read as product names rather
+// than as a capability being compared. These are how they are put to the model.
+const CAPABILITY_ROW_LABEL = {
+  "Galileo AI": "AI-powered insights",
+  "Ask Galileo": "Natural-language querying",
+  "LogRocket Feedback": "Voice of Customer and feedback",
+  "Metrics": "Product analytics and metrics",
+  "Network Monitoring": "Network request monitoring",
+  "Conditional Recording": "Recording controls and sampling",
+  "Privacy controls": "Privacy and compliance controls",
+  "SaaS or Self-hosted": "Deployment and data residency",
+  "Streaming Data Export": "Data export to your warehouse",
+  "Role-based access": "Access control and permissions",
+};
+
+// The six rows to ask for: the persona's top capabilities, with deployment and data
+// residency always last, since every buyer's security review reaches it eventually and
+// the guide has promised that row since self-hosted was added. Executives already carry
+// it in their own list, so it is moved rather than repeated.
+const DEPLOYMENT_CAP = "SaaS or Self-hosted";
+
+const capabilityRows = (persona) => {
+  const caps = personaCapabilities(persona);
+  if (!caps) return null;
+  const rest = caps.filter(c => c !== DEPLOYMENT_CAP).slice(0, 5);
+  return [...rest, DEPLOYMENT_CAP].map(c => CAPABILITY_ROW_LABEL[c] || c);
+};
+
+const CURATED_MATRIX_LOGROCKET = [
+  {
+    match: /(voiceofcustomer|voc|survey|feedback)/,
+    text: "Surveys and feedback insights connected directly to session replay. AI-powered Feedback Hub aggregates feedback across channels, surfaces trends, prioritizes impact, and links insights to actual user experiences.",
+  },
+  {
+    // "Streaming Data Export" is LogRocket's own product name for this, so it is
+    // used as-is. Deliberately not called real-time: the docs say the data is
+    // exported once an hour, and a prospect can check that.
+    match: /(deployment|datareside|residency|hosting|selfhost|onprem|dataexport|warehouse)/,
+    text: "Cloud or self-hosted, so data can stay inside your own environment. Streaming Data Export sends session and event data into Snowflake, BigQuery, Databricks, Redshift, S3 and other warehouses.",
+  },
+];
+
+// Rows the matrix never carries, whatever the research pass returns. Pricing moves,
+// varies by contract and dates the guide, so a rep quoting it from here is a risk.
+const MATRIX_EXCLUDED = /(pricing|price|cost|licen[cs]|billing|contract|plan)/;
+
+// Two matrix rows must not show the competitor at full, because the rest of the
+// guide says otherwise and a full tick there contradicts it in front of a prospect.
+//
+//  - AI rows, whenever section 03 shows the competitor missing a data source. An AI
+//    that cannot see backend or release data is not equivalent to one that can, so
+//    a tick beside our own tick reads as parity we have just spent a section denying.
+//  - Survey and feedback rows, always. Collecting responses is not the same as
+//    aggregating feedback across channels, scoring impact and tying it to sessions.
+//
+// Only "full" is lowered, and only ever to "partial": the competitor genuinely ships
+// something in both cases, so dropping them to "none" would be its own overstatement.
+const MATRIX_AI_ROW = /\bAI\b|\bA\.I\b|artificial intelligence|co-?pilot|assistant|agentic/i;
+const MATRIX_FEEDBACK_ROW = /survey|voice of customer|\bvoc\b|feedback/i;
+
+function capCompetitorMarks(rows, dataSources) {
+  const missingSources = (Array.isArray(dataSources) ? dataSources : [])
+    .filter(d => !d.competitor).length;
+  return (Array.isArray(rows) ? rows : []).map(r => {
+    if (r.competitor_mark !== "full") return r;
+    const isAi = MATRIX_AI_ROW.test(r.feature || "");
+    const isFeedback = MATRIX_FEEDBACK_ROW.test(r.feature || "");
+    if ((isAi && missingSources > 0) || isFeedback) {
+      return { ...r, competitor_mark: "partial" };
+    }
+    return r;
+  });
+}
+
+// Sort the matrix into the persona's order of priority, so the row a reader cares about
+// most is the first one they meet.
+//
+// This reorders and does not drop. A row the persona would not be judged on is still a
+// true row, and the cell content behind it was researched; throwing it away to satisfy
+// the ordering would cost more than it gains. A rep who typed their own capability
+// focus has already stated the order they want, so this stands aside for them.
+function orderMatrixForPersona(rows, persona, featureFocus) {
+  const caps = personaCapabilities(persona);
+  if (!caps || (featureFocus && featureFocus.trim())) return rows;
+  const rank = (r) => {
+    const i = caps.indexOf(r.logrocket_doc && r.logrocket_doc.name);
+    return i === -1 ? caps.length : i;
+  };
+  // Decorated sort: Array.prototype.sort is stable in practice, but the index tiebreak
+  // makes the order of equally ranked rows explicit rather than relying on that.
+  return (Array.isArray(rows) ? rows : [])
+    .map((r, i) => ({ r, i, k: rank(r) }))
+    .sort((a, b) => a.k - b.k || a.i - b.i)
+    .map(x => x.r);
+}
+
+// Everything applied to a generated guide before it is shown or exported: approved
+// copy over researched copy, plus the consistency rules. Shared so the review sweep
+// produces exactly what a rep would get, rather than a near-copy that drifts.
+function finalizeGuide(guide, { competitor, includeFeatureComparison, persona, industry, featureFocus } = {}) {
+  const g = { ...guide };
+  const key = String(competitor || "").trim().toLowerCase();
+
+  // Keep the demo question answerable by the person reading it and set in their own
+  // product. The model is asked for both and usually obliges, so this only steps in
+  // when the question carries no trace of the persona's or the industry's vocabulary.
+  // The fallback is the persona template with the industry's flow already in it, so
+  // either miss still lands somewhere specific.
+  const pq = personaQuestion(persona, industry);
+  const q = g.ai_example_question || "";
+  if (pq && (!pq.stance.test(q) || (pq.industry && !pq.industry.vocab.test(q)))) {
+    g.ai_example_question = pq.question;
+  }
+
+  // Hard-guarantee the toggle: if the rep opted out, drop the comparison so it is
+  // absent from both the on-screen preview and the PDF, whatever the model returned.
+  if (!includeFeatureComparison) g.feature_comparison = [];
+  // Approved matrix wording wins, and excluded rows are dropped.
+  g.feature_comparison = applyCuratedMatrix(g.feature_comparison);
+  // Verified competitor copy wins over the research pass.
+  g.data_sources = applyCuratedNotes(g.data_sources, competitor);
+  // Runs after the data sources are settled, since it reads their coverage.
+  g.feature_comparison = capCompetitorMarks(g.feature_comparison, g.data_sources);
+  // Persona order last, so it sorts the rows that actually survived the steps above.
+  g.feature_comparison = orderMatrixForPersona(g.feature_comparison, persona, featureFocus);
+  // Verified milestones replace the researched timeline outright, rather than
+  // merging: a partial list from search alongside the approved one would double up
+  // the same release under two different names.
+  const curatedTimeline = CURATED_COMPETITOR_TIMELINES[key];
+  if (curatedTimeline) g.competitor_ai_timeline = curatedTimeline;
+  // Approved copy replaces the whole hero paragraph rather than just the competitor
+  // half: each one already covers both sides, so appending the researched LogRocket
+  // lede would repeat the argument. A blank slot leaves the researched pair in place.
+  const curatedLede = CURATED_COMPETITOR_LEDES[key];
+  if (curatedLede) g.hero_paragraph = curatedLede;
+  // Pinned customer examples are merged inside generateCompetitorGuide, before the
+  // logo lookup, so they are already present.
+  return g;
+}
+
+// A URL written into a cell would sit next to the one the row already carries, so it
+// comes out. Trailing punctuation and an empty bracket pair go with it, otherwise
+// removing "(see docs.logrocket.com/docs/issues)" leaves "()" behind.
+const stripUrls = (s) => String(s || "")
+  .replace(/\(?\s*(?:see\s+|more\s+at\s+)?(?:https?:\/\/)?(?:docs\.)?logrocket\.com\/[^\s)]*\)?/gi, "")
+  .replace(/\(\s*\)/g, "")
+  .replace(/\s{2,}/g, " ")
+  .replace(/\s+([.,;])/g, "$1")
+  .trim();
+
+function applyCuratedMatrix(rows) {
+  const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return (Array.isArray(rows) ? rows : [])
+    .filter(r => !MATRIX_EXCLUDED.test(norm(r.feature)))
+    .map(r => {
+      const hit = CURATED_MATRIX_LOGROCKET.find(c => c.match.test(norm(r.feature)));
+      const row = hit
+        ? { ...r, logrocket: hit.text, logrocket_mark: "full" }
+        : { ...r, logrocket: stripUrls(r.logrocket) };
+      // Named here rather than left to the model, so the row cites a feature that
+      // exists and a page that resolves.
+      //
+      // The row title decides it, and the prose is consulted only when the title
+      // matches nothing, as with a row called "Root cause analysis". Letting both
+      // compete at once meant whichever entry sat higher in the list won on a passing
+      // mention: "Funnel and journey analysis" cited Session Replay purely because the
+      // sentence underneath happened to say "session".
+      const feat = norm(r.feature);
+      const doc = LOGROCKET_DOCS.find(d => d.match.test(feat))
+        || LOGROCKET_DOCS.find(d => d.match.test(norm(row.logrocket)));
+      if (doc) row.logrocket_doc = doc;
+      return row;
+    });
+}
+
+const CURATED_LOGROCKET_NOTES = {
+  errors: "Source-mapped errors with replay, network, and console context.",
+  sessions: "Replay every user journey with complete telemetry.",
+  backend: "Correlate backend requests and deploys to sessions.",
+  releases: "Connect releases to behavioral changes automatically.",
+  feedback: "Link user feedback directly to affected sessions.",
+};
+
+// Win stories that must appear for a given competitor. These come from the field
+// rather than from anything public, so research will never surface them. Pinned
+// examples lead the section; researched ones fill in behind them.
+// Keys are matched case-insensitively.
+const CURATED_CUSTOMER_EXAMPLES = {
+  contentsquare: [
+    {
+      name: "Arhaus",
+      profile: "Home furnishings retail",
+      outcome: "Arhaus had been paying Contentsquare to run micro-conversion analysis manually over several weeks. Ask Galileo pulled together the same insights and recommendations in minutes without any need for professional services.",
+      replaced: "",
+      stats: [{ num: "Weeks → minutes", label: "Micro-conversion analysis that Contentsquare ran manually" }],
+    },
+  ],
+};
+
+// Puts the curated examples first, then fills the remaining slots with researched
+// ones, dropping any that duplicate a pinned company.
+function applyCuratedExamples(examples, competitor) {
+  const curated = CURATED_CUSTOMER_EXAMPLES[String(competitor || "").trim().toLowerCase()];
+  if (!curated) return examples;
+  const pinned = new Set(curated.map(ex => String(ex.name || "").trim().toLowerCase()));
+  const rest = (Array.isArray(examples) ? examples : [])
+    .filter(ex => !pinned.has(String(ex.name || "").trim().toLowerCase()));
+  return [...curated, ...rest];
+}
+
+// Applies the curated LogRocket and competitor notes over whatever the research
+// pass returned, adding the data source if it came back missing entirely.
+function applyCuratedNotes(dataSources, competitor) {
+  const curated = CURATED_COMPETITOR_NOTES[String(competitor || "").trim().toLowerCase()] || {};
+  const out = (Array.isArray(dataSources) ? dataSources : []).map(d => {
+    const key = String(d.name || "").trim().toLowerCase();
+    const lrNote = CURATED_LOGROCKET_NOTES[key];
+    const next = lrNote ? { ...d, logrocket: true, logrocket_note: lrNote } : d;
+    const override = curated[key];
+    return override ? { ...next, ...override } : next;
+  });
+  // Any curated source the model omitted still needs to appear.
+  Object.entries(curated).forEach(([key, override]) => {
+    if (!out.some(d => String(d.name || "").trim().toLowerCase() === key)) {
+      out.push({
+        name: key.charAt(0).toUpperCase() + key.slice(1),
+        logrocket: true,
+        logrocket_note: CURATED_LOGROCKET_NOTES[key] || "",
+        ...override,
+      });
+    }
+  });
+  return out;
+}
+
+const LOGROCKET_AI_TIMELINE = [
+  { date: "Jan '17", label: "Began AI journey", sub: "", pct: 10 },
+  { date: "Mar '19", label: "Launched Proactive Insights", sub: "", pct: 20 },
+  { date: "May '25", label: "Analytics Only", sub: "", pct: 30 },
+  { date: "Jul '25", label: "+Sessions & Issues", sub: "", pct: 60 },
+  { date: "Dec '25", label: "Context Layer", sub: "Gemini 3", pct: 80 },
+  { date: "Mar '26", label: "Model Orchestration", sub: "Opus 4.6", pct: 90 },
+];
+
+async function fetchRogCustomerExamples({ industry, size, competitor }) {
+  const bits = [
+    industry && `in the ${industry} industry`,
+    size && `around ${size}`,
+  ].filter(Boolean).join(", ");
+  const res = await fetch("/api/rog", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      question: `List 2-4 LogRocket customer references or case studies${bits ? `, ideally ${bits}` : ""}${competitor ? `, that chose LogRocket over ${competitor} or switched from a competitor` : ""}. For each, give: the company name (only if it is a known/publicly referenceable customer), a one-line profile (industry + size), and the concrete outcome or result they saw with LogRocket. Plain text, concise. If you don't have specific named references, say so explicitly.`,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Rog API error ${res.status}`);
+  return data.answer || "";
+}
+
+// ── Guide generation ────────────────────────────────────────────────────────
+// Split into two calls that run in PARALLEL:
+//   • research  — needs web_search to verify competitor facts (the slow half)
+//   • messaging — pure positioning/copy, no tool calls (fast)
+// Wall time ≈ the research call alone, instead of research + writing serially.
+
+const LENGTH_RULES = `Hard rules:
+- LENGTH LIMIT — this is a scannable one-pager, not a doc. EVERY prose field must be at most 2-3 sentences. Bullets and table cells must be ONE short sentence or phrase. Never write a long paragraph. Be punchy: cut qualifiers rather than running long.
+- WORD CAPS ARE ABSOLUTE. Where a field states a MAX word count, count the words and stay under it — bolding or adding detail is never a reason to exceed it. If you need room for the bolded differentiator, delete other words.
+- Never invent statistics, customer names, ratings, or quotes.
+- NEVER call the competitor a "market leader", "industry leader", "best-in-class", "the leading X", "gold standard" or similar. Ranking language hands them the credibility this guide exists to question, and it is unverifiable. State the specific capability instead.
+- NO EM DASHES OR EN DASHES anywhere in the output. Use a comma, a colon, or a second sentence instead. Write "behavioral only, with no deploy marker", never "behavioral only - no deploy marker".
+- Respond ONLY with the JSON object, no preamble, no markdown fences.`;
+
+// Transient API conditions (overload, rate limit, 5xx) would otherwise fail the
+// whole guide, and firing four or five calls at once makes hitting one likelier.
+const TRANSIENT = /overloaded|rate.?limit|too many requests|timeout|temporarily/i;
+const isTransient = (status, message) =>
+  status === 429 || status === 529 || status >= 500 || TRANSIENT.test(message || "");
+
+async function callAnthropic({ system, tools, maxTokens, userMessage, attempts = 3 }) {
+  let lastErr;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await callAnthropicOnce({ system, tools, maxTokens, userMessage });
+    } catch (e) {
+      lastErr = e;
+      if (!e.retryable || attempt === attempts) break;
+      // 1s, then 3s — enough to clear a brief capacity blip.
+      await new Promise(r => setTimeout(r, attempt * attempt * 1000));
+    }
+  }
+  throw lastErr;
+}
+
+async function callAnthropicOnce({ system, tools, maxTokens, userMessage }) {
+  const res = await fetch("/api/anthropic", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: maxTokens,
+      system,
+      ...(tools ? { tools } : {}),
+      messages: [{ role: "user", content: userMessage }],
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) {
+    const message = data.error?.message || `API error ${res.status}`;
+    const err = new Error(message);
+    err.retryable = isTransient(res.status, message);
+    throw err;
+  }
+  const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
+  if (!text) throw new Error("Empty response from API");
+
+  // Running out of output tokens truncates the JSON mid-structure, which surfaced as
+  // a raw parser complaint about a missing comma. Catch it here so the retry gets a
+  // fresh attempt and, if it keeps happening, the message says what actually went
+  // wrong instead of pointing at a character offset.
+  if (data.stop_reason === "max_tokens") {
+    const err = new Error("The model's reply was cut off before it finished. Try again.");
+    err.retryable = true;
+    throw err;
+  }
+
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end < 0) throw new Error("No JSON found in response");
+  try {
+    return JSON.parse(text.slice(start, end + 1));
+  } catch (e) {
+    // A formatting slip is a one-off, so it is worth another attempt rather than
+    // failing the whole guide on a stray comma.
+    const err = new Error(`The model returned malformed JSON (${e.message}). Try again.`);
+    err.retryable = true;
+    throw err;
+  }
+}
+
+async function generateCompetitorGuide({ competitor, company, industry, size, persona, includeFeatureComparison, featureFocus, integrations = "", rogExamples }) {
+  const pq = personaQuestion(persona, industry);
+  const audience = [
+    company ? `Prospect/customer: ${company}` : "",
+    industry ? `Industry: ${industry}` : "",
+    // Naming the flows keeps every example in this prospect's product rather than
+    // defaulting to a generic cart-and-checkout story.
+    pq && pq.industry ? `Every illustrative example, question and answer must be set in a real ${industry} user flow. Use this vocabulary: ${pq.industry.nouns}` : "",
+    size ? `Company size: ${size}` : "",
+    // Spelled out to the same degree as the industry line below. When persona was one
+    // vague sentence and industry carried an explicit noun list, the nouns won and every
+    // persona's example came out orbiting the same flow.
+    persona ? `Primary persona this guide is for: ${persona}. Frame the value, examples and language for them. A ${persona} audience ${pq ? pq.asks : `cares about what a ${persona} team is measured on`}. The industry decides WHAT the examples are about; this persona decides HOW they are asked, so two guides in the same industry for different personas must not ask the same question.` : "",
+  ].filter(Boolean).join("\n");
+
+  const VERIFY_RULES = `- Do NOT state any feature, pricing, rating, or capability claim you have not verified. Omit or hedge instead.
+- Populate "sources" with the URLs you actually used.`;
+
+  // ── Call 1a: competitor AI + data-source coverage (web search) ───────────
+  const competitorPrompt = `You are a competitive strategy expert at LogRocket. Research ${competitor}'s AI assistant and what data it can reason over, versus LogRocket's.
+
+${audience}
+
+ACCURACY IS CRITICAL — this is customer-facing. Verify with web_search first. Be efficient: 3 targeted searches, then write. Search only:
+- ${competitor}'s own site (AI/assistant features, and what it offers for errors, sessions, backend data, releases and feedback)
+- G2/TrustRadius/Capterra if a strength or weakness needs backing
+Do NOT research customer references or build a full feature matrix — separate passes cover those.
+
+DATA SOURCES — represent ${competitor} accurately, by name.
+For each of the five data sources (Errors, Sessions, Backend, Releases, Feedback), research what ${competitor} actually ships for it and write "competitor_note" characterising their real approach. Research the product name so you get the capability right, but only spend words on the name in the note if it still fits the 10-word cap below. Characterising the capability accurately matters; printing its brand name does not.
+- Set "competitor": true whenever they genuinely have a capability there, even a strong one. Only set false when you have verified there is no such capability.
+- A rep will be corrected live if this understates them, which loses the deal. So never claim an absence you have not verified, and never write a dismissive placeholder like "No release tracking" for a source where the competitor ships something real.
+- Where they do have a capability, the honest differentiator is usually HOW it works — behavioural vs code-level, separate tool vs same timeline, manual vs correlated — not that it is missing. Say that instead.
+- Wrap the specific gap — the part LogRocket does and they do not — in **double asterisks** so it renders bold. Bold ONLY that clause, never the whole note, and never the part describing what they DO ship. If a source has no verified gap, add no bold at all rather than inventing one.
+
+LENGTH: these are cards on a one-pager, not prose. 5 to 8 WORDS, a compressed summary rather than a sentence. Do not explain, just characterise. Drop every filler word: no "but", "however", "though", "available", "exists", "ships with". A comma carries the contrast. This is the standard expected, for PostHog:
+  Errors:    "Frontend errors only, **no backend context**."
+  Sessions:  "Session replay, **limited behavioral reasoning**."
+  Backend:   "Logs **separate from session analysis**."
+  Releases:  "Release data **uncorrelated with user behavior**."
+  Feedback:  "Feedback **disconnected from technical signals**."
+Note what those examples do NOT do: they never name the product ("Error Tracking", "Release Health"), they never explain, and they never join the two halves with a conjunction. Match that density for every competitor.
+
+Before you return each competitor_note, count its words. Over 8, cut from the capability half, not the gap: drop the product name first, then adjectives, then filler like "available", "exists", "ships with". "Error Tracking ships with stack traces and session replay, but no network-request-level session correlation" is 15 words and far too long; "Captures frontend errors, but **no session correlation**" is 7 and correct.
+
+Accuracy still outranks brevity: name what they ship, and do not turn a short note into a claim you have not verified. FullStory ships Release Analyzer, so its "Releases" note characterises that as behavioural release impact, NOT "no release tracking".
+
+FEEDBACK CARD, one extra check. LogRocket Feedback ingests unstructured feedback from OTHER channels the customer already uses (Intercom, Zendesk, Gong, G2, Productboard, Gladly, HubSpot Service Hub, Apple App Store, Google Play, Alchemer) and quantifies it against session behaviour. So for ${competitor}, research specifically whether their feedback capability can pull in feedback originating OUTSIDE their own widget or survey tool.
+- If they only collect what their own widget or survey captures, set "competitor": false for the Feedback source. A widget that captures its own submissions is not the same capability as analysing feedback from every channel the customer already uses, and marking it as present would imply parity that does not exist. Still write the accurate note naming their widget, with the limit as the bolded gap, and keep it inside the 8-word cap, e.g. "Own widget only, **no support or review channels**". The card shows the note either way, so setting false does not hide what they ship.
+- Only set "competitor": true for Feedback when they can genuinely ingest feedback originating outside their own tooling. Then name those channels.
+- Only claim this limitation when you have verified it.
+
+For "competitor_ai_timeline": find the dated releases of ${competitor}'s AI AGENT — and nothing else — with approximate month+year, oldest first. This is plotted against LogRocket's Ask Galileo agent timeline, so it must be agent-to-agent.
+
+An AI agent is a named assistant/copilot a user asks questions of in natural language, or that autonomously investigates and returns an answer — e.g. Ask Galileo, PostHog Max, Glassbox GIA. Include its GA release and any subsequent GA releases that materially expanded what the agent can reason over or answer.
+
+GA ONLY. Every date must be a general-availability date — the agent released to all customers on a standard plan.
+- If the agent ran as beta/preview/early access before GA, use the GA date, never the beta announcement date.
+- If it is still in beta, preview, early access, limited availability, waitlist or design-partner-only, EXCLUDE it entirely — do not plot it and do not treat the beta date as GA.
+- If you can confirm a beta but cannot confirm a GA date, leave that milestone out rather than substituting the beta date.
+
+WINDOW: the chart runs from ${LOGROCKET_AI_TIMELINE[0].date} to ${LOGROCKET_AI_TIMELINE[LOGROCKET_AI_TIMELINE.length - 1].date}, LogRocket's first and last milestones. Ignore any ${competitor} release dated outside that range entirely, and do not reference an earlier one in the label of a later milestone either. Anything outside the window is dropped when plotting, so returning it wastes the research.
+
+EXCLUDE everything that is not the GA agent itself, even when it is AI or ML powered:
+- AI/ML features that are not an agent — anomaly detection, auto-insights, funnel or friction scoring, sentiment analysis, predictive metrics, smart search ranking, session-signal detectors (e.g. "Voice of the Silent"-style ML signals), autocapture improvements.
+- Funding rounds and "AI investment" announcements; partnerships; acquisitions (unless the acquired agent itself reached GA in ${competitor}'s product, dated to that GA date).
+- Roadmap and "coming soon" announcements; talks, blog posts or analyst mentions with no GA agent.
+
+List EVERY GA release you can verify, oldest first (up to 6) — do not stop at the first one. Returning 1 — or [] when ${competitor} has no GA AI agent — is correct and expected. Never invent a date, never substitute a non-agent AI feature, and never pass a beta off as GA.
+
+Each milestone also needs "pct" — an autonomy level on the same 0-100 scale LogRocket uses (0 = human must do the analysis, 100 = the AI reaches a correct root-cause answer unaided). This is plotted against LogRocket's line, so it must be defensible, not flattering or punitive:
+- If a published head-to-head benchmark exists (e.g. the Aakash Gupta LogRocket-vs-PostHog evaluation scored LogRocket 47/50 and PostHog Max 28/50 — that is 56%), convert and use it for the nearest milestone.
+- Otherwise infer conservatively from what the release can verifiably do: behavioural summaries only ≈ 20-35; adds error/code context ≈ 40-60; genuine unaided root-cause ≈ 70+.
+- Keep it monotonic or flat over time unless a release genuinely regressed.
+Also set "pct_basis": "benchmark" when a published figure backed it, otherwise "capability" — the guide labels the line as indicative so the estimate is never passed off as the competitor's own published metric.
+
+${VERIFY_RULES}
+
+${LENGTH_RULES}
+
+JSON shape:
+{
+  "lede_competitor": "1-2 sentence honest summary of what ${competitor} is good at AND where it stops short (hero right column). Name the concrete thing they do well, never a ranking claim: write 'strong at error tracking for backend teams', never 'best-in-class', 'market leader', 'industry leader' or 'the leading X'.",
+  "competitor_ai_summary": "2-3 sentences on what ${competitor}'s AI does and where it stops (behavior only, no code/errors, etc.)",
+  "competitor_ai_bullets": ["3 bullets on ${competitor} AI limitations plus 1 fair strength — each ONE sentence, MAX 14 WORDS. In the limitation bullets, wrap the specific missing capability in **double asterisks** for bold"],
+  "competitor_ai_timeline": [ { "date": "e.g. Mar '25", "label": "the AI capability or product shipped, MAX 4 WORDS", "note": "MAX 8 WORDS on what it does / still cannot do", "pct": 30, "pct_basis": "benchmark|capability" } ],
+  "data_sources": [ { "name": "Errors", "logrocket": true, "logrocket_note": "how LogRocket handles this data source, MAX 12 WORDS, ONE sentence", "competitor": false, "competitor_note": "how ${competitor} handles it, 5 to 8 WORDS. A compressed summary, not a sentence. No "but", "however" or "though": use a comma. Wrap only the gap in **double asterisks**" }, { "name": "Sessions", "logrocket": true, "logrocket_note": "…", "competitor": true, "competitor_note": "…" }, { "name": "Backend", "logrocket": true, "logrocket_note": "server-side/API data — network requests, backend errors, server logs, tied to the session", "competitor": false, "competitor_note": "…" }, { "name": "Releases", "logrocket": true, "logrocket_note": "…", "competitor": false, "competitor_note": "…" }, { "name": "Feedback", "logrocket": true, "logrocket_note": "…", "competitor": false, "competitor_note": "…" } ],
+  (return exactly these five data_sources rows, in this order; set each "logrocket"/"competitor" boolean from what you actually verified)
+  "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
+}`;
+
+  // ── Call 1d: LogRocket integration coverage for the customer's stack ─────
+  // Pull the live catalogue only when we actually need it.
+  const catalogue = integrations.trim()
+    ? await fetchIntegrationCatalogueText()
+    : { text: INTEGRATION_CATALOGUE_TEXT, live: false };
+  const integrationsPrompt = `You are a LogRocket solutions engineer. The customer needs these technologies to integrate with LogRocket:
+${integrations}
+
+GROUND TRUTH — LogRocket's published integration catalogue (https://logrocket.com/products/integrations), grouped by category, with LogRocket's own description in parentheses:
+${catalogue.text}
+
+Rules:
+- One entry per technology the rep listed, in the order given. Do not add or drop any.
+- If the technology appears in the catalogue above (match generously — ignore case, punctuation and obvious variants such as "Github"/"GitHub", "New Relic"/"NewRelic"), set "supported": true and "category" to its catalogue category. Do NOT search for these; the catalogue is authoritative.
+- Only if a technology is NOT in the catalogue, run at most 1 web search of logrocket.com/products/integrations or docs.logrocket.com to check for a documented integration. If you still cannot confirm one, set "supported": false — never guess true.
+- "note": MAX 10 WORDS on what the integration does. When the catalogue gives a description, base the note on it rather than inventing one. For unsupported ones, a brief honest note.
+- Cite https://logrocket.com/products/integrations in "sources" whenever you relied on the catalogue.
+
+JSON shape:
+{
+  "integrations": [ { "name": "Jira", "supported": true, "category": "Error Reporting", "note": "Attach session replays to Jira tickets" } ],
+  "sources": [ { "label": "What this source backs up", "url": "https://…" } ]
+}`;
+
+  // ── Call 1c: feature matrix only (web search, runs alongside 1a/1b) ──────
+  const matrixPrompt = `You are a competitive strategy expert at LogRocket. Build ONLY the capability comparison table for LogRocket vs ${competitor}.
+
+${audience}
+
+ACCURACY IS CRITICAL — this is customer-facing. Verify with web_search first: 2 targeted searches of ${competitor}'s own site (and logrocket.com if needed), then write. Nothing else — other passes handle the AI comparison and customer proof.
+
+GROUND TRUTH on LogRocket's own capabilities. Use these rather than researching us; understating LogRocket is as damaging as overstating ${competitor}.
+- Voice of Customer and surveys: LogRocket ships BUILT-IN SURVEYS (docs.logrocket.com/docs/surveys). Four templates, all question types, audience targeting, and every response is linked to the session replay behind it. Surveys are web today; mobile is on the waitlist, so only raise that if ${competitor} verifiably ships mobile surveys and the buyer needs them.
+- LogRocket Feedback (docs.logrocket.com/docs/feedback) also INGESTS the VoC, survey, support and review tools the customer already runs, Intercom, Zendesk, Gong, G2, Productboard, Gladly, HubSpot Service Hub, Alchemer, Qualtrics and the app stores among them, then uses AI to cluster and tag every piece of feedback, track sentiment, score impact, and pair each insight with the session replays that prove it.
+- So on any Voice of Customer, surveys or feedback row, LogRocket is "full". Never mark us "none" or "partial" there, and never write that we lack surveys or VoC. The honest framing is that we both collect feedback directly AND analyse everything the customer already collects elsewhere, tied to session behaviour.
+- Deployment and data: LogRocket offers a self-hosted deployment alongside the cloud, for teams that need data to stay in their own environment, and Streaming Data Export pushes session and event data into Snowflake, BigQuery, Databricks, Redshift, S3 and other warehouses. Include a "Deployment and data residency" row and state both. Do not call the export real-time, since it runs hourly, and do not invent regions, certifications or residency guarantees you cannot verify.
+- The matrix must not contradict the data-source comparison elsewhere in the guide. On an AI row, ${competitor} is at most "partial" whenever they are missing any of the five data sources, since an AI that cannot see backend or release data is not equivalent to one that can. On a surveys, VoC or feedback row they are at most "partial" too: collecting responses is not the same as aggregating feedback across channels, scoring impact and tying it back to sessions. "Partial" not "none" in both cases, as they do ship something.
+- NAME THE FEATURE. Every LogRocket cell must name the actual product feature that does the job, not a generic capability. Write "Session Replay shows…", "Issues groups…", "Ask Galileo answers…", not "we offer replay" or "our AI can". Use LogRocket's real product names, which are: Session Replay, Issues, Galileo AI, Ask Galileo, Surveys, LogRocket Feedback, Funnels, Heatmaps, Metrics, Dashboards, Alerts, Performance Monitoring, Network Monitoring, Conditional Recording, Streaming Data Export, LogRocket Mobile, Privacy controls, Integrations, Role-based access, SaaS or Self-hosted. If none of these fits a row, describe the behaviour plainly rather than inventing a product name.
+- Do NOT put documentation URLs in the matrix cells. The guide attaches the right docs.logrocket.com link for each row on its own, and a URL you write in a cell will be duplicated or wrong.
+- NEVER include a pricing, cost, licensing or plan row. Pricing moves and varies by contract, so a rep quoting it from this guide is a liability. Compare capabilities only.
+
+${VERIFY_RULES}
+
+${LENGTH_RULES}
+
+JSON shape:
+{
+  "feature_comparison": [ { "feature": "Session Replay", "logrocket": "short text", "logrocket_mark": "full|partial|none", "competitor": "short text", "competitor_mark": "full|partial|none" }, … ${featureFocus && featureFocus.trim()
+    ? `one row for EACH of these rep-specified capabilities (in this order), plus any clearly essential: ${featureFocus.trim()}`
+    : capabilityRows(persona)
+      ? `EXACTLY these 6 rows, in this order, because these are what a ${persona} audience is accountable for: ${capabilityRows(persona).map((r, i) => `${i + 1}. ${r}`).join(" ")}. Title each row however reads best for a ${persona} buyer, but keep it recognisably about that capability. Do NOT add rows covering capabilities a ${persona} audience would not be judged on, and do NOT drop any of the six.`
+      : "5-7 rows covering the capabilities that matter most to this buyer"} ],
+  "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
+}`;
+
+  // ── Call 1b: real customer proof (web search, runs alongside 1a) ─────────
+  const customerPrompt = `You are a competitive strategy expert at LogRocket. Find REAL, NAMED LogRocket customers to use as proof points for a guide positioning LogRocket against ${competitor}.
+
+${audience}
+
+Be efficient: 2-3 targeted searches of logrocket.com/customers, LogRocket case studies, and published testimonials. Do NOT research ${competitor}'s feature set — a separate pass covers that.
+
+${rogExamples ? `Rog data (LogRocket's internal customer intelligence — prefer these named customers and their facts):\n${rogExamples}` : `No Rog customer data was provided.`}
+
+Must be REAL, NAMED customers. Never output an anonymized profile like "A mid-market fintech". Draw on BOTH the Rog data above and LogRocket's publicly documented customers. Prefer companies${industry ? ` in or adjacent to ${industry}` : ""}${size ? ` of a similar size to ${size}` : ""}, especially any that switched from or evaluated ${competitor}. Only use quotes, numbers and "replaced" values that actually appear in a source — never invent them (a real customer with no published stats gets an empty "stats" array). Return at most 2 customers. If you cannot verify ANY real named customer, return [].
+
+QUOTES: a quote is only usable with its attribution. If you have a real quote, fill "quote_author" and "quote_title" from the same source. If the source does not name the speaker, or names them without a title, leave the missing field empty rather than guessing a plausible name or inventing a title. If you can find no attribution at all, return an empty "quote" and let the outcome carry the story: an unattributed quote in a customer-facing brief reads as fabricated.
+
+${VERIFY_RULES}
+
+${LENGTH_RULES}
+
+JSON shape:
+{
+  "customer_examples": [ { "name": "REAL company name", "profile": "industry + size", "quote": "real quote if present in a source, else empty string", "quote_author": "the person who said it, full name, ONLY if the source attributes it; else empty string", "quote_title": "their job title at the company, ONLY if the source states it; else empty string", "outcome": "the result/win in ONE sentence", "stats": [ { "num": "e.g. 30%", "label": "what it measures" } ], "replaced": "competitor they replaced, only if a source states it, else empty" } ],
+  "sources": [ { "label": "What this source backs up", "url": "https://…" }, … every source you used ]
+}`;
+
+  // ── Call 2: positioning + copy (no tools, so no search latency) ─────────
+  const messagingPrompt = `You are a competitive strategy expert at LogRocket writing the positioning copy for a one-pager against ${competitor}.
+
+${audience}
+
+Two messages this copy MUST land:
+1. AI ACCURACY: LogRocket's AI returns more accurate, trustworthy answers than ${competitor}'s AI. Cite this independent evaluation (Aakash Gupta evaluated LogRocket vs PostHog): ${AI_STUDY_URL}. Say why accuracy matters and what a wrong AI answer costs a team.
+2. UNIFIED DATA: LogRocket surfaces issues better because it correlates every data point across the stack — errors, session replay, releases/deploys, and user feedback — in one place, where ${competitor} leaves these siloed. Make it concrete for the ${industry || "customer's"} context.
+
+Scope: write persuasive positioning only. Do NOT assert specific ${competitor} feature, pricing, or rating facts (a separate verified research pass covers those). Keep competitor references to the well-established gap above.
+
+${LENGTH_RULES}
+
+JSON shape:
+{
+  "headline": "One-line positioning statement — LogRocket's core promise vs ${competitor}",
+  "overview": "2-3 sentence overview framing the comparison for this specific prospect",
+  "lede_logrocket": "1-2 sentence 'the full picture' pitch for LogRocket (hero left column)",
+  "ai_example_question": "A short, realistic question a ${persona || industry || "product"} team would ask their AI assistant. It MUST be a question that specific audience would actually ask about work they own${pq ? `, in the spirit of '${pq.question}'` : ""}.${pq && pq.industry ? ` It MUST name a concrete ${industry} flow or screen — draw on this vocabulary: ${pq.industry.nouns}. Do NOT use generic e-commerce checkout language unless it genuinely fits ${industry}.` : ` Ground it in ${industry || "this prospect's"} terms.`} ILLUSTRATIVE demo scenario, not a claim about the real prospect.",
+  "ai_example_lr_answer": "How Ask Galileo would answer — MAX 30 WORDS, 1-2 clipped sentences. Name the root cause + the release or code detail. Terse and telegraphic; no preamble, no hedging. ILLUSTRATIVE example. Wrap the specific details ${competitor} could NOT surface (release/deploy, source-mapped error, code-level cause) in **double asterisks** for bold.",
+  "ai_example_competitor_answer": "How ${competitor}'s AI would answer the SAME question — MAX 30 WORDS, 1-2 clipped sentences. Behavioral symptoms only (drop-off, rage clicks, which page), no root cause. Terse. Wrap the explicit gap (e.g. **No root cause identified**) in **double asterisks** for bold.",
+  "ai_accuracy": "2-3 sentences making message #1 concrete for this prospect. End by citing the independent study.",
+  "ai_bullets": ["3 bullets on why LogRocket's AI answers are more accurate/actionable — each ONE sentence, MAX 14 WORDS. In each, wrap the capability ${competitor} lacks in **double asterisks** for bold"],
+  "unified_data": "2-3 sentences making message #2 concrete for this prospect and industry",
+  "objection_handling": "2-3 sentences total: the single most common objection a ${competitor} rep raises, plus a crisp LogRocket response",
+  "discovery_questions": ["3-5 discovery questions, each ONE sentence, that expose ${competitor} gaps and surface LogRocket value"]
+}`;
+
+  // All passes run concurrently; wall time is the slowest one, not the sum.
+  // The matrix pass is skipped entirely when the rep opted out of the table.
+  const searchTool = (maxUses) => [{ type: "web_search_20250305", name: "web_search", max_uses: maxUses }];
+  const [messaging, competitorFacts, customerProof, matrix, integrationCoverage] = await Promise.all([
+    callAnthropic({ system: messagingPrompt, maxTokens: 2500, userMessage: "Write the positioning copy." }),
+    callAnthropic({
+      system: competitorPrompt,
+      maxTokens: 2200,
+      tools: searchTool(3),
+      userMessage: "Research and return the verified AI comparison and data-source coverage.",
+    }),
+    callAnthropic({
+      system: customerPrompt,
+      maxTokens: 2200,
+      tools: searchTool(3),
+      userMessage: "Find the real named customer proof points.",
+    }),
+    includeFeatureComparison
+      ? callAnthropic({
+          system: matrixPrompt,
+          maxTokens: 3000,
+          tools: searchTool(2),
+          userMessage: "Build the verified capability comparison table.",
+        })
+      : Promise.resolve({ feature_comparison: [], sources: [] }),
+    integrations.trim()
+      ? callAnthropic({
+          system: integrationsPrompt,
+          maxTokens: 2000,
+          tools: searchTool(1),
+          userMessage: "Verify LogRocket's integration coverage for these technologies.",
+        })
+      : Promise.resolve({ integrations: [], sources: [] }),
+  ]);
+
+  // Merge every searched pass's citations, de-duped by URL.
+  const sources = [];
+  const seen = new Set();
+  [...(competitorFacts.sources || []), ...(customerProof.sources || []), ...(matrix.sources || []), ...(integrationCoverage.sources || [])].forEach(s => {
+    if (s?.url && !seen.has(s.url)) { seen.add(s.url); sources.push(s); }
+  });
+
+  // Pull logos for the supported integrations so the cards show marks, not names.
+  const supported = (integrationCoverage.integrations || []).filter(i => i.supported).map(i => i.name);
+  let logos = {};
+  if (supported.length) {
+    try {
+      const r = await fetch(`/api/integrations?logos=${encodeURIComponent(supported.join(","))}`);
+      if (r.ok) logos = (await r.json()).logos || {};
+    } catch { /* chips fall back to the tool name */ }
+  }
+  const withLogos = (integrationCoverage.integrations || []).map(i => ({ ...i, logo: logos[i.name] || null }));
+
+  // Merge the pinned examples in before logos are looked up. They used to be added
+  // after this function returned, which meant a pinned customer never got a logo.
+  const examples = applyCuratedExamples(customerProof.customer_examples || [], competitor);
+
+  // Real customer logos: an approved asset in public/brand-logos/ first, then
+  // LogRocket's published case studies. A customer with neither falls back to the
+  // initial badge, so dropping a file in is all it takes to fix one.
+  let customerLogos = {};
+  if (examples.length) {
+    const names = examples.map(ex => ex.name).filter(Boolean).join(",");
+    for (const endpoint of ["brand", "customers"]) {
+      try {
+        const r = await fetch(`/api/integrations?${endpoint}=${encodeURIComponent(names)}`);
+        if (!r.ok) continue;
+        // Earlier sources win, so only fill names still missing.
+        const map = (await r.json()).logos || {};
+        for (const [k, v] of Object.entries(map)) if (!customerLogos[k]) customerLogos[k] = v;
+      } catch { /* try the next source */ }
+    }
+  }
+  const examplesWithLogos = examples.map(ex => ({ ...ex, logo: customerLogos[ex.name] || null }));
+
+  // Competitor logo for the section 03 column header, in order of preference:
+  // an approved asset in public/brand-logos/, then the integration catalogue,
+  // which covers the competitors that are also LogRocket integrations. Neither
+  // found leaves the generic mark plus the name in place.
+  let competitorLogo = null;
+  // Assets in public/brand-logos/ are full wordmarks, so they stand alone. The
+  // catalogue ships square brand marks, which need the name beside them.
+  let competitorLogoIsWordmark = false;
+  if (competitor) {
+    for (const endpoint of ["brand", "logos"]) {
+      try {
+        const r = await fetch(`/api/integrations?${endpoint}=${encodeURIComponent(competitor)}`);
+        if (!r.ok) continue;
+        competitorLogo = ((await r.json()).logos || {})[competitor] || null;
+        if (competitorLogo) { competitorLogoIsWordmark = endpoint === "brand"; break; }
+      } catch { /* try the next source */ }
+    }
+  }
+
+  // Searched results win over messaging on any overlapping key — they're verified.
+  return {
+    ...messaging,
+    ...competitorFacts,
+    ...customerProof,
+    customer_examples: examplesWithLogos,
+    competitor_logo: competitorLogo,
+    competitor_logo_wordmark: competitorLogoIsWordmark,
+    feature_comparison: matrix.feature_comparison || [],
+    integrations: withLogos,
+    // LogRocket's own autonomy milestones — fixed data, not researched.
+    ai_timeline: LOGROCKET_AI_TIMELINE,
+    sources,
+  };
+}
+
+async function exportGuideToPdf({ guide, competitor, customer }) {
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const PW = doc.internal.pageSize.getWidth();
+  const PH = doc.internal.pageSize.getHeight();
+  const MX = 54;
+  const CW = PW - MX * 2;
+  const PURPLE = [108, 75, 216];
+  const DARK = [23, 19, 32];
+  const MUTED = [107, 114, 128];
+  const HEADER_H = 92;
+
+  let logoImg = null;
+  try { logoImg = await logoPngDataUrl("#ffffff"); } catch { /* text fallback */ }
+
+  const drawHeaderBand = () => {
+    doc.setFillColor(...PURPLE);
+    doc.rect(0, 0, PW, HEADER_H, "F");
+    if (logoImg) {
+      const h = 20, w = (131 / 28) * h;
+      doc.addImage(logoImg, "PNG", MX, 26, w, h);
+    } else {
+      doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "bold"); doc.setFontSize(18);
+      doc.text("LogRocket", MX, 42);
+    }
+    doc.setTextColor(255, 255, 255); doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+    doc.text(`Competitive Guide  ·  LogRocket vs ${competitor}`, MX, 66);
+  };
+
+  let pageNum = 0;
+  const drawFooter = () => {
+    pageNum += 1;
+    doc.setDrawColor(235, 230, 223); doc.setLineWidth(0.5);
+    doc.line(MX, PH - 40, PW - MX, PH - 40);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...MUTED);
+    doc.text("LogRocket · Confidential — internal & customer use", MX, PH - 26);
+    doc.text(`Page ${pageNum}`, PW - MX, PH - 26, { align: "right" });
+  };
+
+  drawHeaderBand();
+  drawFooter();
+  let y = HEADER_H + 40;
+
+  doc.setTextColor(...DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(22);
+  doc.text(`LogRocket vs ${competitor}`, MX, y);
+  y += 20;
+  if (customer && customer.trim()) {
+    doc.setFont("helvetica", "normal"); doc.setFontSize(12); doc.setTextColor(...MUTED);
+    doc.text(`Prepared for ${customer.trim()}`, MX, y);
+    y += 20;
+  }
+  if (guide.headline) {
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(...PURPLE);
+    doc.splitTextToSize(guide.headline, CW).forEach(l => { y += 16; doc.text(l, MX, y); });
+    y += 6;
+  }
+  y += 12;
+
+  const ensureSpace = (n) => { if (y + n > PH - 56) { doc.addPage(); drawFooter(); y = 54; } };
+
+  const section = (title, body) => {
+    if (!body) return;
+    ensureSpace(50);
+    doc.setDrawColor(...PURPLE); doc.setLineWidth(2); doc.line(MX, y - 9, MX, y + 4);
+    doc.setTextColor(...DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(14);
+    doc.text(title, MX + 10, y); y += 18;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(...DARK);
+    doc.splitTextToSize(body, CW).forEach(l => { ensureSpace(16); doc.text(l, MX, y); y += 15; });
+    y += 18;
+  };
+
+  section("Overview", guide.overview);
+  section("AI accuracy you can trust", guide.ai_accuracy);
+  // clickable study link
+  ensureSpace(20);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...PURPLE);
+  doc.textWithLink("→ Read the independent LogRocket vs PostHog AI evaluation", MX, y, { url: AI_STUDY_URL });
+  y += 22;
+  section("One connected picture of every issue", guide.unified_data);
+
+  if (Array.isArray(guide.feature_comparison) && guide.feature_comparison.length) {
+    ensureSpace(60);
+    doc.setDrawColor(...PURPLE); doc.setLineWidth(2); doc.line(MX, y - 9, MX, y + 4);
+    doc.setTextColor(...DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(14);
+    doc.text("Feature comparison", MX + 10, y); y += 20;
+    const c0 = MX, c1 = MX + CW * 0.34, c2 = MX + CW * 0.67;
+    doc.setFontSize(9); doc.setTextColor(...MUTED); doc.setFont("helvetica", "bold");
+    doc.text("CAPABILITY", c0, y); doc.text("LOGROCKET", c1, y); doc.text(competitor.toUpperCase(), c2, y);
+    y += 6; doc.setDrawColor(...[235, 230, 223]); doc.setLineWidth(0.5); doc.line(MX, y, PW - MX, y); y += 12;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+    guide.feature_comparison.forEach(row => {
+      const f = doc.splitTextToSize(row.feature || "", CW * 0.32);
+      const lr = doc.splitTextToSize(row.logrocket || "", CW * 0.31);
+      const cp = doc.splitTextToSize(row.competitor || "", CW * 0.31);
+      const rowH = Math.max(f.length, lr.length, cp.length) * 13 + 8;
+      ensureSpace(rowH + 4);
+      const y0 = y;
+      doc.setTextColor(...DARK); doc.setFont("helvetica", "bold"); f.forEach((l, i) => doc.text(l, c0, y0 + i * 13));
+      doc.setFont("helvetica", "normal"); doc.setTextColor(...PURPLE); lr.forEach((l, i) => doc.text(l, c1, y0 + i * 13));
+      doc.setTextColor(...MUTED); cp.forEach((l, i) => doc.text(l, c2, y0 + i * 13));
+      y = y0 + rowH;
+      doc.setDrawColor(...[240, 236, 230]); doc.setLineWidth(0.5); doc.line(MX, y - 4, PW - MX, y - 4);
+    });
+    y += 18;
+  }
+
+  if (Array.isArray(guide.customer_examples) && guide.customer_examples.length) {
+    ensureSpace(50);
+    doc.setDrawColor(...PURPLE); doc.setLineWidth(2); doc.line(MX, y - 9, MX, y + 4);
+    doc.setTextColor(...DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(14);
+    doc.text("Customer examples", MX + 10, y); y += 20;
+    guide.customer_examples.forEach(ex => {
+      ensureSpace(40);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(...DARK);
+      doc.text(`${ex.name || "Customer"}${ex.profile ? `  —  ${ex.profile}` : ""}`, MX, y); y += 15;
+      if (ex.outcome) {
+        doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(...MUTED);
+        doc.splitTextToSize(ex.outcome, CW).forEach(l => { ensureSpace(14); doc.text(l, MX, y); y += 13; });
+      }
+      y += 10;
+    });
+    y += 8;
+  }
+
+  section("Handling objections", guide.objection_handling);
+
+  if (Array.isArray(guide.discovery_questions) && guide.discovery_questions.length) {
+    ensureSpace(50);
+    doc.setDrawColor(...PURPLE); doc.setLineWidth(2); doc.line(MX, y - 9, MX, y + 4);
+    doc.setTextColor(...DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(14);
+    doc.text("Discovery questions", MX + 10, y); y += 18;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(11); doc.setTextColor(...DARK);
+    guide.discovery_questions.forEach(q => {
+      doc.splitTextToSize(`•  ${q}`, CW).forEach(l => { ensureSpace(16); doc.text(l, MX, y); y += 15; });
+      y += 4;
+    });
+    y += 8;
+  }
+
+  if (Array.isArray(guide.sources) && guide.sources.length) {
+    ensureSpace(50);
+    doc.setDrawColor(...PURPLE); doc.setLineWidth(2); doc.line(MX, y - 9, MX, y + 4);
+    doc.setTextColor(...DARK); doc.setFont("helvetica", "bold"); doc.setFontSize(14);
+    doc.text("Sources", MX + 10, y); y += 18;
+    doc.setFontSize(9);
+    guide.sources.forEach(s => {
+      ensureSpace(16);
+      const label = s.label ? `${s.label} — ` : "";
+      doc.setFont("helvetica", "normal"); doc.setTextColor(...MUTED);
+      const lines = doc.splitTextToSize(`${label}${s.url || ""}`, CW);
+      lines.forEach((l, i) => {
+        ensureSpace(12);
+        if (i === lines.length - 1 && s.url) doc.textWithLink(l, MX, y, { url: s.url });
+        else doc.text(l, MX, y);
+        y += 12;
+      });
+      y += 4;
+    });
+    y += 8;
+  }
+
+  // Verify-before-sharing note
+  ensureSpace(46);
+  doc.setFillColor(255, 251, 234); doc.setDrawColor(253, 230, 138); doc.setLineWidth(0.5);
+  const noteLines = doc.splitTextToSize(`Verify before sharing: this guide is AI-generated with web research and citations, but claims about ${competitor} (features, pricing, ratings) can change or be misstated. Confirm against the sources above before sending externally.`, CW - 24);
+  const noteH = noteLines.length * 12 + 20;
+  doc.roundedRect(MX, y - 4, CW, noteH, 6, 6, "FD");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(120, 96, 10);
+  doc.text("⚠ Verify before sharing", MX + 12, y + 12);
+  doc.setFont("helvetica", "normal");
+  noteLines.forEach((l, i) => doc.text(l, MX + 12, y + 26 + i * 12));
+
+  const safe = (customer && customer.trim() ? customer.trim() : `logrocket-vs-${competitor}`).replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+  doc.save(`${safe}-competitor-guide.pdf`);
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 
-export default function App() {
+function PromptGenerator() {
   const [step, setStep] = useState(1);
   const [selectedTools, setSelectedTools] = useState(new Set());
   const [contact, setContact] = useState({ name: "", title: "", company: "", industry: "" });
@@ -1606,24 +2867,6 @@ export default function App() {
   const [results, setResults] = useState([]);
   const [rogContext, setRogContext] = useState("");
   const [language, setLanguage] = useState("English");
-  const [userEmail, setUserEmail] = useState("");
-
-  useEffect(() => {
-    // Identify the session by the logged-in user's email. In production the
-    // email comes from the GCP IAP header via /api/me; locally it's null, so
-    // the session is identified anonymously.
-    fetch('/api/me')
-      .then(r => r.json())
-      .then(({ email }) => {
-        if (email) {
-          setUserEmail(email);
-          LogRocket.identify(email, { email, name: email.split('@')[0] });
-        } else {
-          LogRocket.identify('anonymous');
-        }
-      })
-      .catch(() => LogRocket.identify('anonymous'));
-  }, []);
 
   const handleGenerate = useCallback(async () => {
     setLoading(true);
@@ -1659,6 +2902,671 @@ export default function App() {
   };
 
   return (
+    <>
+      <div style={S.eyebrow}>
+        <span style={S.eyebrowDot} />
+        Internal · Revenue Tool
+      </div>
+      <h1 style={S.heroTitle}>Build a prompt</h1>
+      <p style={S.heroSub}>
+        Tailor LogRocket Galileo AI prompts to your customer's stack, team, and use case.
+      </p>
+
+      <ProgressBar step={step} />
+
+      {step === 1 && (
+        <StepTools
+          selectedTools={selectedTools}
+          setSelectedTools={setSelectedTools}
+          onNext={() => setStep(2)}
+        />
+      )}
+
+      {step === 2 && (
+        <StepUseCase
+          contact={contact}
+          setContact={setContact}
+          selectedUseCases={selectedUseCases}
+          setSelectedUseCases={setSelectedUseCases}
+          rogContext={rogContext}
+          setRogContext={setRogContext}
+          onBack={() => setStep(1)}
+          onNext={() => setStep(3)}
+        />
+      )}
+
+      {step === 3 && (
+        <StepContext
+          selectedUseCases={selectedUseCases}
+          useCaseContexts={useCaseContexts}
+          setUseCaseContexts={setUseCaseContexts}
+          language={language}
+          setLanguage={setLanguage}
+          onBack={() => setStep(2)}
+          onGenerate={handleGenerate}
+        />
+      )}
+
+      {step === 4 && (
+        <StepOutput
+          results={results}
+          contact={contact}
+          loading={loading}
+          loadingCount={selectedUseCases.size}
+          onBack={() => setStep(3)}
+          onReset={reset}
+        />
+      )}
+    </>
+  );
+}
+
+function LogoMark({ height = 22, color = "#171320" }) {
+  return (
+    <svg height={height} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 131 28" aria-label="LogRocket" style={{ color, flexShrink: 0 }}>
+      {LOGO_PATHS.map((d, i) => (
+        <path key={i} fill="currentColor" fillRule="evenodd" clipRule="evenodd" d={d} />
+      ))}
+    </svg>
+  );
+}
+
+// ─── Competitor Guide page ─────────────────────────────────────────────────────
+
+function GuideSection({ title, children }) {
+  return (
+    <div style={{ marginBottom: "22px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+        <span style={{ width: "3px", height: "16px", backgroundColor: ACCENT, borderRadius: "2px" }} />
+        <span style={{ fontSize: "15px", fontWeight: "700", color: "#171320" }}>{title}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// Editable form for a generated guide — every field maps back into guide state,
+// so the PDF export (which reads the same state) picks up all corrections.
+function GuideEditor({ guide, setGuide, competitor }) {
+  const setField = (k, v) => setGuide(g => ({ ...g, [k]: v }));
+  const setItem = (k, i, v) => setGuide(g => ({ ...g, [k]: g[k].map((it, idx) => idx === i ? v : it) }));
+  const addItem = (k, blank) => setGuide(g => ({ ...g, [k]: [...(Array.isArray(g[k]) ? g[k] : []), blank] }));
+  const removeItem = (k, i) => setGuide(g => ({ ...g, [k]: g[k].filter((_, idx) => idx !== i) }));
+
+  const removeBtn = (onClick) => (
+    <button onClick={onClick} style={{ ...S.btnGhost, padding: "4px 8px", fontSize: "12px", borderColor: "#f0c8c8", color: "#b91c1c" }}>Remove</button>
+  );
+  const addBtn = (label, onClick) => (
+    <button onClick={onClick} style={{ ...S.btnGhost, padding: "6px 12px", fontSize: "12px", marginTop: "6px" }}>+ {label}</button>
+  );
+
+  return (
+    <div>
+      <GuideSection title="Headline">
+        <input style={S.input} value={guide.headline || ""} onChange={e => setField("headline", e.target.value)} />
+      </GuideSection>
+      <GuideSection title="Overview">
+        <textarea style={S.textarea} rows={3} value={guide.overview || ""} onChange={e => setField("overview", e.target.value)} />
+      </GuideSection>
+      <GuideSection title="AI example (shown in the cards)">
+        <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "8px" }}>
+          Wrap text in **double asterisks** to bold it. Use this to highlight what {competitor} can't do.
+        </div>
+        <label style={S.fieldLabel}>Example question</label>
+        <input style={{ ...S.input, marginBottom: "10px" }} value={guide.ai_example_question || ""} onChange={e => setField("ai_example_question", e.target.value)} />
+        <label style={S.fieldLabel}>Ask Galileo: example answer</label>
+        <textarea style={{ ...S.textarea, marginBottom: "10px" }} rows={3} value={guide.ai_example_lr_answer || ""} onChange={e => setField("ai_example_lr_answer", e.target.value)} />
+        <label style={S.fieldLabel}>{competitor} AI: example answer</label>
+        <textarea style={S.textarea} rows={3} value={guide.ai_example_competitor_answer || ""} onChange={e => setField("ai_example_competitor_answer", e.target.value)} />
+      </GuideSection>
+      <GuideSection title="AI accuracy: key takeaway (on-screen only)">
+        <textarea style={S.textarea} rows={5} value={guide.ai_accuracy || ""} onChange={e => setField("ai_accuracy", e.target.value)} />
+      </GuideSection>
+      <GuideSection title="One connected picture of every issue">
+        <textarea style={S.textarea} rows={5} value={guide.unified_data || ""} onChange={e => setField("unified_data", e.target.value)} />
+      </GuideSection>
+
+      {Array.isArray(guide.feature_comparison) && (
+        <GuideSection title="Feature comparison">
+          {guide.feature_comparison.map((row, i) => (
+            <div key={i} style={{ border: `1px solid ${BORDER}`, borderRadius: "10px", padding: "10px", marginBottom: "8px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", marginBottom: "6px" }}>
+                <input style={S.input} placeholder="Capability" value={row.feature || ""} onChange={e => setItem("feature_comparison", i, { ...row, feature: e.target.value })} />
+                <input style={S.input} placeholder="LogRocket" value={row.logrocket || ""} onChange={e => setItem("feature_comparison", i, { ...row, logrocket: e.target.value })} />
+                <input style={S.input} placeholder={competitor} value={row.competitor || ""} onChange={e => setItem("feature_comparison", i, { ...row, competitor: e.target.value })} />
+              </div>
+              {removeBtn(() => removeItem("feature_comparison", i))}
+            </div>
+          ))}
+          {addBtn("Add row", () => addItem("feature_comparison", { feature: "", logrocket: "", competitor: "" }))}
+        </GuideSection>
+      )}
+
+      {Array.isArray(guide.data_sources) && guide.data_sources.length > 0 && (
+        <GuideSection title="Data sources: how each side handles them">
+          <div style={{ fontSize: "11px", color: "#9ca3af", marginBottom: "8px" }}>
+            Correct the {competitor} notes here if a product name or capability is off. These appear in the PDF.
+            Wrap text in **double asterisks** to bold it. Use this to call out the gap in a {competitor} note.
+          </div>
+          {guide.data_sources.map((d, i) => (
+            <div key={i} style={{ border: `1px solid ${BORDER}`, borderRadius: "10px", padding: "10px", marginBottom: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                <input style={{ ...S.input, flex: "0 0 130px", fontWeight: "600" }} placeholder="Source" value={d.name || ""} onChange={e => setItem("data_sources", i, { ...d, name: e.target.value })} />
+                <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#374151", whiteSpace: "nowrap", cursor: "pointer" }}>
+                  <input type="checkbox" checked={!!d.competitor} onChange={e => setItem("data_sources", i, { ...d, competitor: e.target.checked })} style={{ accentColor: ACCENT, width: "15px", height: "15px" }} />
+                  {competitor} has this
+                </label>
+              </div>
+              <label style={S.fieldLabel}>LogRocket</label>
+              <textarea style={{ ...S.textarea, marginBottom: "8px", minHeight: "52px" }} rows={2} value={d.logrocket_note || d.note || ""} onChange={e => setItem("data_sources", i, { ...d, logrocket_note: e.target.value })} />
+              <label style={S.fieldLabel}>{competitor}</label>
+              <textarea style={{ ...S.textarea, minHeight: "52px" }} rows={2} value={d.competitor_note || ""} onChange={e => setItem("data_sources", i, { ...d, competitor_note: e.target.value })} />
+            </div>
+          ))}
+        </GuideSection>
+      )}
+
+      {Array.isArray(guide.integrations) && guide.integrations.length > 0 && (
+        <GuideSection title="Integrations shown in section 02">
+          {guide.integrations.map((it, i) => (
+            <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr auto auto", gap: "8px", marginBottom: "6px", alignItems: "center" }}>
+              <input style={S.input} placeholder="Technology" value={it.name || ""} onChange={e => setItem("integrations", i, { ...it, name: e.target.value })} />
+              <input style={S.input} placeholder="Short note" value={it.note || ""} onChange={e => setItem("integrations", i, { ...it, note: e.target.value })} />
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#374151", whiteSpace: "nowrap", cursor: "pointer" }}>
+                <input type="checkbox" checked={!!it.supported} onChange={e => setItem("integrations", i, { ...it, supported: e.target.checked })} style={{ accentColor: ACCENT, width: "15px", height: "15px" }} />
+                Supported
+              </label>
+              {removeBtn(() => removeItem("integrations", i))}
+            </div>
+          ))}
+          {addBtn("Add integration", () => addItem("integrations", { name: "", note: "", supported: true }))}
+        </GuideSection>
+      )}
+
+      {Array.isArray(guide.customer_examples) && (
+        <GuideSection title="Customer examples">
+          {guide.customer_examples.map((ex, i) => (
+            <div key={i} style={{ border: `1px solid ${BORDER}`, borderRadius: "10px", padding: "10px", marginBottom: "8px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "6px" }}>
+                <input style={S.input} placeholder="Name / profile" value={ex.name || ""} onChange={e => setItem("customer_examples", i, { ...ex, name: e.target.value })} />
+                <input style={S.input} placeholder="Industry + size" value={ex.profile || ""} onChange={e => setItem("customer_examples", i, { ...ex, profile: e.target.value })} />
+              </div>
+              <textarea style={{ ...S.textarea, marginBottom: "6px" }} rows={2} placeholder="Outcome" value={ex.outcome || ""} onChange={e => setItem("customer_examples", i, { ...ex, outcome: e.target.value })} />
+              {removeBtn(() => removeItem("customer_examples", i))}
+            </div>
+          ))}
+          {addBtn("Add example", () => addItem("customer_examples", { name: "", profile: "", outcome: "" }))}
+        </GuideSection>
+      )}
+
+      <GuideSection title="Handling objections">
+        <textarea style={S.textarea} rows={4} value={guide.objection_handling || ""} onChange={e => setField("objection_handling", e.target.value)} />
+      </GuideSection>
+
+      {Array.isArray(guide.discovery_questions) && (
+        <GuideSection title="Discovery questions">
+          {guide.discovery_questions.map((q, i) => (
+            <div key={i} style={{ display: "flex", gap: "8px", marginBottom: "6px" }}>
+              <input style={{ ...S.input, flex: 1 }} value={q} onChange={e => setItem("discovery_questions", i, e.target.value)} />
+              {removeBtn(() => removeItem("discovery_questions", i))}
+            </div>
+          ))}
+          {addBtn("Add question", () => addItem("discovery_questions", ""))}
+        </GuideSection>
+      )}
+
+      {Array.isArray(guide.sources) && (
+        <GuideSection title="Sources">
+          {guide.sources.map((s, i) => (
+            <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr auto", gap: "8px", marginBottom: "6px", alignItems: "center" }}>
+              <input style={S.input} placeholder="Label" value={s.label || ""} onChange={e => setItem("sources", i, { ...s, label: e.target.value })} />
+              <input style={S.input} placeholder="https://…" value={s.url || ""} onChange={e => setItem("sources", i, { ...s, url: e.target.value })} />
+              {removeBtn(() => removeItem("sources", i))}
+            </div>
+          ))}
+          {addBtn("Add source", () => addItem("sources", { label: "", url: "" }))}
+        </GuideSection>
+      )}
+    </div>
+  );
+}
+
+// Live, scaled preview of the exact branded one-pager that the PDF will produce.
+// Renders buildGuideHtml in an iframe and scales it to fit the column width.
+function GuidePreview({ guide, competitor, customer }) {
+  const wrapRef = useRef(null);
+  const frameRef = useRef(null);
+  const RENDER_W = 1180;
+  const html = useMemo(
+    () => buildGuideHtml({ guide, competitor, customer }),
+    [guide, competitor, customer]
+  );
+  const [scale, setScale] = useState(0.55);
+  const [contentH, setContentH] = useState(1400);
+
+  // Track the wrapper's real width (reliable, fires after layout).
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect?.width || 0;
+      if (w > 0) setScale(w / RENDER_W);
+    });
+    ro.observe(wrap);
+    return () => ro.disconnect();
+  }, []);
+
+  // Measure the rendered document height (after load + font settle).
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el) return;
+    const measure = () => {
+      try {
+        const h = el.contentWindow.document.documentElement.scrollHeight;
+        if (h > 0) setContentH(h);
+      } catch { /* same-origin srcDoc — safe */ }
+    };
+    el.addEventListener("load", measure);
+    const timers = [300, 900, 1600].map(t => setTimeout(measure, t));
+    return () => { el.removeEventListener("load", measure); timers.forEach(clearTimeout); };
+  }, [html]);
+
+  return (
+    <div ref={wrapRef} style={{ width: "100%", overflow: "hidden", borderRadius: "12px", border: `1px solid ${BORDER}`, background: "#F9F6F5" }}>
+      <div style={{ height: Math.ceil(contentH * scale) }}>
+        <iframe
+          ref={frameRef}
+          srcDoc={html}
+          title="Branded PDF preview"
+          scrolling="no"
+          style={{ width: `${RENDER_W}px`, height: `${contentH}px`, border: "none", display: "block", transformOrigin: "top left", transform: `scale(${scale})` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function CompetitorGuide() {
+  const [preset, setPreset] = useState("PostHog");
+  const [customCompetitor, setCustomCompetitor] = useState("");
+  const [company, setCompany] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [size, setSize] = useState("");
+  const [persona, setPersona] = useState("");
+  const [includeFeatureComparison, setIncludeFeatureComparison] = useState(true);
+  const [featureFocus, setFeatureFocus] = useState("");
+  const [integrations, setIntegrations] = useState("");
+  const [rogExamples, setRogExamples] = useState("");
+  const [rogLoading, setRogLoading] = useState(false);
+  const [rogError, setRogError] = useState("");
+  const [rogStatus, setRogStatus] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [guide, setGuide] = useState(null);
+  const [error, setError] = useState("");
+  const [pdfCustomer, setPdfCustomer] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [sweeping, setSweeping] = useState(false);
+  const [sweepStatus, setSweepStatus] = useState("");
+  const [sweepLog, setSweepLog] = useState([]);
+  const [editing, setEditing] = useState(false);
+
+  const competitor = (preset === "Other" ? customCompetitor.trim() : preset);
+
+  const pullRog = async () => {
+    setRogLoading(true); setRogError("");
+    try { setRogExamples(await fetchRogCustomerExamples({ industry, size, competitor })); }
+    catch (e) { setRogError(e.message); }
+    finally { setRogLoading(false); }
+  };
+
+  const generate = async () => {
+    setLoading(true); setError(""); setGuide(null);
+    try {
+      // Always ground customer examples in Rog. Pull automatically if the rep
+      // hasn't already — a Rog failure shouldn't block the guide, since public
+      // case studies are the other source.
+      let rog = rogExamples;
+      if (!rog.trim()) {
+        setRogStatus("Pulling customer examples from Rog…");
+        try {
+          rog = await fetchRogCustomerExamples({ industry, size, competitor });
+          setRogExamples(rog);
+        } catch (e) {
+          setRogError(`Rog unavailable, using public case studies only (${e.message})`);
+        }
+      }
+      setRogStatus("Researching and writing the guide…");
+      const g = await generateCompetitorGuide({ competitor, company, industry, size, persona, includeFeatureComparison, featureFocus, integrations, rogExamples: rog });
+      // Hard-guarantee the toggle: if the rep opted out, drop the comparison so
+      // it's absent from both the on-screen preview and the PDF, regardless of
+      // what the model returned.
+      setGuide(finalizeGuide(g, { competitor, includeFeatureComparison, persona, industry, featureFocus }));
+      if (company && !pdfCustomer) setPdfCustomer(company);
+      LogRocket.track("Competitor Guide Generated", { competitor, industry, size, persona });
+    } catch (e) {
+      LogRocket.captureException(e, { tags: { source: "competitor-guide" } });
+      setError(e.message);
+    } finally { setLoading(false); setRogStatus(""); }
+  };
+
+  const pdfFileName = () => {
+    const base = (pdfCustomer || company || `logrocket-vs-${competitor}`).trim().replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+    return `${base}-competitor-guide.pdf`;
+  };
+
+  // QA sweep: one PDF per competitor so the whole set can be read in one sitting.
+  // Sequential on purpose. Each guide is four model calls, and firing twelve at once
+  // invites rate limiting halfway through, which is worse than waiting.
+  const runReviewSweep = async () => {
+    const list = COMPETITORS.filter(c => c !== "Other");
+    if (!confirm(
+      `Generate a review PDF for all ${list.length} competitors?\n\n` +
+      `This runs a full guide for each, so expect roughly ${Math.ceil(list.length * 45 / 60)} minutes ` +
+      `and ${list.length} downloads. Leave this tab open.`
+    )) return;
+
+    setSweeping(true);
+    setSweepLog([]);
+    const note = (line) => setSweepLog(prev => [...prev, line]);
+
+    for (let i = 0; i < list.length; i++) {
+      const name = list[i];
+      setSweepStatus(`${i + 1} of ${list.length}: ${name}`);
+      try {
+        const raw = await generateCompetitorGuide({
+          competitor: name, company: "", industry, size, persona,
+          includeFeatureComparison: true, featureFocus, integrations, rogExamples: "",
+        });
+        const g = finalizeGuide(raw, {
+          competitor: name, includeFeatureComparison: true, persona, industry, featureFocus,
+        });
+        const { pages } = await downloadGuidePdf({
+          guide: g,
+          competitor: name,
+          customer: "",
+          fileName: `review-logrocket-vs-${name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.pdf`,
+        });
+        note(`✓ ${name} — ${pages} page${pages === 1 ? "" : "s"}`);
+      } catch (e) {
+        // One competitor failing should not cost the other eleven.
+        note(`✕ ${name} — ${e.message}`);
+        LogRocket.captureException(e, { tags: { source: "guide-review-sweep", competitor: name } });
+      }
+    }
+    setSweepStatus("");
+    setSweeping(false);
+    LogRocket.track("Competitor Guide Review Sweep", { count: list.length });
+  };
+
+  // Primary: build and download the branded PDF directly (no print dialog).
+  const downloadPdf = async () => {
+    setExporting(true);
+    try {
+      const { pages } = await downloadGuidePdf({
+        guide,
+        competitor,
+        customer: pdfCustomer || company,
+        fileName: pdfFileName(),
+      });
+      LogRocket.track("Competitor Guide PDF Downloaded", { competitor, pages });
+    } catch (e) {
+      LogRocket.captureException(e, { tags: { source: "guide-pdf-download" } });
+      alert(`Could not build the PDF: ${e.message}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <>
+      <div style={S.eyebrow}>
+        <span style={S.eyebrowDot} />
+        Internal · Competitive
+      </div>
+      <h1 style={S.heroTitle}>Competitor guide</h1>
+      <p style={S.heroSub}>
+        Build a customized guide positioning LogRocket against a competitor, with AI-accuracy proof, our unified-data advantage, and Rog-sourced customer examples.
+      </p>
+
+      <div style={S.card}>
+        <div style={S.sectionTitle}>Who are you up against?</div>
+        <div style={S.sectionSub}>Pick the competitor and add customer context so examples and framing are tailored.</div>
+
+        <div style={{ marginBottom: "16px" }}>
+          <label style={S.fieldLabel}>Competitor</label>
+          <select style={S.select} value={preset} onChange={e => setPreset(e.target.value)}>
+            {COMPETITORS.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          {preset === "Other" && (
+            <input style={{ ...S.input, marginTop: "8px" }} value={customCompetitor} onChange={e => setCustomCompetitor(e.target.value)} placeholder="Enter competitor name" />
+          )}
+        </div>
+
+        <div style={S.fieldGrid}>
+          <div>
+            <label style={S.fieldLabel}>Customer / prospect</label>
+            <input style={S.input} value={company} onChange={e => setCompany(e.target.value)} placeholder="e.g. Acme Corp" />
+          </div>
+          <div>
+            <label style={S.fieldLabel}>Industry</label>
+            <select style={S.select} value={industry} onChange={e => setIndustry(e.target.value)}>
+              <option value="">Select industry…</option>
+              {GUIDE_INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div style={S.fieldGrid}>
+          <div>
+            <label style={S.fieldLabel}>Company size</label>
+            <select style={S.select} value={size} onChange={e => setSize(e.target.value)}>
+              <option value="">Select size…</option>
+              {COMPANY_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={S.fieldLabel}>Persona you're speaking to</label>
+            <select style={S.select} value={persona} onChange={e => setPersona(e.target.value)}>
+              <option value="">Select persona…</option>
+              {GUIDE_PERSONAS.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: "16px" }}>
+          <label style={S.fieldLabel}>Which technologies does the customer need to integrate?</label>
+          <input
+            style={S.input}
+            value={integrations}
+            onChange={e => setIntegrations(e.target.value)}
+            placeholder="Comma-separated, e.g. Qualtrics, G2, Jira, Segment, Datadog, Zendesk"
+          />
+          <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "6px" }}>
+            The guide will confirm which of these LogRocket integrates with and show them in "One reasoning layer".
+          </div>
+        </div>
+
+        <div style={{ marginBottom: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+            <label style={{ ...S.fieldLabel, marginBottom: 0 }}>Customer examples: Rog (pulled automatically)</label>
+            <button style={S.rogBtn(rogLoading)} onClick={pullRog} disabled={rogLoading}>
+              {rogLoading ? "Pulling…" : "✦ Preview Rog data"}
+            </button>
+          </div>
+          <textarea
+            style={S.textarea}
+            value={rogExamples}
+            onChange={e => setRogExamples(e.target.value)}
+            placeholder="Leave blank. Rog is pulled automatically when you generate. Preview or paste your own here to override what the guide is grounded in."
+            rows={4}
+          />
+          {rogError && <div style={{ fontSize: "12px", color: "#b91c1c", marginTop: "6px" }}>⚠️ Rog error: {rogError}</div>}
+        </div>
+
+        <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "13px", color: "#374151", marginBottom: includeFeatureComparison ? "10px" : "20px" }}>
+          <input type="checkbox" checked={includeFeatureComparison} onChange={e => setIncludeFeatureComparison(e.target.checked)} style={{ accentColor: ACCENT, width: "15px", height: "15px" }} />
+          Include a feature comparison table (optional)
+        </label>
+
+        {includeFeatureComparison && (
+          <div style={{ marginBottom: "20px" }}>
+            <label style={S.fieldLabel}>Which capabilities to compare? (optional)</label>
+            <textarea
+              style={S.textarea}
+              value={featureFocus}
+              onChange={e => setFeatureFocus(e.target.value)}
+              placeholder="Comma-separated, e.g. session replay, error tracking, product analytics, funnels, AI insights, data retention. Leave blank and we'll pick the most relevant."
+              rows={2}
+            />
+          </div>
+        )}
+
+        <button style={S.btnPrimary(loading || !competitor)} onClick={generate} disabled={loading || !competitor}>
+          {loading ? "Generating…" : `✦ Generate guide${competitor ? ` vs ${competitor}` : ""}`}
+        </button>
+        {loading && rogStatus && (
+          <div style={{ fontSize: "12px", color: "#6b7280", marginTop: "10px" }}>{rogStatus}</div>
+        )}
+        {error && <div style={{ fontSize: "13px", color: "#b91c1c", marginTop: "12px" }}>⚠️ {error}</div>}
+
+        {/* QA sweep, for reviewing the whole set of guides at once. */}
+        <div style={{ marginTop: "18px", paddingTop: "16px", borderTop: `1px solid ${BORDER}` }}>
+          <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "8px" }}>
+            Reviewing the content? Build one PDF per competitor in a single run. Uses the
+            industry, size, persona and capability settings above, and takes a few minutes.
+          </div>
+          <button
+            style={{ ...S.btnGhost, opacity: (sweeping || loading) ? 0.55 : 1 }}
+            onClick={runReviewSweep}
+            disabled={sweeping || loading}
+          >
+            {sweeping ? `Building… ${sweepStatus}` : "◆ Build a review PDF for every competitor"}
+          </button>
+          {sweepLog.length > 0 && (
+            <div style={{ marginTop: "10px", fontSize: "12px", lineHeight: 1.6, fontFamily: "ui-monospace, monospace" }}>
+              {sweepLog.map((line, i) => (
+                <div key={i} style={{ color: line.startsWith("✕") ? "#b91c1c" : "#4b5563" }}>{line}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {guide && (
+        <>
+          <div style={S.card}>
+            <div style={S.lrBanner}>
+              ◆ <strong>LogRocket vs {competitor}</strong>
+              <button
+                onClick={() => setEditing(e => !e)}
+                style={{ marginLeft: "auto", padding: "3px 12px", borderRadius: "100px", border: "1px solid rgba(255,255,255,0.5)", backgroundColor: editing ? "white" : "transparent", color: editing ? ACCENT_DARK : "white", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "inherit" }}
+              >
+                {editing ? "✓ Done editing" : "✎ Edit"}
+              </button>
+            </div>
+
+            {editing ? (
+              <>
+                <div style={{ ...S.sectionSub, marginTop: "4px" }}>Fix anything the AI got wrong. Your edits update the preview and the PDF.</div>
+                <GuideEditor guide={guide} setGuide={setGuide} competitor={competitor} />
+              </>
+            ) : (
+            <>
+            <div style={{ ...S.sectionSub, marginTop: "4px", marginBottom: "12px" }}>Live preview: exactly what the PDF will contain. Use <strong>Edit</strong> to make corrections, then open the PDF.</div>
+            <GuidePreview guide={guide} competitor={competitor} customer={pdfCustomer || company} />
+
+            {(guide.ai_accuracy || guide.competitor_ai_summary || guide.unified_data) && (
+              <div style={{ marginTop: "18px" }}>
+                <GuideSection title="Key takeaways (on-screen only)">
+                  <div style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "10px" }}>Background reading on how LogRocket compares. Not included in the PDF.</div>
+                  {guide.ai_accuracy && (
+                    <div style={{ ...S.outputBlock, marginBottom: "10px" }}>
+                      <div style={{ fontSize: "12px", fontWeight: "700", color: ACCENT_DARK, marginBottom: "5px" }}>LogRocket · Ask Galileo</div>
+                      <p style={{ ...S.outputText, fontSize: "13px" }}>{guide.ai_accuracy}</p>
+                      <a href={AI_STUDY_URL} target="_blank" rel="noreferrer" style={{ display: "inline-block", marginTop: "8px", fontSize: "12px", color: ACCENT, fontWeight: "600" }}>
+                        → Read the independent AI-accuracy evaluation
+                      </a>
+                    </div>
+                  )}
+                  {guide.competitor_ai_summary && (
+                    <div style={{ ...S.outputBlock, marginBottom: guide.unified_data ? "10px" : 0 }}>
+                      <div style={{ fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "5px" }}>{competitor} AI</div>
+                      <p style={{ ...S.outputText, fontSize: "13px" }}>{guide.competitor_ai_summary}</p>
+                    </div>
+                  )}
+                  {guide.unified_data && (
+                    <div style={S.outputBlock}>
+                      <div style={{ fontSize: "12px", fontWeight: "700", color: ACCENT_DARK, marginBottom: "5px" }}>One reasoning layer: all data sources</div>
+                      <p style={{ ...S.outputText, fontSize: "13px" }}>{guide.unified_data}</p>
+                    </div>
+                  )}
+                </GuideSection>
+              </div>
+            )}
+
+            {Array.isArray(guide.sources) && guide.sources.length > 0 && (
+              <div style={{ marginTop: "18px" }}>
+                <GuideSection title="Sources (on-screen only, not in the PDF)">
+                  <ul style={{ margin: 0, paddingLeft: "18px" }}>
+                    {guide.sources.map((s, i) => (
+                      <li key={i} style={{ fontSize: "12px", color: "#6b7280", marginBottom: "5px", lineHeight: "1.5" }}>
+                        {s.label ? `${s.label}: ` : ""}
+                        <a href={s.url} target="_blank" rel="noreferrer" style={{ color: ACCENT, wordBreak: "break-all" }}>{s.url}</a>
+                      </li>
+                    ))}
+                  </ul>
+                </GuideSection>
+              </div>
+            )}
+            </>
+            )}
+
+            <div style={{ ...S.tipBox, marginTop: "8px" }}>
+              <strong>⚠️ Verify before sharing:</strong> this guide is AI-generated with web research and citations, but claims about {competitor} (features, pricing, ratings) can change or be misstated. Confirm the facts against the sources above before sending externally.
+            </div>
+          </div>
+
+          <div style={{ ...S.card, borderColor: "#d9cff5", backgroundColor: "#FBFAFF" }}>
+            <div style={S.sectionTitle}>Export to PDF</div>
+            <div style={S.sectionSub}>Downloads the branded one-pager above. Reflects any edits; sources are omitted from the PDF.</div>
+            <div style={{ marginBottom: "16px" }}>
+              <label style={S.fieldLabel}>Customer name (shown on the PDF)</label>
+              <input style={S.input} value={pdfCustomer} onChange={e => setPdfCustomer(e.target.value)} placeholder="e.g. Acme Corp" />
+            </div>
+            <button style={S.btnPrimary(exporting)} onClick={downloadPdf} disabled={exporting}>
+              {exporting ? "Building PDF…" : "⬇ Download PDF"}
+            </button>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+// ─── App shell ──────────────────────────────────────────────────────────────
+
+export default function App() {
+  const [page, setPage] = useState("prompts");
+  const [userEmail, setUserEmail] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/me')
+      .then(r => r.json())
+      .then(({ email }) => {
+        if (email) {
+          setUserEmail(email);
+          LogRocket.identify(email, { email, name: email.split('@')[0] });
+        } else {
+          LogRocket.identify('anonymous');
+        }
+      })
+      .catch(() => LogRocket.identify('anonymous'));
+  }, []);
+
+  const go = (p) => { setPage(p); setMenuOpen(false); };
+
+  return (
     <div style={S.app}>
       {/* Inject bounce keyframes */}
       <style>{`
@@ -1671,68 +3579,29 @@ export default function App() {
 
       {/* Header */}
       <header style={S.header}>
-        <svg height="22" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 131 28" aria-label="LogRocket" style={{ color: "#171320", flexShrink: 0 }}><path fill="currentColor" fillRule="evenodd" d="M6.066 3.156A10.53 10.53 0 0 1 9.122 0a10.294 10.294 0 0 1 3.016 3.094 15.59 15.59 0 0 1 2.93 9.777c.637.513 1.293 1.006 1.918 1.53a3.46 3.46 0 0 1 1.104 3.189c-.302 1.457-.592 2.918-.911 4.372a1.214 1.214 0 0 1-1.848.61c-1.027-.825-2.027-1.678-3.05-2.504a4.684 4.684 0 0 1-2.891 1.255 4.678 4.678 0 0 1-3.385-1.22c-.735.541-1.419 1.191-2.138 1.772-.315.31-.666.58-1.046.806a1.215 1.215 0 0 1-1.603-.785c-.329-1.422-.672-2.839-.99-4.263a3.453 3.453 0 0 1 1.163-3.321c.559-.45 1.125-.893 1.694-1.331.159-.08.08-.261.087-.401a15.615 15.615 0 0 1 2.9-9.42m1.007 4.402a2.395 2.395 0 0 0 .21 3.173 2.636 2.636 0 0 0 3.603.075 2.398 2.398 0 0 0 .636-2.634 2.55 2.55 0 0 0-2.14-1.59 2.6 2.6 0 0 0-2.31.974" clipRule="evenodd"></path><path fill="currentColor" d="M5.712 23.082a.605.605 0 0 1 .896-.485 5.778 5.778 0 0 0 5.03 0 .61.61 0 0 1 .896.45c.005.89.005 1.78 0 2.67a.602.602 0 0 1-.94.436c-.267-.226-.508-.48-.764-.719-.407.762-.789 1.534-1.199 2.294a.61.61 0 0 1-1.012.006c-.41-.761-.79-1.538-1.206-2.299-.253.24-.494.494-.761.72a.603.603 0 0 1-.94-.442c-.007-.878 0-1.756 0-2.634M9.102 10.259a1.22 1.22 0 0 0 1.248-1.192v-.008a1.221 1.221 0 0 0-1.24-1.2h-.008A1.22 1.22 0 0 0 7.855 9.05v.008a1.22 1.22 0 0 0 1.24 1.2h.007Z"></path><path fill="currentColor" fillRule="evenodd" d="M22.79 6.163h1.953v13.186h8.156v1.776H22.787l.004-14.962Zm11.824 9.773a5.224 5.224 0 0 1 .476-2.229 5.588 5.588 0 0 1 1.29-1.776 5.9 5.9 0 0 1 4.14-1.584 5.746 5.746 0 0 1 4.068 1.51 5.135 5.135 0 0 1 1.649 3.941 5.142 5.142 0 0 1-1.765 3.961 5.899 5.899 0 0 1-4.141 1.576 5.74 5.74 0 0 1-4.082-1.5 5.086 5.086 0 0 1-1.638-3.898m2.005-.116a3.935 3.935 0 0 0 .296 1.531c.191.456.47.87.82 1.218a3.82 3.82 0 0 0 2.789 1.077 3.576 3.576 0 0 0 2.641-1.077 3.58 3.58 0 0 0 1.067-2.652 3.772 3.772 0 0 0-3.899-3.878 3.552 3.552 0 0 0-2.641 1.09 3.673 3.673 0 0 0-1.067 2.694m14.537.94a1.812 1.812 0 0 0-.507 1.133.8.8 0 0 0 .36.74c.3.168.623.29.959.36.402.09.857.168 1.363.232.507.063 1.028.126 1.564.19.528.07 1.046.161 1.553.274.474.093.935.242 1.373.444a2.043 2.043 0 0 1 1.322 1.88 3.753 3.753 0 0 1-1.656 3.107 5.943 5.943 0 0 1-3.624 1.151 6.751 6.751 0 0 1-3.318-.76 2.741 2.741 0 0 1-1.596-2.495 3.278 3.278 0 0 1 .785-2.017c.148-.19.31-.366.486-.529a2.005 2.005 0 0 1-1.532-1.892 3.761 3.761 0 0 1 1.394-2.894 2.957 2.957 0 0 1-.485-1.638 3.228 3.228 0 0 1 .37-1.574c.248-.451.59-.844 1.004-1.152a4.902 4.902 0 0 1 3.05-.972 4.742 4.742 0 0 1 3.022.972 4.064 4.064 0 0 1 2.18-.909 5.73 5.73 0 0 1 .824-.063l-.088 1.638a5.5 5.5 0 0 0-1.933.496c.238.464.362.979.359 1.5a2.961 2.961 0 0 1-.38 1.483 3.504 3.504 0 0 1-.994 1.142 4.839 4.839 0 0 1-2.968.95 5.13 5.13 0 0 1-2.885-.793m.507-3.707a1.87 1.87 0 0 0-.201.887c-.006.31.063.62.201.899.141.254.336.473.57.643a3.043 3.043 0 0 0 1.819.508c.907.099 1.79-.338 2.26-1.12.14-.27.21-.573.202-.877a1.856 1.856 0 0 0-.212-.898 1.857 1.857 0 0 0-.56-.655 3.006 3.006 0 0 0-1.817-.518 2.34 2.34 0 0 0-2.262 1.134m.021 7.796a2.75 2.75 0 0 0-.73 1.913 1.556 1.556 0 0 0 1.047 1.404 4.033 4.033 0 0 0 1.722.413 6.94 6.94 0 0 0 1.394-.117c.348-.064.683-.182.993-.349a1.693 1.693 0 0 0 1.025-1.542c0-.627-.606-1.047-1.817-1.258a24.982 24.982 0 0 0-1.913-.243 19.22 19.22 0 0 1-1.721-.221M75.27 10.78a4.594 4.594 0 0 1-3.064 4.597l2.843 5.758h-2.274l-2.567-5.21c-.725.108-1.456.161-2.188.16h-3.888v5.049h-1.954V6.173h6.14c1.7-.103 3.4.209 4.954.908a3.88 3.88 0 0 1 1.996 3.698m-6.984 3.529a7.267 7.267 0 0 0 3.508-.656 2.917 2.917 0 0 0 1.406-2.747c0-1.676-1.085-2.628-3.254-2.853a17.263 17.263 0 0 0-1.934-.105h-3.878v6.363l4.152-.002Zm9.328 1.638c-.007-.77.155-1.53.476-2.23a5.576 5.576 0 0 1 1.289-1.775 5.905 5.905 0 0 1 4.142-1.585 5.744 5.744 0 0 1 4.075 1.502 5.137 5.137 0 0 1 1.649 3.941 5.144 5.144 0 0 1-1.765 3.961 5.899 5.899 0 0 1-4.142 1.575 5.734 5.734 0 0 1-4.078-1.5 5.081 5.081 0 0 1-1.638-3.898m2.006-.116a3.815 3.815 0 0 0 1.11 2.747 3.82 3.82 0 0 0 2.789 1.076 3.572 3.572 0 0 0 2.641-1.076 3.582 3.582 0 0 0 1.067-2.653 3.769 3.769 0 0 0-1.11-2.779 3.782 3.782 0 0 0-2.789-1.098 3.552 3.552 0 0 0-2.642 1.088 3.673 3.673 0 0 0-1.066 2.695Zm20.35 3.043.369 1.49a6.46 6.46 0 0 1-3.888.983 4.995 4.995 0 0 1-3.846-1.5 5.592 5.592 0 0 1-1.363-3.974 5.43 5.43 0 0 1 1.532-3.93 5.207 5.207 0 0 1 3.878-1.585 5.61 5.61 0 0 1 3.4.96l-.698 1.572a4.719 4.719 0 0 0-2.896-.886 2.877 2.877 0 0 0-2.353 1.12 4.032 4.032 0 0 0-.856 2.62 4.2 4.2 0 0 0 .898 2.767 3.171 3.171 0 0 0 2.588 1.141 7.235 7.235 0 0 0 3.233-.784m2.673-14.232h2.005v10.577l4.744-4.65h2.344l-4.968 4.86 2.958 3.192a3.334 3.334 0 0 0 2.24 1.088l-.307 1.426a3.248 3.248 0 0 1-2.599-.591 5.742 5.742 0 0 1-.602-.581l-3.814-4.121v5.293h-2.005l.004-16.493Zm19.271 6.857c.392.403.691.886.878 1.416.219.57.33 1.175.327 1.786-.01.74-.081 1.479-.212 2.208h-7.354a3.507 3.507 0 0 0 1.036 2.018c.638.521 1.45.782 2.272.73a8.86 8.86 0 0 0 3.602-.72l.339 1.511a7.822 7.822 0 0 1-3.107.836c-.485.047-.971.068-1.457.063a5.49 5.49 0 0 1-1.881-.359 4.086 4.086 0 0 1-1.627-1.056 5.779 5.779 0 0 1-1.278-4.058 5.428 5.428 0 0 1 1.532-3.93 5.205 5.205 0 0 1 3.877-1.585 4.124 4.124 0 0 1 3.051 1.141m-.708 3.857.042-.57a2.513 2.513 0 0 0-1.447-2.568 2.895 2.895 0 0 0-1.162-.21 2.948 2.948 0 0 0-1.247.26 3.068 3.068 0 0 0-.971.72 3.816 3.816 0 0 0-.951 2.367l5.736.002Zm4.671-3.159h-1.134v-1.307l2.6-1.954h.539v1.638h3.021v1.626h-3.021v4.271a4.622 4.622 0 0 0 .454 2.451 2.393 2.393 0 0 0 1.774.794l-.305 1.426c-2.114.267-3.363-.567-3.749-2.504a9.235 9.235 0 0 1-.179-1.87v-4.57Z" clipRule="evenodd"></path></svg>
+        <button aria-label="Open menu" style={S.hamburger} onClick={() => setMenuOpen(o => !o)}>
+          <span style={S.hamburgerLine} />
+          <span style={S.hamburgerLine} />
+          <span style={S.hamburgerLine} />
+        </button>
+        <LogoMark />
         <span style={S.headerDivider} />
-        <span style={S.headerSubName}>AI Prompt Generator</span>
+        <span style={S.headerSubName}>{page === "prompts" ? "AI Prompt Generator" : "Competitor Guide"}</span>
         {userEmail && <span style={S.headerSub}>{userEmail}</span>}
+        {menuOpen && (
+          <>
+            <div style={S.navBackdrop} onClick={() => setMenuOpen(false)} />
+            <nav style={S.navMenu}>
+              <button style={S.navItem(page === "prompts")} onClick={() => go("prompts")}>✦ AI Prompt Generator</button>
+              <button style={S.navItem(page === "competitor")} onClick={() => go("competitor")}>◆ Competitor Guide</button>
+            </nav>
+          </>
+        )}
       </header>
 
       {/* Main */}
       <main style={S.main}>
-        <div style={S.eyebrow}>
-          <span style={S.eyebrowDot} />
-          Internal · Revenue Tool
-        </div>
-        <h1 style={S.heroTitle}>Build a prompt</h1>
-        <p style={S.heroSub}>
-          Tailor LogRocket Galileo AI prompts to your customer's stack, team, and use case.
-        </p>
-
-        <ProgressBar step={step} />
-
-        {step === 1 && (
-          <StepTools
-            selectedTools={selectedTools}
-            setSelectedTools={setSelectedTools}
-            onNext={() => setStep(2)}
-          />
-        )}
-
-        {step === 2 && (
-          <StepUseCase
-            contact={contact}
-            setContact={setContact}
-            selectedUseCases={selectedUseCases}
-            setSelectedUseCases={setSelectedUseCases}
-            rogContext={rogContext}
-            setRogContext={setRogContext}
-            onBack={() => setStep(1)}
-            onNext={() => setStep(3)}
-          />
-        )}
-
-        {step === 3 && (
-          <StepContext
-            selectedUseCases={selectedUseCases}
-            useCaseContexts={useCaseContexts}
-            setUseCaseContexts={setUseCaseContexts}
-            language={language}
-            setLanguage={setLanguage}
-            onBack={() => setStep(2)}
-            onGenerate={handleGenerate}
-          />
-        )}
-
-        {step === 4 && (
-          <StepOutput
-            results={results}
-            contact={contact}
-            loading={loading}
-            loadingCount={selectedUseCases.size}
-            onBack={() => setStep(3)}
-            onReset={reset}
-          />
-        )}
+        {page === "prompts" ? <PromptGenerator /> : <CompetitorGuide />}
       </main>
     </div>
   );
