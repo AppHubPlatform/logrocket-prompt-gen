@@ -2300,6 +2300,7 @@ const LOGROCKET_AI_TIMELINE = [
   { date: "Jul '25", label: "+Sessions & Issues", sub: "", pct: 60 },
   { date: "Dec '25", label: "Context Layer", sub: "Gemini 3", pct: 80 },
   { date: "Mar '26", label: "Model Orchestration", sub: "Opus 4.6", pct: 90 },
+  { date: "Aug '26", label: "Model Improvements", sub: "", pct: 92 },
 ];
 
 async function fetchRogCustomerExamples({ industry, size, competitor }) {
