@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { fetchIntegrationCatalogue, fetchLogosFor, CATALOGUE_URL } from './api/_integrationCatalogue.js'
 import { fetchCustomerLogos } from './api/_customerLogos.js'
 import { fetchBrandLogos } from './api/_brandLogos.js'
+import { fetchSiteLogos } from './api/_siteLogos.js'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
@@ -23,6 +24,11 @@ export default defineConfig(({ mode }) => {
       {
         // Mirrors the Express /api/integrations route in dev: fetches and parses
         // LogRocket's live integration catalogue server-side (avoids CORS).
+        //
+        // This is a SECOND COPY of api/integrations.js, not a use of it. Any new query
+        // parameter has to be added in both, or it works in dev and 404s in production,
+        // or the reverse: adding ?site= here only had it fall through to the catalogue
+        // until this copy was updated too.
         name: 'dev-api-integrations',
         configureServer(server) {
           server.middlewares.use('/api/integrations', async (req, res) => {
@@ -38,6 +44,12 @@ export default defineConfig(({ mode }) => {
               const customers = params.get('customers')
               if (customers) {
                 const map = await fetchCustomerLogos(customers.split(',').map(s => s.trim()))
+                res.end(JSON.stringify({ logos: map }))
+                return
+              }
+              const site = params.get('site')
+              if (site) {
+                const map = await fetchSiteLogos(site.split(',').map(s => s.trim()))
                 res.end(JSON.stringify({ logos: map }))
                 return
               }

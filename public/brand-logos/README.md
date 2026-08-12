@@ -20,8 +20,33 @@ stripped. SVG is preferred; `.png` and `.webp` also work.
 - **Competitors** — the column header in section 03. Files here are treated as
   wordmarks, so they stand alone without the name printed beside them. If you add a
   square icon rather than a wordmark, the column will read as an unlabelled glyph.
-- **Customers** — the brand line on the section 06 cards, taking precedence over the
-  logo pulled from LogRocket's published case studies.
+- **Customers** — the brand line on the section 06 cards, taking precedence over every
+  other source.
+
+## Where a customer logo comes from
+
+Four sources, best first. The first one that answers wins.
+
+1. **This directory.** A wordmark, sized and coloured for the card. Always the best
+   result, and the only source you control.
+2. **LogRocket's published case studies.** SVG wordmarks from `logrocket.com/customers`,
+   matched by name. Covers published customers only.
+3. **The customer's own website.** The site's app icon, found from a domain guessed from
+   the company name. This is what covers Rog examples, which are usually not published
+   customers. It returns a square icon rather than a wordmark, so the guide renders it
+   as a mark beside the name, in its own colours.
+4. **The initial badge.** A letter in a purple tile.
+
+Source 3 only guesses the whole name as a domain, so it finds Wayfair and Tecovas and
+misses anything whose name is not its domain, Blue Cross Blue Shield of Massachusetts
+being bluecrossma.com. It deliberately does not shorten to the first word, since
+"Blue Cross Blue Shield of Massachusetts" would reach blue.com and print a stranger's
+logo as a LogRocket customer.
+
+No company-data or logo service is involved, so no customer name is sent anywhere that
+would learn who LogRocket sells to. Only the customer's own site is contacted.
+
+If a card shows a square icon or a letter and you want a wordmark, drop the file here.
 
 Anything over 400KB is ignored, to keep the rasterised PDF a sane size.
 
