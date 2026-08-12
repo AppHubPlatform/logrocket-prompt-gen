@@ -792,6 +792,9 @@ export function buildGuideHtml({ guide, competitor, customer }) {
   const ledeLr = g.lede_logrocket || g.headline || g.overview || "";
   const ledeThem = noRankingClaims(g.lede_competitor || "");
   const exampleQ = g.ai_example_question || "";
+  // The competitor's assistant by product name, falling back to "<competitor> AI"
+  // for the vendors whose assistant really is called that.
+  const compAi = g.competitor_ai_name ? esc(g.competitor_ai_name) : `${comp} AI`;
 
   const aiBullets = (Array.isArray(g.ai_bullets) ? g.ai_bullets : []).map(b =>
     `<li><span class="pt">${PIP_CHECK}</span><span>${escBold(b)}</span></li>`).join("");
@@ -1024,7 +1027,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
         <div class="ai-foot">→ <a href="${esc("https://www.linkedin.com/posts/matthew-arbesfeld-04b5429b_aakash-gupta-evaluated-logrocket-vs-posthog-share-7462578059741859840-yt4l/")}">See the independent AI-accuracy evaluation</a></div>
       </div>
       <div class="ai-card them">
-        <div class="ai-head"><div class="ai-glyph">●</div><div class="ai-name"><small>${comp}</small>${comp} AI</div></div>
+        <div class="ai-head"><div class="ai-glyph">●</div><div class="ai-name"><small>${comp}</small>${compAi}</div></div>
         <div class="ai-prompt">${exampleQ ? `<span class="you">you ›</span>${esc(exampleQ)}` : ""}</div>
         <div class="ai-answer">${escBold(g.ai_example_competitor_answer || "")}</div>
         <div class="ai-bullets"><ul>${compAiBullets}</ul></div>
@@ -1084,7 +1087,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
         <div class="ctx-out">
           <span class="orb">${ICO_ATOM}</span>
           <span>
-            <span class="lbl">${comp} AI</span>
+            <span class="lbl">${compAi}</span>
             <h4>${gapCount ? "Unclear Answers. Gaps in Analysis." : "Signals analysed separately."}</h4>
           </span>
         </div>

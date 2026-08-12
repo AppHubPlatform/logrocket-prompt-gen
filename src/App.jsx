@@ -1869,6 +1869,29 @@ const CURATED_COMPETITOR_NOTES = {
 // House style, matching the rest of the guide: no em or en dashes, no ranking
 // language ("market leader", "best-in-class"), and name what they actually do
 // before where they stop short.
+// The competitor's AI assistant, by its actual product name, for the section 01 panel and
+// the section 03 verdict label. "Datadog AI" is not a product; Bits AI is.
+//
+// The company name is already printed above this in the panel, so these are the product
+// name alone. Names come from the verified release timelines the same competitor rows are
+// built from, checked against each vendor's own pages.
+//
+// PostHog and Hotjar are deliberately absent. PostHog retired the Max name and rebranded
+// to PostHog AI, and Hotjar ships "Hotjar AI", so for those two the generic
+// "<competitor> AI" is the correct product name and the fallback is right.
+const CURATED_COMPETITOR_AI_NAMES = {
+  datadog: "Bits AI",
+  sentry: "Seer",
+  contentsquare: "Sense",
+  "quantum metric": "Felix AI",
+  pendo: "Leo",
+  fullstory: "StoryAI",
+  heap: "AI CoPilot",
+  glassbox: "GIA",
+  amplitude: "Ask Amplitude",
+  "microsoft clarity": "Clarity Copilot",
+};
+
 const CURATED_COMPETITOR_LEDES = {
   posthog: "PostHog gives product teams a broad set of tools for understanding product behavior, analytics, and experimentation. LogRocket takes a deeper approach to understanding what is actually impacting the product experience. Our AI, Galileo, connects sessions, network activity, console logs, feedback, and releases to automatically surface issues, explain their causes, and show their impact on users. Teams get a clearer path from something changing in the product to understanding what needs attention.",
   fullstory: "FullStory helps product teams watch sessions and spot behavioral signals like rage clicks and dead clicks, but those signals tend to be noisy and not give the full picture of customer experience. LogRocket brings together session analysis, user feedback, code releases and technical data so product and engineering teams can see every customer experience issue that affects their users.",
@@ -2166,6 +2189,10 @@ function finalizeGuide(guide, { competitor, includeFeatureComparison, persona, i
   // lede would repeat the argument. A blank slot leaves the researched pair in place.
   const curatedLede = CURATED_COMPETITOR_LEDES[key];
   if (curatedLede) g.hero_paragraph = curatedLede;
+  // Falls through to "<competitor> AI" in the template when there is no verified name,
+  // which is correct for the vendors whose assistant is named exactly that.
+  const curatedAiName = CURATED_COMPETITOR_AI_NAMES[key];
+  if (curatedAiName) g.competitor_ai_name = curatedAiName;
   // Pinned customer examples are merged inside generateCompetitorGuide, before the
   // logo lookup, so they are already present.
   return g;
