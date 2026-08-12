@@ -977,6 +977,15 @@ export function buildGuideHtml({ guide, competitor, customer }) {
     </div>`;
   }).join("");
 
+  // Section numbers are counted as the sections render rather than written in, because
+  // three of the six are conditional: the reasoning layer needs data sources, the
+  // capability matrix is opt-in, and customer proof needs an example. Hard-coded numbers
+  // left a gap in the sequence whenever one was absent. The template below is a single
+  // literal evaluated top to bottom, so calling this in place gives document order, and
+  // the counter is local so every render starts at one.
+  let sectionNo = 0;
+  const eyebrow = (label, solo = false) =>
+    `<div class="section-eyebrow${solo ? " solo" : ""}"><span class="num">${String(++sectionNo).padStart(2, "0")}</span>${label}</div>`;
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <title>LogRocket vs ${comp} · Competitive Brief</title>
@@ -1004,7 +1013,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
   </section>
 
   <section>
-    <div class="section-eyebrow"><span class="num">01</span>AI Assistants</div>
+    ${eyebrow("AI Assistants")}
     <h2 class="section-title wide">LogRocket's AI, <em>Galileo</em>, answers with the highest accuracy</h2>
     <div class="ai">
       <div class="ai-card lr">
@@ -1025,7 +1034,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
   </section>
 
   <section>
-    <div class="section-eyebrow"><span class="num">02</span>AI Agent Evolution</div>
+    ${eyebrow("AI Agent Evolution")}
     <h2 class="section-title wide">LogRocket has been working on using AI to help improve user experiences since 2017</h2>
     <div class="evo">
       ${evoChart}
@@ -1034,7 +1043,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
   </section>
 
   ${dataTiles ? `<section>
-    <div class="section-eyebrow"><span class="num">03</span>One Reasoning Layer</div>
+    ${eyebrow("One Reasoning Layer")}
     <h2 class="section-title ctx">AI is only as good as the <em>context</em> it receives. LogRocket looks across all your data to surface every user experience issue.</h2>
     ${(() => {
       const n = Math.min(Math.max(dataSourceList.length, 1), 5);
@@ -1094,7 +1103,7 @@ export function buildGuideHtml({ guide, competitor, customer }) {
   </section>` : ""}
 
   ${rows ? `<section>
-    <div class="section-eyebrow solo"><span class="num">04</span>Capability Matrix</div>
+    ${eyebrow("Capability Matrix", true)}
     <div class="matrix"><table>
       <thead><tr><th>Capability</th><th class="lr-col">LogRocket</th><th>${comp}</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -1102,13 +1111,13 @@ export function buildGuideHtml({ guide, competitor, customer }) {
   </section>` : ""}
 
   <section>
-    <div class="section-eyebrow"><span class="num">05</span>Built for every team</div>
+    ${eyebrow("Built for every team")}
     <h2 class="section-title">One tool the whole team actually uses.</h2>
     <div class="teams-row">${teams}</div>
   </section>
 
   ${wins ? `<section>
-    <div class="section-eyebrow"><span class="num">06</span>Customer proof</div>
+    ${eyebrow("Customer proof")}
     <h2 class="section-title">Teams that chose LogRocket.</h2>
     <div class="wins" style="grid-template-rows:repeat(${winSlots.length + 1},auto)">${wins}</div>
   </section>` : ""}

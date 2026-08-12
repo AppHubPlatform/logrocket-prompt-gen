@@ -3206,7 +3206,9 @@ function CompetitorGuide() {
   const [industry, setIndustry] = useState("");
   const [size, setSize] = useState("");
   const [persona, setPersona] = useState("");
-  const [includeFeatureComparison, setIncludeFeatureComparison] = useState(true);
+  // Off by default: the matrix is the longest section and only some conversations
+  // need it, so a rep opts in rather than deleting it after the fact.
+  const [includeFeatureComparison, setIncludeFeatureComparison] = useState(false);
   const [featureFocus, setFeatureFocus] = useState("");
   const [integrations, setIntegrations] = useState("");
   const [rogExamples, setRogExamples] = useState("");
@@ -3288,10 +3290,10 @@ function CompetitorGuide() {
       try {
         const raw = await generateCompetitorGuide({
           competitor: name, company: "", industry, size, persona,
-          includeFeatureComparison: true, featureFocus, integrations, rogExamples: "",
+          includeFeatureComparison, featureFocus, integrations, rogExamples: "",
         });
         const g = finalizeGuide(raw, {
-          competitor: name, includeFeatureComparison: true, persona, industry, featureFocus,
+          competitor: name, includeFeatureComparison, persona, industry, featureFocus,
         });
         const { pages } = await downloadGuidePdf({
           guide: g,
