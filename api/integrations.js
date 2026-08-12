@@ -1,6 +1,7 @@
 import { fetchIntegrationCatalogue, fetchLogosFor, CATALOGUE_URL } from "./_integrationCatalogue.js";
 import { fetchCustomerLogos } from "./_customerLogos.js";
 import { fetchBrandLogos } from "./_brandLogos.js";
+import { fetchSiteLogos } from "./_siteLogos.js";
 
 // Serves LogRocket's live integration catalogue as JSON. The client falls back to
 // its bundled snapshot if this fails, so a bad response degrades rather than
@@ -24,6 +25,16 @@ export default async function handler(req, res) {
     if (customers) {
       const map = await fetchCustomerLogos(customers.split(",").map(s => s.trim()));
       res.setHeader("Cache-Control", "public, max-age=86400");
+      res.status(200).json({ logos: map });
+      return;
+    }
+    // ?site=Wayfair falls back to the company's own website icon, for customers with
+    // no case study and no approved asset. Cached briefly: a guessed domain that fails
+    // today may be a file on disk tomorrow.
+    const site = url.searchParams.get("site");
+    if (site) {
+      const map = await fetchSiteLogos(site.split(",").map(s => s.trim()));
+      res.setHeader("Cache-Control", "public, max-age=3600");
       res.status(200).json({ logos: map });
       return;
     }

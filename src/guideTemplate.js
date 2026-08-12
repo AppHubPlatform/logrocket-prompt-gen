@@ -359,6 +359,7 @@ p{margin:0}
    alpha, which reads on the light card and works whatever colour the source is,
    unlike invert() which would break an already-dark logo. */
 .win-brand .win-logo{height:30px;width:auto;max-width:190px;object-fit:contain;display:block;filter:brightness(0);opacity:.85}
+.win-brand .win-logo.mark{width:30px;height:30px;max-width:30px;border-radius:8px;filter:none;opacity:1;flex-shrink:0;object-fit:contain;background:#fff}
 .win-tag{font-size:11px;font-family:var(--font-display);color:var(--text-muted);letter-spacing:.06em}
 .win-quote{font-family:var(--font-display);font-size:17px;line-height:1.3;color:var(--lr-ink)}
 .win-quote::before{content:"\\201C";color:var(--lr-matter-0)}
@@ -940,8 +941,15 @@ export function buildGuideHtml({ guide, competitor, customer }) {
     // the initial. The logo already carries the name, so the text is dropped with
     // it to avoid printing the brand twice.
     const badge = (ex.name || "?").trim().charAt(0).toUpperCase();
+    // A logo pulled from the customer's own site is a square app icon, not a wordmark,
+    // so it keeps its colour and sits beside the name like the badge it replaces.
+    // Flattening it to black the way a wordmark is flattened would turn a coloured tile
+    // into a black square, and sizing it like a wordmark would blow it up.
+    const isMark = ex.logo_source === "site";
     const brand = ex.logo
-      ? `<img class="win-logo" src="${ex.logo}" alt="${esc(ex.name || "Customer")}"/>`
+      ? (isMark
+        ? `<img class="win-logo mark" src="${ex.logo}" alt=""/>${esc(ex.name || "Customer")}`
+        : `<img class="win-logo" src="${ex.logo}" alt="${esc(ex.name || "Customer")}"/>`)
       : `<span class="badge">${esc(badge)}</span>${esc(ex.name || "Customer")}`;
 
     // With no quote, the summary starts where the other card's quote starts and

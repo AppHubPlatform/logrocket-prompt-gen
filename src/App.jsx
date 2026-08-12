@@ -2627,23 +2627,36 @@ JSON shape:
   // after this function returned, which meant a pinned customer never got a logo.
   const examples = applyCuratedExamples(customerProof.customer_examples || [], competitor);
 
-  // Real customer logos: an approved asset in public/brand-logos/ first, then
-  // LogRocket's published case studies. A customer with neither falls back to the
-  // initial badge, so dropping a file in is all it takes to fix one.
+  // Real customer logos, best source first: an approved asset in public/brand-logos/,
+  // then LogRocket's published case studies, then the customer's own website icon.
+  //
+  // That last source is what covers Rog examples, which are usually not published
+  // customers. It returns a square app icon rather than a wordmark, so the source is
+  // recorded and the guide renders it as a mark. A customer none of the three can place
+  // still falls back to the initial badge, and dropping a file in fixes any of them.
   let customerLogos = {};
+  let logoSources = {};
   if (examples.length) {
     const names = examples.map(ex => ex.name).filter(Boolean).join(",");
-    for (const endpoint of ["brand", "customers"]) {
+    for (const endpoint of ["brand", "customers", "site"]) {
+      // Nothing left to look up, so skip the remaining round trips.
+      if (examples.every(ex => !ex.name || customerLogos[ex.name])) break;
       try {
         const r = await fetch(`/api/integrations?${endpoint}=${encodeURIComponent(names)}`);
         if (!r.ok) continue;
         // Earlier sources win, so only fill names still missing.
         const map = (await r.json()).logos || {};
-        for (const [k, v] of Object.entries(map)) if (!customerLogos[k]) customerLogos[k] = v;
+        for (const [k, v] of Object.entries(map)) {
+          if (!customerLogos[k] && v) { customerLogos[k] = v; logoSources[k] = endpoint; }
+        }
       } catch { /* try the next source */ }
     }
   }
-  const examplesWithLogos = examples.map(ex => ({ ...ex, logo: customerLogos[ex.name] || null }));
+  const examplesWithLogos = examples.map(ex => ({
+    ...ex,
+    logo: customerLogos[ex.name] || null,
+    logo_source: logoSources[ex.name] || null,
+  }));
 
   // Competitor logo for the section 03 column header, in order of preference:
   // an approved asset in public/brand-logos/, then the integration catalogue,
