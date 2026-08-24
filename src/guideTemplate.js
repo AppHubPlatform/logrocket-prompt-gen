@@ -1134,24 +1134,46 @@ export function buildGuideHtml({ guide, competitor, customer }) {
 const RENDER_W = 1240;   // matches .page max-width so layout is identical to print
 const CAPTURE_SCALE = 2; // 2x for crisp text on retina / when zoomed
 
-// Pack the one-pager's top-level blocks into page-sized slices, breaking between
-// blocks rather than through them so cards/sections never split across pages.
-function computePageSlices(blocks, pageH, totalH) {
+// Offsets (css px from the top of the sheet) where a page is allowed to end.
+//
+// Section boundaries always qualify. Table rows do too, and that is the point: a
+// section only breaks between sections, so a section too tall to sit beside either
+// neighbour strands a half-empty page. The capability matrix is around 60% of a page on
+// its own, which pairs with nothing, and that is what produced pages filled to 43% and
+// 34%. A table is the one thing here a reader expects to continue overleaf, so it is
+// the one thing allowed to split.
+function collectBreakOffsets(doc) {
+  const at = new Set();
+  for (const el of doc.querySelectorAll(".page > *")) {
+    at.add(Math.ceil(el.getBoundingClientRect().bottom));
+  }
+  for (const table of doc.querySelectorAll(".matrix table")) {
+    const rows = [...table.querySelectorAll("tbody tr")];
+    // Not after the first row: a column header plus a single row stranded at the foot
+    // of a page reads as a mistake rather than a continuation. Not after the last row
+    // either, since that is the section boundary and already a candidate.
+    rows.slice(1, -1).forEach(tr => at.add(Math.ceil(tr.getBoundingClientRect().bottom)));
+  }
+  return [...at].sort((a, b) => a - b);
+}
+
+// Pack the sheet into page-sized slices, ending each page at the LAST offset that still
+// fits so pages fill up rather than breaking at the first opportunity.
+function computePageSlices(breaks, pageH, totalH) {
   const slices = [];
   let cursor = 0;
-  let i = 0;
   while (cursor < totalH - 2) {
     let end = -1;
-    while (i < blocks.length && blocks[i].bottom - cursor <= pageH) {
-      end = blocks[i].bottom;
-      i += 1;
+    for (const b of breaks) {
+      if (b <= cursor) continue;
+      if (b - cursor <= pageH) end = b;
+      else break;                       // sorted, so nothing later fits either
     }
-    if (end <= cursor) {
-      // A single block is taller than one page — hard-cut it.
-      end = Math.min(cursor + pageH, totalH);
-      while (i < blocks.length && blocks[i].bottom <= end) i += 1;
-    }
-    if (i >= blocks.length) end = totalH; // let the last page run to the end
+    // A single block taller than a page has to be cut mid-way; nothing else to do.
+    if (end <= cursor) end = Math.min(cursor + pageH, totalH);
+    // No candidate beyond this point, so let the final page run to the bottom rather
+    // than emitting a sliver.
+    if (!breaks.some(b => b > end)) end = totalH;
     slices.push([cursor, Math.min(end, totalH)]);
     cursor = end;
   }
@@ -1205,13 +1227,7 @@ export async function downloadGuidePdf({ guide, competitor, customer, fileName }
     const cssToPt = imgW / RENDER_W;                     // css px → pdf pt
     const pageHcss = Math.floor((ph - margin * 2) / cssToPt);
 
-    // Block boundaries (css px) for clean page breaks.
-    const blocks = [...doc.querySelectorAll(".page > *")].map(el => {
-      const r = el.getBoundingClientRect();
-      return { top: Math.round(r.top), bottom: Math.ceil(r.bottom) };
-    });
-
-    const slices = computePageSlices(blocks, pageHcss, totalH);
+    const slices = computePageSlices(collectBreakOffsets(doc), pageHcss, totalH);
     const pxPerCss = canvas.height / totalH;             // ≈ CAPTURE_SCALE
 
     slices.forEach(([startCss, endCss], idx) => {
