@@ -1282,7 +1282,14 @@ function PdfExportCard({ results }) {
   const download = async () => {
     setExporting(true);
     try {
-      await exportPromptsToPdf({ results, selection, customer });
+      const { dropped } = await exportPromptsToPdf({ results, selection, customer });
+      // The standard PDF fonts cover Latin only. Rather than hand over a prompt with
+      // characters quietly missing, say what happened and where to get the full text.
+      if (dropped > 0) {
+        alert(`The PDF saved, but ${dropped} character${dropped === 1 ? "" : "s"} could not be embedded `
+          + `and were left out.\n\nThis affects Japanese, Korean, Chinese and some Turkish text, which `
+          + `the PDF fonts cannot represent. Copy the prompts from this page instead for those languages.`);
+      }
     } catch (e) {
       LogRocket.captureException(e, { tags: { source: "pdf-export" } });
       alert(`Could not generate PDF: ${e.message}`);
@@ -1425,8 +1432,64 @@ const PDF_PROMPT_TYPES = [
   { key: "discover_prompt", label: "Discover Stream prompt" },
 ];
 
+// jsPDF's standard fonts are WinAnsi, one byte per character. Hand one a character
+// outside that set and it silently emits the whole line as UTF-16 instead, while the
+// font is still declared WinAnsi, so the reader takes every byte pair as two characters.
+// A single arrow in a prompt turned a line into wide-spaced gibberish with a stray "!"
+// where the arrow was, and swallowed the text after it.
+//
+// So every string is folded to WinAnsi before it is drawn. The arrows matter here,
+// because a funnel prompt describes steps as "{URL} -> {custom event}", and the meaning
+// survives the swap.
+const PDF_CHAR_MAP = [
+  [/[→⇒➡➜▶➔]/g, "->"],
+  [/[←⇐⬅]/g, "<-"],
+  [/[↔⇔]/g, "<->"],
+  [/[—–‒‑−]/g, "-"],
+  [/[‘’‚‛′]/g, "'"],
+  [/[“”„‟″]/g, '"'],
+  [/…/g, "..."],
+  [/[•▪●◦‣⁃]/g, "-"],
+  [/[✓✔✅]/g, "[x]"],
+  [/[✗✘❌]/g, "[ ]"],
+  [/[☆★✦✧✴✿]/g, "*"],
+  [/≥/g, ">="],
+  [/≤/g, "<="],
+  [/≠/g, "!="],
+  [/×/g, "x"],
+  [/[     ]/g, " "],
+  [/[​‌‍﻿]/g, ""],
+];
+
+// Characters this export had to drop, counted so a caller can say so rather than
+// handing someone a blank prompt. Reset per document by withPdfSafeText.
+let pdfDropped = 0;
+
+function pdfSafe(value) {
+  let s = String(value ?? "");
+  for (const [re, to] of PDF_CHAR_MAP) s = s.replace(re, to);
+  pdfDropped += (s.match(/[^\x09\x0A\x0D\x20-\x7E\u00A1-\u00FF]/g) || []).length;
+  // Anything still outside WinAnsi cannot be drawn by a standard font at all. Dropping
+  // it is the only way to keep the rest of the line readable; emitting it corrupts the
+  // whole line. This is why the CJK languages in the picker cannot use this export.
+  return s.replace(/[^\x09\x0A\x0D\x20-\x7E¡-ÿ]/g, "");
+}
+
+// Fold at the door rather than at each call site. These exporters draw text from thirty
+// odd places, and a new one added later would otherwise only need to forget pdfSafe once
+// to bring the garbled lines back. Wrapping the two entry points makes that impossible.
+function withPdfSafeText(doc) {
+  pdfDropped = 0;
+  const text = doc.text.bind(doc);
+  const split = doc.splitTextToSize.bind(doc);
+  doc.text = (t, ...rest) => text(Array.isArray(t) ? t.map(pdfSafe) : pdfSafe(t), ...rest);
+  // Sanitising before measuring keeps the wrap consistent with what is drawn.
+  doc.splitTextToSize = (t, ...rest) => split(pdfSafe(t), ...rest);
+  return doc;
+}
+
 async function exportPromptsToPdf({ results, selection, customer }) {
-  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const doc = withPdfSafeText(new jsPDF({ unit: "pt", format: "letter" }));
   const PW = doc.internal.pageSize.getWidth();   // 612
   const PH = doc.internal.pageSize.getHeight();   // 792
   const MX = 54;                                  // side margin
@@ -1546,6 +1609,7 @@ async function exportPromptsToPdf({ results, selection, customer }) {
 
   const safe = (customer && customer.trim() ? customer.trim().replace(/[^a-z0-9]+/gi, "-") : "logrocket") + "-galileo-prompts.pdf";
   doc.save(safe.toLowerCase());
+  return { dropped: pdfDropped };
 }
 
 // ─── API Call ─────────────────────────────────────────────────────────────────
@@ -2722,7 +2786,7 @@ JSON shape:
 }
 
 async function exportGuideToPdf({ guide, competitor, customer }) {
-  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const doc = withPdfSafeText(new jsPDF({ unit: "pt", format: "letter" }));
   const PW = doc.internal.pageSize.getWidth();
   const PH = doc.internal.pageSize.getHeight();
   const MX = 54;
