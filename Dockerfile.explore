@@ -1,0 +1,21 @@
+# Public (non-IAP) service behind explore.logrocket.com. No build stage: the
+# content is prebuilt static HTML, and the only dependency is express.
+FROM node:22-slim AS runtime
+
+ENV NODE_ENV=production
+ENV PORT=8080
+
+WORKDIR /app
+
+COPY explore/package.json explore/package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY explore/server.js ./server.js
+COPY explore/public ./public
+
+# Run as the built-in non-root user provided by the node image.
+USER node
+
+EXPOSE 8080
+
+CMD ["node", "server.js"]
