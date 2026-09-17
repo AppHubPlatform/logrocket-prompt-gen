@@ -1221,7 +1221,13 @@
     var mcy = parseFloat(activeMarker.getAttribute('cy'));
     var placeTag = function(){
       var dims = sizeHereTag(tag);
-      tag.setAttribute('transform', 'translate(' + (mcx - dims.w / 2) + ',' + (mcy - dims.h - 10) + ')');
+      // clamp so the pill never runs past the chart's own viewBox edges --
+      // the rightmost marker (tier 3) sits close enough to x=500 that a
+      // centered pill can otherwise get clipped mid-word
+      var left = mcx - dims.w / 2;
+      var margin = 4;
+      left = Math.max(margin, Math.min(left, 500 - dims.w - margin));
+      tag.setAttribute('transform', 'translate(' + left + ',' + (mcy - dims.h - 10) + ')');
     };
     placeTag();
     // the pill is sized from the text's real rendered bounding box so it
