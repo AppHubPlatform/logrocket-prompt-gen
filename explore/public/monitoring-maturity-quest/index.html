@@ -142,14 +142,6 @@
     color:var(--cream);
   }
   .brand svg{width:22px;height:22px;flex:none;}
-  .eyebrow{
-    font-family:var(--font-mono);
-    font-size:15px;
-    letter-spacing:2px;
-    color:var(--muted);
-    text-transform:uppercase;
-  }
-
   .screen{
     position:relative;
     background:var(--panel);
@@ -225,6 +217,12 @@
     border:2px solid var(--line);
   }
   .pixel-btn.ghost:active{transform:translateY(1px);}
+  .back-btn{
+    align-self:flex-start;
+    font-size:10px;
+    padding:7px 12px;
+    margin-bottom:6px;
+  }
 
   .cta-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
 
@@ -676,9 +674,8 @@
         <rect x="5" y="12" width="2" height="2" fill="#ff4d8d"/>
         <rect x="9" y="12" width="2" height="2" fill="#ff4d8d"/>
       </svg>
-      LOG<span>ROCKET</span>
+      LOGROCKET
     </div>
-    <div class="eyebrow">Outbound Arcade</div>
   </div>
 
   <div class="screen">
@@ -708,6 +705,7 @@
       </div>
 
       <div id="question-stage">
+        <button class="pixel-btn ghost back-btn" id="btn-back" type="button">&#9664; BACK</button>
         <div class="level-label" id="q-level-label">LEVEL 1 / 5</div>
         <div class="level-name" id="q-level-name">THE BUG REPORT</div>
         <div class="prompt" id="q-prompt">How does your team usually find out something's broken?</div>
@@ -864,7 +862,7 @@
     },
     {
       level:"LEVEL 3 / 5", name:"THE ALERT STORM",
-      prompt:"When alerts fire, how confident are you in what actually matters?",
+      prompt:"When alerts fire, how easy is it to know what actually matters?",
       options:[
         {t:1, text:"Not very — everything looks urgent, so we chase the loudest one."},
         {t:2, text:"Pretty good — alerts are routed, but priority is still a judgment call."},
@@ -1016,6 +1014,7 @@
   function renderQuestion(){
     document.getElementById('question-stage').style.display = '';
     document.getElementById('cutscene-stage').style.display = 'none';
+    document.getElementById('btn-back').style.visibility = state.q === 0 ? 'hidden' : 'visible';
     updateBuildStrip();
     var q = QUESTIONS[state.q];
     document.getElementById('q-level-label').textContent = q.level;
@@ -1057,6 +1056,15 @@
     clearTimeout(cutTimer);
     advance();
   });
+
+  function goBack(){
+    if(state.q <= 0) return;
+    clearTimeout(cutTimer);
+    state.q -= 1;
+    state.answers.pop();
+    renderQuestion();
+  }
+  document.getElementById('btn-back').addEventListener('click', goBack);
 
   function advance(){
     if(state.q >= QUESTIONS.length){
