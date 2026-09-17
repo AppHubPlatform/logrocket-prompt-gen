@@ -1,5 +1,8 @@
 .terraform/
-.terraform.lock.hcl
+# .terraform.lock.hcl is intentionally NOT ignored: it's committed so every
+# machine and any future CI resolves the same provider versions.
+# State lives in GCS (see versions.tf); these patterns are a safety net for
+# stray local state files.
 *.tfstate
 *.tfstate.*
 crash.log
