@@ -51,9 +51,90 @@ See [../explore/README.md](../explore/README.md) for how to add a page.
 ## Prerequisites
 
 - `terraform` >= 1.13 (`mise use -g terraform@1.15.7`).
-- `gcloud` authenticated as a principal that can administer `logrocket-enablement`.
-- A remote state backend is **not** configured; add a `backend "gcs"` block in
-  `versions.tf` if you want shared/remote state.
+- `gcloud` authenticated as a principal that can administer `logrocket-enablement`:
+
+  ```bash
+  gcloud auth login                      # for gcloud commands
+  gcloud auth application-default login  # for the terraform provider (ADC)
+  ```
+
+  Both expire independently, so it's normal for one to work while the other
+  doesn't.
+
+## State
+
+State lives in GCS, configured in [versions.tf](versions.tf):
+
+```hcl
+backend "gcs" {
+  bucket = "logrocket-enablement-tfstate"
+  prefix = "logrocket-prompt-gen"
+}
+```
+
+- **Locking is automatic.** The GCS backend takes a lock object for the
+  duration of a write, so concurrent applies are safe.
+- **Versioning is the recovery path.** The bucket has object versioning on, so
+  if an interrupted apply ever writes a corrupt state you can restore the
+  previous generation rather than rebuilding state by hand:
+
+  ```bash
+  gcloud storage ls -a gs://logrocket-enablement-tfstate/logrocket-prompt-gen/
+  gcloud storage cp gs://logrocket-enablement-tfstate/logrocket-prompt-gen/default.tfstate#<GENERATION> \
+    gs://logrocket-enablement-tfstate/logrocket-prompt-gen/default.tfstate
+  ```
+
+- Backend blocks can't reference variables, so the bucket name is a literal
+  rather than derived from `var.project_id`.
+- The bucket is **deliberately not managed by Terraform**: the bucket holding
+  the state can't be managed by the state it holds. It was created once with
+  the settings below, and `storage.googleapis.com` likewise has to be enabled
+  out-of-band, since the backend must work before Terraform can enable
+  anything.
+
+  ```bash
+  gcloud storage buckets create gs://logrocket-enablement-tfstate \
+    --project=logrocket-enablement \
+    --location=us-east1 \
+    --uniform-bucket-level-access \
+    --public-access-prevention
+  gcloud storage buckets update gs://logrocket-enablement-tfstate --versioning
+  ```
+
+  The bucket also has a lifecycle rule deleting noncurrent versions once they
+  are both older than 90 days and superseded by 10 newer ones. Every write
+  also leaves an archived `.tflock` object behind, so without this the bucket
+  accumulates them indefinitely. The two conditions are ANDed, so the 10 most
+  recent generations are always retained no matter how old they are.
+
+Note that no secret *values* are in state: [secrets.tf](secrets.tf) creates
+only the secret containers, and versions are added out-of-band with
+`gcloud secrets versions add`.
+
+### Working on this from another machine
+
+There is no state handoff. Authenticate as above, then:
+
+```bash
+cd infra
+terraform init
+terraform plan   # should report no changes
+```
+
+If the principal isn't a project owner, it also needs
+`roles/storage.objectAdmin` on the state bucket — object **admin**, not
+viewer, because Terraform has to create and delete lock objects:
+
+```bash
+gcloud storage buckets add-iam-policy-binding gs://logrocket-enablement-tfstate \
+  --member="user:someone@logrocket.com" --role="roles/storage.objectAdmin"
+```
+
+`.terraform.lock.hcl` is committed, pinning the `hashicorp/google` provider so
+every machine resolves the same version. It records hashes for `darwin_arm64`
+and `linux_amd64`; if you add another platform, run
+`terraform providers lock -platform=<platform>` and commit the result.
+Upgrading the provider is then a deliberate `terraform init -upgrade`.
 
 ## One-time setup
 
@@ -77,7 +158,12 @@ terraform apply
 ```
 
 Note the outputs: `workload_identity_provider`, `deploy_service_account_email`,
-`artifact_registry_repo`, and `domain_mapping_dns_records`.
+`artifact_registry_repo`, `domain_mapping_dns_records`, and
+`explore_domain_mapping_dns_records`.
+
+On a brand-new project the state bucket won't exist yet, so create it first
+(see [State](#state) above) or comment out the `backend` block for the initial
+apply and migrate afterwards with `terraform init -migrate-state`.
 
 ### 3. Configure the OAuth consent screen + IAP brand (manual)
 
