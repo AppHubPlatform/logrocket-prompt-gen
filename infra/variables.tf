@@ -22,6 +22,24 @@ variable "domain" {
   default     = "prompts.logrocket.com"
 }
 
+variable "explore_service_name" {
+  description = "Cloud Run service name for the public, non-IAP site."
+  type        = string
+  default     = "logrocket-explore"
+}
+
+variable "explore_domain" {
+  description = "Custom domain the public site is served at."
+  type        = string
+  default     = "explore.logrocket.com"
+}
+
+variable "explore_image" {
+  description = "Container image for the public Cloud Run service. Defaults to a placeholder; real images are deployed by CI. Terraform ignores image drift after creation."
+  type        = string
+  default     = "us-docker.pkg.dev/cloudrun/container/hello"
+}
+
 variable "allowed_domain" {
   description = "Google Workspace domain allowed to log in via IAP."
   type        = string

@@ -22,3 +22,13 @@ output "domain_mapping_dns_records" {
   description = "DNS records to create in Cloudflare (DNS-only / grey cloud) for the custom domain."
   value       = google_cloud_run_domain_mapping.app.status[0].resource_records
 }
+
+output "explore_cloud_run_url" {
+  description = "Default run.app URL of the public site (NOT IAP-protected; reachable by anyone)."
+  value       = google_cloud_run_v2_service.explore.uri
+}
+
+output "explore_domain_mapping_dns_records" {
+  description = "DNS records to create in Cloudflare (DNS-only / grey cloud) for explore.logrocket.com."
+  value       = google_cloud_run_domain_mapping.explore.status[0].resource_records
+}
