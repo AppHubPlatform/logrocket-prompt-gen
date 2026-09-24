@@ -36,6 +36,16 @@ Drop a self-contained `<name>/index.html` under `public/` and link it from
 `public/index.html`. It ships on the next deploy of the `logrocket-explore`
 service (`.github/workflows/deploy-explore.yml`).
 
+## Adding an unlisted page
+
+For collateral meant for one customer, put it at
+`public/r/<id>/index.html` with `<id>` from `openssl rand -hex 16`, and don't
+link it from anywhere. The server sends `X-Robots-Tag: noindex` and
+`Referrer-Policy: no-referrer` for everything under `/r/`, and static serving
+has no directory listing, so the URL is only discoverable by whoever has it.
+Also add `<meta name="robots" content="noindex">` to the page itself. Don't
+list unlisted pages below.
+
 ## Contents
 
 - **monitoring-maturity-quest** — an 8-bit retro-game-styled interactive quiz

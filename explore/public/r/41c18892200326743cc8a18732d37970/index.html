@@ -1,0 +1,559 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>shoplc.com: LogRocket performance impact</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<meta name="referrer" content="no-referrer">
+<style>
+:root{--fg:#1d2330;--mut:#5d6675;--line:#e3e6eb;--bg:#f6f7f9;--card:#fff;--lr:#764abc;--good:#1f8a53;--bad:#c2410c}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;color:var(--fg);background:var(--bg)}
+header{background:#141824;color:#fff;padding:22px 32px}header h1{margin:0 0 4px;font-size:20px;font-weight:600}header .meta{color:#aab2c0;font-size:13px}
+header .meta b{color:#fff;font-weight:500}main{max-width:1180px;margin:0 auto;padding:24px 32px 64px}
+.verdict{display:grid;grid-template-columns:1.3fr 1fr;gap:24px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:22px 24px;margin-bottom:22px}
+.verdict h2{margin:0 0 8px;font-size:18px}.verdict p{margin:6px 0;color:var(--mut)}.verdict .big{font-size:15px;color:var(--fg)}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-content:start}.fact{border-left:3px solid var(--line);padding:2px 0 2px 12px}.fact b{display:block;font-size:20px}.fact span{color:var(--mut);font-size:12px}
+.fact.lr{border-color:var(--lr)}
+h3{font-size:16px;margin:34px 0 6px}.lead{color:var(--mut);margin:0 0 14px;max-width:880px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card.primary{border-color:#b9a4dc}.clabel{font-weight:600;margin-bottom:10px}.clabel span{display:block;font-weight:400;color:var(--mut);font-size:12px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}.k{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}.v{font-size:22px;font-weight:600}.r{font-size:12px;color:var(--mut)}
+.delta{margin-top:10px;font-size:12px;padding:4px 8px;border-radius:6px;display:inline-block;background:#eef0f3}.delta.worse{background:#fdeee6;color:var(--bad)}.delta.better{background:#e7f5ee;color:var(--good)}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:13px}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line)}th{background:#fafbfc;font-weight:600;color:var(--mut);font-size:12px}td:first-child,th:first-child,td:nth-child(2),th:nth-child(2){text-align:left}td:first-child{white-space:nowrap}
+tr.wr td:first-child{box-shadow:inset 3px 0 0 var(--lr)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:8px 0 12px;font-size:12px;color:var(--mut)}.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.tls{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 16px}.tl{display:grid;grid-template-columns:150px 1fr;align-items:center;gap:10px;margin:4px 0}
+.tln{font-weight:600;font-size:12px}.tln span{display:block;font-weight:400;color:var(--mut)}.tlsvg{width:100%;height:34px;background:#fafbfc;border-radius:4px}
+.mark{stroke:#141824;stroke-width:1;stroke-dasharray:2 2}.lrmark{stroke:var(--lr);stroke-width:1.5;stroke-dasharray:none}.mtext{font-size:8px;fill:#141824}
+.axis{position:relative;height:16px;font-size:11px;color:var(--mut)}.axis span{position:absolute;transform:translateX(-50%)}.axis span:first-child{transform:none}
+.sep{height:1px;background:var(--line);margin:10px 0}
+.owners{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}.obar{display:grid;grid-template-columns:260px 1fr 1fr;gap:12px;align-items:center;margin:6px 0}
+.olabel i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}.otrack{position:relative;height:18px;background:#f1f3f5;border-radius:4px}
+.ofill{height:100%;border-radius:4px}.hatch{opacity:.45}.otrack b{position:absolute;right:6px;top:0;font-size:12px;line-height:18px;font-weight:600}
+.ohead{display:grid;grid-template-columns:260px 1fr 1fr;gap:12px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}.note{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 18px}.note p{margin:6px 0}
+code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;background:#eef0f3;padding:1px 5px;border-radius:4px}
+.honest{border-left:3px solid var(--lr)}ul{margin:6px 0;padding-left:18px}li{margin:3px 0}
+footer{color:var(--mut);font-size:12px;margin-top:30px}
+</style></head><body>
+<header><h1>shoplc.com: performance with and without LogRocket</h1>
+<div class="meta">URL <b>https://www.shoplc.com/</b> · Chrome (DevTools Protocol trace, V8 CPU sampler on) · Desktop 1350x940 · <b>No CPU throttle</b> (Lighthouse desktop preset, as GTmetrix uses), no network throttle · Cold isolated browser context per run · <b>3 runs with, 3 runs without</b>, interleaved · Sept 24, 2026</div></header>
+<main>
+<section class="verdict">
+  <div>
+    <h2>LogRocket doesn't raise TBT and loads too late to affect LCP</h2>
+    <p class="big">Median TBT was 639ms with LogRocket and 750ms without (585ms to 682ms vs 701ms to 822ms). Every run with LogRocket had lower TBT than every run without it. Three runs per condition isn't enough to call that an improvement, but it does rule out a meaningful regression.</p>
+    <p class="big">LogRocket's first network request started at 1.02s to 1.19s, after LCP in every run, so it can't affect LCP. Median LCP was 971ms with LogRocket and 1.06s without; that spread comes from server and network timing (TTFB ranged 32ms to 358ms).</p>
+    <p>Lighthouse-based tools (GTmetrix, PageSpeed) charge a whole long task to the first script that runs in it. On this page that is often LogRocket's exception-capture wrapper around <em>other</em> scripts' timers and animation-frame callbacks, so frames full of style recalc caused by the theme and third parties get billed to LogRocket.</p>
+  </div>
+  <div class="facts">
+    <div class="fact lr"><b>232ms</b><span>median long-task time Lighthouse-style attribution bills to LogRocket</span></div>
+    <div class="fact lr"><b>134ms</b><span>median LogRocket code actually running inside long tasks (CPU samples)</span></div>
+    <div class="fact"><b>552ms</b><span>median shoplc theme / inline JS in long tasks (with LogRocket)</span></div>
+    <div class="fact"><b>361ms</b><span>median browser rendering in long tasks, mostly from the theme's DOM work</span></div>
+  </div>
+</section>
+
+<h3>Summary metrics</h3>
+<p class="lead">Median across runs, with the min to max range underneath. A difference smaller than the run-to-run spread isn't a regression.</p>
+<div class="cards"><div class="card primary">
+    <div class="clabel">Total Blocking Time<span>FCP to TTI, as Lighthouse / GTmetrix measure it</span></div>
+    <div class="pair">
+      <div><div class="k">With LogRocket</div><div class="v">639ms</div><div class="r">585ms to 682ms</div></div>
+      <div><div class="k">Without</div><div class="v">750ms</div><div class="r">701ms to 822ms</div></div>
+    </div>
+    <div class="delta neutral">median -111ms (-15%)</div>
+  </div><div class="card ">
+    <div class="clabel">Largest Contentful Paint<span>Chrome DevTools trace</span></div>
+    <div class="pair">
+      <div><div class="k">With LogRocket</div><div class="v">971ms</div><div class="r">918ms to 992ms</div></div>
+      <div><div class="k">Without</div><div class="v">1.06s</div><div class="r">799ms to 1.15s</div></div>
+    </div>
+    <div class="delta neutral">median -88ms (-8%) · ranges overlap</div>
+  </div><div class="card ">
+    <div class="clabel">First Contentful Paint<span>trace</span></div>
+    <div class="pair">
+      <div><div class="k">With LogRocket</div><div class="v">850ms</div><div class="r">835ms to 963ms</div></div>
+      <div><div class="k">Without</div><div class="v">858ms</div><div class="r">716ms to 903ms</div></div>
+    </div>
+    <div class="delta neutral">median -8ms (-1%) · ranges overlap</div>
+  </div><div class="card ">
+    <div class="clabel">TBT, fixed window<span>FCP to 20s</span></div>
+    <div class="pair">
+      <div><div class="k">With LogRocket</div><div class="v">682ms</div><div class="r">585ms to 684ms</div></div>
+      <div><div class="k">Without</div><div class="v">772ms</div><div class="r">701ms to 832ms</div></div>
+    </div>
+    <div class="delta neutral">median -90ms (-12%)</div>
+  </div><div class="card ">
+    <div class="clabel">Long tasks<span>count, first 20s</span></div>
+    <div class="pair">
+      <div><div class="k">With LogRocket</div><div class="v">10</div><div class="r">9 to 16</div></div>
+      <div><div class="k">Without</div><div class="v">13</div><div class="r">10 to 17</div></div>
+    </div>
+    <div class="delta neutral">median -3 (-23%) · ranges overlap</div>
+  </div><div class="card ">
+    <div class="clabel">Main-thread time in long tasks<span>first 20s</span></div>
+    <div class="pair">
+      <div><div class="k">With LogRocket</div><div class="v">1.18s</div><div class="r">1.03s to 1.48s</div></div>
+      <div><div class="k">Without</div><div class="v">1.42s</div><div class="r">1.20s to 1.68s</div></div>
+    </div>
+    <div class="delta neutral">median -241ms (-17%) · ranges overlap</div>
+  </div></div>
+
+<h3>Main-thread timeline, first 10 seconds</h3>
+<p class="lead">Each bar is one long task (over 50ms), placed at its start time and as wide as its duration. Each bar is split by the code that was actually executing, taken from V8 CPU samples. Hover a bar to see what Lighthouse would blame and what actually ran. The purple line marks LogRocket's first network request.</p>
+<div class="legend"><span><i style="background:#764abc"></i>LogRocket</span><span><i style="background:#2f6fdb"></i>shoplc theme / inline</span><span><i style="background:#2e9e6a"></i>Shopify platform</span><span><i style="background:#e08a1e"></i>Other third parties</span><span><i style="background:#9aa3ad"></i>Browser style / layout / paint / GC</span></div>
+<div class="tls"><div class="tl"><div class="tln">with-0<span>TBT 639ms</span></div>
+    <svg viewBox="0 0 1000 34" preserveAspectRatio="none" class="tlsvg"><rect x="227.9" y="32.6" width="7.1" height="1.4" fill="#764abc"><title>with-0 task @2279ms, 71ms (blocking 21ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 41ms, (browser: style/layout/paint/parse) 20ms, shoplc (inline/html) 6ms</title></rect><rect x="227.9" y="29.9" width="7.1" height="2.7" fill="#2f6fdb"><title>with-0 task @2279ms, 71ms (blocking 21ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 41ms, (browser: style/layout/paint/parse) 20ms, shoplc (inline/html) 6ms</title></rect><rect x="227.9" y="11.5" width="7.1" height="18.5" fill="#2e9e6a"><title>with-0 task @2279ms, 71ms (blocking 21ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 41ms, (browser: style/layout/paint/parse) 20ms, shoplc (inline/html) 6ms</title></rect><rect x="227.9" y="2.0" width="7.1" height="9.5" fill="#9aa3ad"><title>with-0 task @2279ms, 71ms (blocking 21ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 41ms, (browser: style/layout/paint/parse) 20ms, shoplc (inline/html) 6ms</title></rect><rect x="263.9" y="32.3" width="5.4" height="1.7" fill="#764abc"><title>with-0 task @2639ms, 54ms (blocking 4ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: (browser: style/layout/paint/parse) 25ms, libraries.unbxdapi.com 17ms, shoplc (inline/html) 7ms</title></rect><rect x="263.9" y="27.6" width="5.4" height="4.7" fill="#2f6fdb"><title>with-0 task @2639ms, 54ms (blocking 4ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: (browser: style/layout/paint/parse) 25ms, libraries.unbxdapi.com 17ms, shoplc (inline/html) 7ms</title></rect><rect x="263.9" y="27.0" width="5.4" height="0.6" fill="#2e9e6a"><title>with-0 task @2639ms, 54ms (blocking 4ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: (browser: style/layout/paint/parse) 25ms, libraries.unbxdapi.com 17ms, shoplc (inline/html) 7ms</title></rect><rect x="263.9" y="16.5" width="5.4" height="10.5" fill="#e08a1e"><title>with-0 task @2639ms, 54ms (blocking 4ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: (browser: style/layout/paint/parse) 25ms, libraries.unbxdapi.com 17ms, shoplc (inline/html) 7ms</title></rect><rect x="263.9" y="2.0" width="5.4" height="14.5" fill="#9aa3ad"><title>with-0 task @2639ms, 54ms (blocking 4ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: (browser: style/layout/paint/parse) 25ms, libraries.unbxdapi.com 17ms, shoplc (inline/html) 7ms</title></rect><rect x="275.0" y="5.4" width="5.6" height="28.6" fill="#2f6fdb"><title>with-0 task @2750ms, 56ms (blocking 6ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 50ms, (browser: style/layout/paint/parse) 6ms, (GC) 0ms</title></rect><rect x="275.0" y="2.0" width="5.6" height="3.4" fill="#9aa3ad"><title>with-0 task @2750ms, 56ms (blocking 6ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 50ms, (browser: style/layout/paint/parse) 6ms, (GC) 0ms</title></rect><rect x="298.6" y="4.4" width="7.9" height="29.6" fill="#2f6fdb"><title>with-0 task @2986ms, 79ms (blocking 29ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 73ms, (browser: style/layout/paint/parse) 6ms</title></rect><rect x="298.6" y="2.0" width="7.9" height="2.4" fill="#9aa3ad"><title>with-0 task @2986ms, 79ms (blocking 29ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 73ms, (browser: style/layout/paint/parse) 6ms</title></rect><rect x="390.3" y="32.2" width="8.9" height="1.8" fill="#764abc"><title>with-0 task @3903ms, 89ms (blocking 39ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 55ms, (browser: style/layout/paint/parse) 25ms, LogRocket 5ms</title></rect><rect x="390.3" y="12.4" width="8.9" height="19.8" fill="#2f6fdb"><title>with-0 task @3903ms, 89ms (blocking 39ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 55ms, (browser: style/layout/paint/parse) 25ms, LogRocket 5ms</title></rect><rect x="390.3" y="11.3" width="8.9" height="1.1" fill="#2e9e6a"><title>with-0 task @3903ms, 89ms (blocking 39ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 55ms, (browser: style/layout/paint/parse) 25ms, LogRocket 5ms</title></rect><rect x="390.3" y="11.0" width="8.9" height="0.4" fill="#e08a1e"><title>with-0 task @3903ms, 89ms (blocking 39ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 55ms, (browser: style/layout/paint/parse) 25ms, LogRocket 5ms</title></rect><rect x="390.3" y="2.0" width="8.9" height="9.0" fill="#9aa3ad"><title>with-0 task @3903ms, 89ms (blocking 39ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 55ms, (browser: style/layout/paint/parse) 25ms, LogRocket 5ms</title></rect><rect x="431.1" y="33.0" width="51.3" height="1.0" fill="#764abc"><title>with-0 task @4311ms, 513ms (blocking 463ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 277ms, (browser: style/layout/paint/parse) 163ms, Shopify 54ms</title></rect><rect x="431.1" y="15.7" width="51.3" height="17.3" fill="#2f6fdb"><title>with-0 task @4311ms, 513ms (blocking 463ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 277ms, (browser: style/layout/paint/parse) 163ms, Shopify 54ms</title></rect><rect x="431.1" y="12.3" width="51.3" height="3.4" fill="#2e9e6a"><title>with-0 task @4311ms, 513ms (blocking 463ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 277ms, (browser: style/layout/paint/parse) 163ms, Shopify 54ms</title></rect><rect x="431.1" y="12.2" width="51.3" height="0.1" fill="#e08a1e"><title>with-0 task @4311ms, 513ms (blocking 463ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 277ms, (browser: style/layout/paint/parse) 163ms, Shopify 54ms</title></rect><rect x="431.1" y="2.0" width="51.3" height="10.2" fill="#9aa3ad"><title>with-0 task @4311ms, 513ms (blocking 463ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 277ms, (browser: style/layout/paint/parse) 163ms, Shopify 54ms</title></rect><rect x="490.9" y="3.8" width="5.4" height="30.2" fill="#764abc"><title>with-0 task @4909ms, 54ms (blocking 4ms)
+Lighthouse blames: (no script)
+Actually ran: LogRocket 51ms, (browser: style/layout/paint/parse) 2ms, (GC) 1ms</title></rect><rect x="490.9" y="2.0" width="5.4" height="1.8" fill="#9aa3ad"><title>with-0 task @4909ms, 54ms (blocking 4ms)
+Lighthouse blames: (no script)
+Actually ran: LogRocket 51ms, (browser: style/layout/paint/parse) 2ms, (GC) 1ms</title></rect><rect x="496.3" y="32.5" width="8.6" height="1.5" fill="#764abc"><title>with-0 task @4963ms, 86ms (blocking 36ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 54ms, shoplc theme 26ms, LogRocket 4ms</title></rect><rect x="496.3" y="22.5" width="8.6" height="10.0" fill="#2f6fdb"><title>with-0 task @4963ms, 86ms (blocking 36ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 54ms, shoplc theme 26ms, LogRocket 4ms</title></rect><rect x="496.3" y="22.1" width="8.6" height="0.4" fill="#2e9e6a"><title>with-0 task @4963ms, 86ms (blocking 36ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 54ms, shoplc theme 26ms, LogRocket 4ms</title></rect><rect x="496.3" y="2.0" width="8.6" height="20.1" fill="#9aa3ad"><title>with-0 task @4963ms, 86ms (blocking 36ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 54ms, shoplc theme 26ms, LogRocket 4ms</title></rect><rect x="513.1" y="32.1" width="8.6" height="1.9" fill="#764abc"><title>with-0 task @5131ms, 86ms (blocking 36ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 48ms, shoplc theme 31ms, LogRocket 5ms</title></rect><rect x="513.1" y="20.4" width="8.6" height="11.7" fill="#2f6fdb"><title>with-0 task @5131ms, 86ms (blocking 36ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 48ms, shoplc theme 31ms, LogRocket 5ms</title></rect><rect x="513.1" y="20.1" width="8.6" height="0.4" fill="#2e9e6a"><title>with-0 task @5131ms, 86ms (blocking 36ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 48ms, shoplc theme 31ms, LogRocket 5ms</title></rect><rect x="513.1" y="2.0" width="8.6" height="18.1" fill="#9aa3ad"><title>with-0 task @5131ms, 86ms (blocking 36ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 48ms, shoplc theme 31ms, LogRocket 5ms</title></rect><line x1="96.3" x2="96.3" y1="0" y2="34" class="mark "/><text x="99.3" y="9" class="mtext">FCP</text><line x1="97.10000000000001" x2="97.10000000000001" y1="0" y2="34" class="mark "/><text x="100.10000000000001" y="19" class="mtext">LCP</text><line x1="103.6" x2="103.6" y1="0" y2="34" class="mark lrmark"/><text x="106.6" y="29" class="mtext">LR loads</text></svg></div><div class="tl"><div class="tln">with-1<span>TBT 682ms</span></div>
+    <svg viewBox="0 0 1000 34" preserveAspectRatio="none" class="tlsvg"><rect x="223.0" y="33.1" width="7.3" height="0.9" fill="#764abc"><title>with-1 task @2230ms, 73ms (blocking 23ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 42ms, (browser: style/layout/paint/parse) 22ms, shoplc (inline/html) 6ms</title></rect><rect x="223.0" y="30.5" width="7.3" height="2.6" fill="#2f6fdb"><title>with-1 task @2230ms, 73ms (blocking 23ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 42ms, (browser: style/layout/paint/parse) 22ms, shoplc (inline/html) 6ms</title></rect><rect x="223.0" y="12.1" width="7.3" height="18.4" fill="#2e9e6a"><title>with-1 task @2230ms, 73ms (blocking 23ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 42ms, (browser: style/layout/paint/parse) 22ms, shoplc (inline/html) 6ms</title></rect><rect x="223.0" y="2.0" width="7.3" height="10.1" fill="#9aa3ad"><title>with-1 task @2230ms, 73ms (blocking 23ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 42ms, (browser: style/layout/paint/parse) 22ms, shoplc (inline/html) 6ms</title></rect><rect x="262.6" y="32.9" width="8.8" height="1.1" fill="#764abc"><title>with-1 task @2626ms, 88ms (blocking 38ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 50ms, (browser: style/layout/paint/parse) 25ms, shoplc (inline/html) 8ms</title></rect><rect x="262.6" y="29.6" width="8.8" height="3.3" fill="#2f6fdb"><title>with-1 task @2626ms, 88ms (blocking 38ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 50ms, (browser: style/layout/paint/parse) 25ms, shoplc (inline/html) 8ms</title></rect><rect x="262.6" y="29.3" width="8.8" height="0.4" fill="#2e9e6a"><title>with-1 task @2626ms, 88ms (blocking 38ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 50ms, (browser: style/layout/paint/parse) 25ms, shoplc (inline/html) 8ms</title></rect><rect x="262.6" y="11.1" width="8.8" height="18.2" fill="#e08a1e"><title>with-1 task @2626ms, 88ms (blocking 38ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 50ms, (browser: style/layout/paint/parse) 25ms, shoplc (inline/html) 8ms</title></rect><rect x="262.6" y="2.0" width="8.8" height="9.1" fill="#9aa3ad"><title>with-1 task @2626ms, 88ms (blocking 38ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 50ms, (browser: style/layout/paint/parse) 25ms, shoplc (inline/html) 8ms</title></rect><rect x="275.7" y="3.8" width="5.4" height="30.2" fill="#764abc"><title>with-1 task @2757ms, 54ms (blocking 4ms)
+Lighthouse blames: (no script)
+Actually ran: LogRocket 51ms, (GC) 2ms, (browser: style/layout/paint/parse) 1ms</title></rect><rect x="275.7" y="2.0" width="5.4" height="1.8" fill="#9aa3ad"><title>with-1 task @2757ms, 54ms (blocking 4ms)
+Lighthouse blames: (no script)
+Actually ran: LogRocket 51ms, (GC) 2ms, (browser: style/layout/paint/parse) 1ms</title></rect><rect x="282.4" y="4.0" width="8.0" height="30.0" fill="#2f6fdb"><title>with-1 task @2824ms, 80ms (blocking 30ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 75ms, (browser: style/layout/paint/parse) 5ms, (GC) 0ms</title></rect><rect x="282.4" y="2.0" width="8.0" height="2.0" fill="#9aa3ad"><title>with-1 task @2824ms, 80ms (blocking 30ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 75ms, (browser: style/layout/paint/parse) 5ms, (GC) 0ms</title></rect><rect x="392.2" y="31.1" width="7.6" height="2.9" fill="#764abc"><title>with-1 task @3922ms, 76ms (blocking 26ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 42ms, (browser: style/layout/paint/parse) 21ms, LogRocket 7ms</title></rect><rect x="392.2" y="13.6" width="7.6" height="17.5" fill="#2f6fdb"><title>with-1 task @3922ms, 76ms (blocking 26ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 42ms, (browser: style/layout/paint/parse) 21ms, LogRocket 7ms</title></rect><rect x="392.2" y="11.6" width="7.6" height="2.1" fill="#2e9e6a"><title>with-1 task @3922ms, 76ms (blocking 26ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 42ms, (browser: style/layout/paint/parse) 21ms, LogRocket 7ms</title></rect><rect x="392.2" y="10.7" width="7.6" height="0.8" fill="#e08a1e"><title>with-1 task @3922ms, 76ms (blocking 26ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 42ms, (browser: style/layout/paint/parse) 21ms, LogRocket 7ms</title></rect><rect x="392.2" y="2.0" width="7.6" height="8.7" fill="#9aa3ad"><title>with-1 task @3922ms, 76ms (blocking 26ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 42ms, (browser: style/layout/paint/parse) 21ms, LogRocket 7ms</title></rect><rect x="432.1" y="33.0" width="52.6" height="1.0" fill="#764abc"><title>with-1 task @4321ms, 526ms (blocking 476ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 306ms, (browser: style/layout/paint/parse) 150ms, Shopify 52ms</title></rect><rect x="432.1" y="14.4" width="52.6" height="18.6" fill="#2f6fdb"><title>with-1 task @4321ms, 526ms (blocking 476ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 306ms, (browser: style/layout/paint/parse) 150ms, Shopify 52ms</title></rect><rect x="432.1" y="11.2" width="52.6" height="3.2" fill="#2e9e6a"><title>with-1 task @4321ms, 526ms (blocking 476ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 306ms, (browser: style/layout/paint/parse) 150ms, Shopify 52ms</title></rect><rect x="432.1" y="11.1" width="52.6" height="0.1" fill="#e08a1e"><title>with-1 task @4321ms, 526ms (blocking 476ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 306ms, (browser: style/layout/paint/parse) 150ms, Shopify 52ms</title></rect><rect x="432.1" y="2.0" width="52.6" height="9.1" fill="#9aa3ad"><title>with-1 task @4321ms, 526ms (blocking 476ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 306ms, (browser: style/layout/paint/parse) 150ms, Shopify 52ms</title></rect><rect x="497.3" y="32.9" width="8.5" height="1.1" fill="#764abc"><title>with-1 task @4973ms, 85ms (blocking 35ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 44ms, shoplc theme 36ms, LogRocket 3ms</title></rect><rect x="497.3" y="18.9" width="8.5" height="13.9" fill="#2f6fdb"><title>with-1 task @4973ms, 85ms (blocking 35ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 44ms, shoplc theme 36ms, LogRocket 3ms</title></rect><rect x="497.3" y="18.6" width="8.5" height="0.4" fill="#2e9e6a"><title>with-1 task @4973ms, 85ms (blocking 35ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 44ms, shoplc theme 36ms, LogRocket 3ms</title></rect><rect x="497.3" y="2.0" width="8.5" height="16.6" fill="#9aa3ad"><title>with-1 task @4973ms, 85ms (blocking 35ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 44ms, shoplc theme 36ms, LogRocket 3ms</title></rect><rect x="515.8" y="31.8" width="8.8" height="2.2" fill="#764abc"><title>with-1 task @5158ms, 88ms (blocking 38ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 47ms, shoplc theme 32ms, LogRocket 6ms</title></rect><rect x="515.8" y="20.0" width="8.8" height="11.8" fill="#2f6fdb"><title>with-1 task @5158ms, 88ms (blocking 38ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 47ms, shoplc theme 32ms, LogRocket 6ms</title></rect><rect x="515.8" y="19.7" width="8.8" height="0.4" fill="#2e9e6a"><title>with-1 task @5158ms, 88ms (blocking 38ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 47ms, shoplc theme 32ms, LogRocket 6ms</title></rect><rect x="515.8" y="19.3" width="8.8" height="0.4" fill="#e08a1e"><title>with-1 task @5158ms, 88ms (blocking 38ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 47ms, shoplc theme 32ms, LogRocket 6ms</title></rect><rect x="515.8" y="2.0" width="8.8" height="17.3" fill="#9aa3ad"><title>with-1 task @5158ms, 88ms (blocking 38ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 47ms, shoplc theme 32ms, LogRocket 6ms</title></rect><rect x="573.6" y="4.5" width="5.1" height="29.5" fill="#764abc"><title>with-1 task @5736ms, 51ms (blocking 1ms)
+Lighthouse blames: (no script)
+Actually ran: LogRocket 47ms, (browser: style/layout/paint/parse) 3ms, (GC) 1ms</title></rect><rect x="573.6" y="2.0" width="5.1" height="2.5" fill="#9aa3ad"><title>with-1 task @5736ms, 51ms (blocking 1ms)
+Lighthouse blames: (no script)
+Actually ran: LogRocket 47ms, (browser: style/layout/paint/parse) 3ms, (GC) 1ms</title></rect><rect x="610.2" y="31.3" width="5.9" height="2.7" fill="#764abc"><title>with-1 task @6102ms, 59ms (blocking 9ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 36ms, shoplc (inline/html) 16ms, LogRocket 5ms</title></rect><rect x="610.2" y="22.3" width="5.9" height="9.1" fill="#2f6fdb"><title>with-1 task @6102ms, 59ms (blocking 9ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 36ms, shoplc (inline/html) 16ms, LogRocket 5ms</title></rect><rect x="610.2" y="21.2" width="5.9" height="1.1" fill="#2e9e6a"><title>with-1 task @6102ms, 59ms (blocking 9ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 36ms, shoplc (inline/html) 16ms, LogRocket 5ms</title></rect><rect x="610.2" y="2.0" width="5.9" height="19.2" fill="#9aa3ad"><title>with-1 task @6102ms, 59ms (blocking 9ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 36ms, shoplc (inline/html) 16ms, LogRocket 5ms</title></rect><line x1="85" x2="85" y1="0" y2="34" class="mark "/><text x="88" y="9" class="mtext">FCP</text><line x1="99.2" x2="99.2" y1="0" y2="34" class="mark "/><text x="102.2" y="19" class="mtext">LCP</text><line x1="119.4" x2="119.4" y1="0" y2="34" class="mark lrmark"/><text x="122.4" y="29" class="mtext">LR loads</text></svg></div><div class="tl"><div class="tln">with-2<span>TBT 585ms</span></div>
+    <svg viewBox="0 0 1000 34" preserveAspectRatio="none" class="tlsvg"><rect x="228.0" y="33.2" width="8.1" height="0.8" fill="#764abc"><title>with-2 task @2280ms, 81ms (blocking 31ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 52ms, (browser: style/layout/paint/parse) 19ms, shoplc (inline/html) 7ms</title></rect><rect x="228.0" y="30.4" width="8.1" height="2.8" fill="#2f6fdb"><title>with-2 task @2280ms, 81ms (blocking 31ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 52ms, (browser: style/layout/paint/parse) 19ms, shoplc (inline/html) 7ms</title></rect><rect x="228.0" y="9.9" width="8.1" height="20.5" fill="#2e9e6a"><title>with-2 task @2280ms, 81ms (blocking 31ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 52ms, (browser: style/layout/paint/parse) 19ms, shoplc (inline/html) 7ms</title></rect><rect x="228.0" y="2.0" width="8.1" height="7.9" fill="#9aa3ad"><title>with-2 task @2280ms, 81ms (blocking 31ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 52ms, (browser: style/layout/paint/parse) 19ms, shoplc (inline/html) 7ms</title></rect><rect x="257.7" y="7.0" width="5.0" height="27.0" fill="#2f6fdb"><title>with-2 task @2577ms, 50ms (blocking 0ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 43ms, (browser: style/layout/paint/parse) 8ms</title></rect><rect x="257.7" y="2.0" width="5.0" height="5.0" fill="#9aa3ad"><title>with-2 task @2577ms, 50ms (blocking 0ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 43ms, (browser: style/layout/paint/parse) 8ms</title></rect><rect x="264.2" y="32.8" width="5.6" height="1.2" fill="#764abc"><title>with-2 task @2642ms, 56ms (blocking 6ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 28ms, (browser: style/layout/paint/parse) 18ms, shoplc (inline/html) 6ms</title></rect><rect x="264.2" y="29.3" width="5.6" height="3.5" fill="#2f6fdb"><title>with-2 task @2642ms, 56ms (blocking 6ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 28ms, (browser: style/layout/paint/parse) 18ms, shoplc (inline/html) 6ms</title></rect><rect x="264.2" y="28.8" width="5.6" height="0.6" fill="#2e9e6a"><title>with-2 task @2642ms, 56ms (blocking 6ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 28ms, (browser: style/layout/paint/parse) 18ms, shoplc (inline/html) 6ms</title></rect><rect x="264.2" y="12.5" width="5.6" height="16.3" fill="#e08a1e"><title>with-2 task @2642ms, 56ms (blocking 6ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 28ms, (browser: style/layout/paint/parse) 18ms, shoplc (inline/html) 6ms</title></rect><rect x="264.2" y="2.0" width="5.6" height="10.5" fill="#9aa3ad"><title>with-2 task @2642ms, 56ms (blocking 6ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 28ms, (browser: style/layout/paint/parse) 18ms, shoplc (inline/html) 6ms</title></rect><rect x="288.3" y="4.2" width="7.2" height="29.8" fill="#2f6fdb"><title>with-2 task @2883ms, 72ms (blocking 22ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 67ms, (browser: style/layout/paint/parse) 5ms, (idle) 0ms</title></rect><rect x="288.3" y="2.0" width="7.2" height="2.2" fill="#9aa3ad"><title>with-2 task @2883ms, 72ms (blocking 22ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 67ms, (browser: style/layout/paint/parse) 5ms, (idle) 0ms</title></rect><rect x="381.1" y="32.2" width="8.8" height="1.8" fill="#764abc"><title>with-2 task @3811ms, 88ms (blocking 38ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 55ms, (browser: style/layout/paint/parse) 23ms, LogRocket 5ms</title></rect><rect x="381.1" y="12.2" width="8.8" height="20.0" fill="#2f6fdb"><title>with-2 task @3811ms, 88ms (blocking 38ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 55ms, (browser: style/layout/paint/parse) 23ms, LogRocket 5ms</title></rect><rect x="381.1" y="10.7" width="8.8" height="1.5" fill="#2e9e6a"><title>with-2 task @3811ms, 88ms (blocking 38ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 55ms, (browser: style/layout/paint/parse) 23ms, LogRocket 5ms</title></rect><rect x="381.1" y="10.4" width="8.8" height="0.4" fill="#e08a1e"><title>with-2 task @3811ms, 88ms (blocking 38ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 55ms, (browser: style/layout/paint/parse) 23ms, LogRocket 5ms</title></rect><rect x="381.1" y="2.0" width="8.8" height="8.4" fill="#9aa3ad"><title>with-2 task @3811ms, 88ms (blocking 38ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 55ms, (browser: style/layout/paint/parse) 23ms, LogRocket 5ms</title></rect><rect x="422.3" y="33.1" width="48.7" height="0.9" fill="#764abc"><title>with-2 task @4223ms, 487ms (blocking 437ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 287ms, (browser: style/layout/paint/parse) 139ms, Shopify 45ms</title></rect><rect x="422.3" y="14.2" width="48.7" height="18.9" fill="#2f6fdb"><title>with-2 task @4223ms, 487ms (blocking 437ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 287ms, (browser: style/layout/paint/parse) 139ms, Shopify 45ms</title></rect><rect x="422.3" y="11.2" width="48.7" height="3.0" fill="#2e9e6a"><title>with-2 task @4223ms, 487ms (blocking 437ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 287ms, (browser: style/layout/paint/parse) 139ms, Shopify 45ms</title></rect><rect x="422.3" y="11.1" width="48.7" height="0.1" fill="#e08a1e"><title>with-2 task @4223ms, 487ms (blocking 437ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 287ms, (browser: style/layout/paint/parse) 139ms, Shopify 45ms</title></rect><rect x="422.3" y="2.0" width="48.7" height="9.1" fill="#9aa3ad"><title>with-2 task @4223ms, 487ms (blocking 437ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 287ms, (browser: style/layout/paint/parse) 139ms, Shopify 45ms</title></rect><rect x="484.1" y="32.9" width="5.9" height="1.1" fill="#764abc"><title>with-2 task @4841ms, 59ms (blocking 9ms)
+Lighthouse blames: LogRocket
+Actually ran: shoplc theme 32ms, (browser: style/layout/paint/parse) 24ms, LogRocket 2ms</title></rect><rect x="484.1" y="15.2" width="5.9" height="17.7" fill="#2f6fdb"><title>with-2 task @4841ms, 59ms (blocking 9ms)
+Lighthouse blames: LogRocket
+Actually ran: shoplc theme 32ms, (browser: style/layout/paint/parse) 24ms, LogRocket 2ms</title></rect><rect x="484.1" y="2.0" width="5.9" height="13.2" fill="#9aa3ad"><title>with-2 task @4841ms, 59ms (blocking 9ms)
+Lighthouse blames: LogRocket
+Actually ran: shoplc theme 32ms, (browser: style/layout/paint/parse) 24ms, LogRocket 2ms</title></rect><rect x="494.8" y="32.9" width="8.7" height="1.1" fill="#764abc"><title>with-2 task @4948ms, 87ms (blocking 37ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 44ms, shoplc theme 38ms, LogRocket 3ms</title></rect><rect x="494.8" y="18.7" width="8.7" height="14.1" fill="#2f6fdb"><title>with-2 task @4948ms, 87ms (blocking 37ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 44ms, shoplc theme 38ms, LogRocket 3ms</title></rect><rect x="494.8" y="18.4" width="8.7" height="0.4" fill="#2e9e6a"><title>with-2 task @4948ms, 87ms (blocking 37ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 44ms, shoplc theme 38ms, LogRocket 3ms</title></rect><rect x="494.8" y="2.0" width="8.7" height="16.4" fill="#9aa3ad"><title>with-2 task @4948ms, 87ms (blocking 37ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 44ms, shoplc theme 38ms, LogRocket 3ms</title></rect><rect x="617.5" y="32.2" width="5.5" height="1.8" fill="#764abc"><title>with-2 task @6175ms, 55ms (blocking 5ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 31ms, shoplc (inline/html) 18ms, LogRocket 3ms</title></rect><rect x="617.5" y="21.0" width="5.5" height="11.3" fill="#2f6fdb"><title>with-2 task @6175ms, 55ms (blocking 5ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 31ms, shoplc (inline/html) 18ms, LogRocket 3ms</title></rect><rect x="617.5" y="20.4" width="5.5" height="0.6" fill="#2e9e6a"><title>with-2 task @6175ms, 55ms (blocking 5ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 31ms, shoplc (inline/html) 18ms, LogRocket 3ms</title></rect><rect x="617.5" y="2.0" width="5.5" height="18.4" fill="#9aa3ad"><title>with-2 task @6175ms, 55ms (blocking 5ms)
+Lighthouse blames: LogRocket
+Actually ran: (browser: style/layout/paint/parse) 31ms, shoplc (inline/html) 18ms, LogRocket 3ms</title></rect><line x1="83.5" x2="83.5" y1="0" y2="34" class="mark "/><text x="86.5" y="9" class="mtext">FCP</text><line x1="91.80000000000001" x2="91.80000000000001" y1="0" y2="34" class="mark "/><text x="94.80000000000001" y="19" class="mtext">LCP</text><line x1="102.3" x2="102.3" y1="0" y2="34" class="mark lrmark"/><text x="105.3" y="29" class="mtext">LR loads</text></svg></div><div class="sep"></div><div class="tl"><div class="tln">without-0<span>TBT 701ms</span></div>
+    <svg viewBox="0 0 1000 34" preserveAspectRatio="none" class="tlsvg"><rect x="188.6" y="30.7" width="8.8" height="3.3" fill="#2f6fdb"><title>without-0 task @1886ms, 88ms (blocking 38ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 56ms, (browser: style/layout/paint/parse) 21ms, shoplc (inline/html) 8ms</title></rect><rect x="188.6" y="10.1" width="8.8" height="20.6" fill="#2e9e6a"><title>without-0 task @1886ms, 88ms (blocking 38ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 56ms, (browser: style/layout/paint/parse) 21ms, shoplc (inline/html) 8ms</title></rect><rect x="188.6" y="2.0" width="8.8" height="8.1" fill="#9aa3ad"><title>without-0 task @1886ms, 88ms (blocking 38ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 56ms, (browser: style/layout/paint/parse) 21ms, shoplc (inline/html) 8ms</title></rect><rect x="216.8" y="6.6" width="6.2" height="27.4" fill="#2f6fdb"><title>without-0 task @2168ms, 62ms (blocking 12ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 53ms, (browser: style/layout/paint/parse) 6ms, (GC) 3ms</title></rect><rect x="216.8" y="2.0" width="6.2" height="4.6" fill="#9aa3ad"><title>without-0 task @2168ms, 62ms (blocking 12ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 53ms, (browser: style/layout/paint/parse) 6ms, (GC) 3ms</title></rect><rect x="233.7" y="3.6" width="8.1" height="30.4" fill="#2f6fdb"><title>without-0 task @2337ms, 81ms (blocking 31ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 76ms, (browser: style/layout/paint/parse) 4ms, (GC) 0ms</title></rect><rect x="233.7" y="2.0" width="8.1" height="1.6" fill="#9aa3ad"><title>without-0 task @2337ms, 81ms (blocking 31ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 76ms, (browser: style/layout/paint/parse) 4ms, (GC) 0ms</title></rect><rect x="297.4" y="30.0" width="5.7" height="4.0" fill="#2f6fdb"><title>without-0 task @2974ms, 57ms (blocking 7ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 24ms, (browser: style/layout/paint/parse) 21ms, shoplc (inline/html) 6ms</title></rect><rect x="297.4" y="29.4" width="5.7" height="0.6" fill="#2e9e6a"><title>without-0 task @2974ms, 57ms (blocking 7ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 24ms, (browser: style/layout/paint/parse) 21ms, shoplc (inline/html) 6ms</title></rect><rect x="297.4" y="14.0" width="5.7" height="15.4" fill="#e08a1e"><title>without-0 task @2974ms, 57ms (blocking 7ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 24ms, (browser: style/layout/paint/parse) 21ms, shoplc (inline/html) 6ms</title></rect><rect x="297.4" y="2.0" width="5.7" height="12.0" fill="#9aa3ad"><title>without-0 task @2974ms, 57ms (blocking 7ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 24ms, (browser: style/layout/paint/parse) 21ms, shoplc (inline/html) 6ms</title></rect><rect x="333.9" y="12.8" width="9.2" height="21.2" fill="#2f6fdb"><title>without-0 task @3339ms, 92ms (blocking 42ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 61ms, (browser: style/layout/paint/parse) 23ms, Shopify 3ms</title></rect><rect x="333.9" y="11.0" width="9.2" height="1.7" fill="#2e9e6a"><title>without-0 task @3339ms, 92ms (blocking 42ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 61ms, (browser: style/layout/paint/parse) 23ms, Shopify 3ms</title></rect><rect x="333.9" y="10.0" width="9.2" height="1.0" fill="#e08a1e"><title>without-0 task @3339ms, 92ms (blocking 42ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 61ms, (browser: style/layout/paint/parse) 23ms, Shopify 3ms</title></rect><rect x="333.9" y="2.0" width="9.2" height="8.0" fill="#9aa3ad"><title>without-0 task @3339ms, 92ms (blocking 42ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 61ms, (browser: style/layout/paint/parse) 23ms, Shopify 3ms</title></rect><rect x="347.8" y="16.0" width="5.7" height="18.0" fill="#2f6fdb"><title>without-0 task @3478ms, 57ms (blocking 7ms)
+Lighthouse blames: shoplc theme
+Actually ran: shoplc theme 32ms, (browser: style/layout/paint/parse) 22ms, Shopify (on-domain) 3ms</title></rect><rect x="347.8" y="14.4" width="5.7" height="1.7" fill="#2e9e6a"><title>without-0 task @3478ms, 57ms (blocking 7ms)
+Lighthouse blames: shoplc theme
+Actually ran: shoplc theme 32ms, (browser: style/layout/paint/parse) 22ms, Shopify (on-domain) 3ms</title></rect><rect x="347.8" y="2.0" width="5.7" height="12.4" fill="#9aa3ad"><title>without-0 task @3478ms, 57ms (blocking 7ms)
+Lighthouse blames: shoplc theme
+Actually ran: shoplc theme 32ms, (browser: style/layout/paint/parse) 22ms, Shopify (on-domain) 3ms</title></rect><rect x="378.6" y="15.7" width="54.0" height="18.3" fill="#2f6fdb"><title>without-0 task @3786ms, 540ms (blocking 490ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 308ms, (browser: style/layout/paint/parse) 160ms, Shopify 66ms</title></rect><rect x="378.6" y="11.6" width="54.0" height="4.0" fill="#2e9e6a"><title>without-0 task @3786ms, 540ms (blocking 490ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 308ms, (browser: style/layout/paint/parse) 160ms, Shopify 66ms</title></rect><rect x="378.6" y="11.5" width="54.0" height="0.1" fill="#e08a1e"><title>without-0 task @3786ms, 540ms (blocking 490ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 308ms, (browser: style/layout/paint/parse) 160ms, Shopify 66ms</title></rect><rect x="378.6" y="2.0" width="54.0" height="9.5" fill="#9aa3ad"><title>without-0 task @3786ms, 540ms (blocking 490ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 308ms, (browser: style/layout/paint/parse) 160ms, Shopify 66ms</title></rect><rect x="439.5" y="18.9" width="6.7" height="15.1" fill="#2f6fdb"><title>without-0 task @4395ms, 67ms (blocking 17ms)
+Lighthouse blames: shoplc theme
+Actually ran: (browser: style/layout/paint/parse) 30ms, shoplc theme 29ms, shoplc (inline/html) 3ms</title></rect><rect x="439.5" y="17.5" width="6.7" height="1.4" fill="#2e9e6a"><title>without-0 task @4395ms, 67ms (blocking 17ms)
+Lighthouse blames: shoplc theme
+Actually ran: (browser: style/layout/paint/parse) 30ms, shoplc theme 29ms, shoplc (inline/html) 3ms</title></rect><rect x="439.5" y="16.1" width="6.7" height="1.4" fill="#e08a1e"><title>without-0 task @4395ms, 67ms (blocking 17ms)
+Lighthouse blames: shoplc theme
+Actually ran: (browser: style/layout/paint/parse) 30ms, shoplc theme 29ms, shoplc (inline/html) 3ms</title></rect><rect x="439.5" y="2.0" width="6.7" height="14.1" fill="#9aa3ad"><title>without-0 task @4395ms, 67ms (blocking 17ms)
+Lighthouse blames: shoplc theme
+Actually ran: (browser: style/layout/paint/parse) 30ms, shoplc theme 29ms, shoplc (inline/html) 3ms</title></rect><rect x="450.9" y="19.9" width="9.3" height="14.1" fill="#2f6fdb"><title>without-0 task @4509ms, 93ms (blocking 43ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: (browser: style/layout/paint/parse) 47ms, shoplc theme 41ms, Shopify (on-domain) 5ms</title></rect><rect x="450.9" y="18.2" width="9.3" height="1.7" fill="#2e9e6a"><title>without-0 task @4509ms, 93ms (blocking 43ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: (browser: style/layout/paint/parse) 47ms, shoplc theme 41ms, Shopify (on-domain) 5ms</title></rect><rect x="450.9" y="2.0" width="9.3" height="16.2" fill="#9aa3ad"><title>without-0 task @4509ms, 93ms (blocking 43ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: (browser: style/layout/paint/parse) 47ms, shoplc theme 41ms, Shopify (on-domain) 5ms</title></rect><rect x="580.4" y="21.8" width="6.4" height="12.2" fill="#2f6fdb"><title>without-0 task @5804ms, 64ms (blocking 14ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: (browser: style/layout/paint/parse) 35ms, shoplc (inline/html) 22ms, Shopify (on-domain) 4ms</title></rect><rect x="580.4" y="19.8" width="6.4" height="2.0" fill="#2e9e6a"><title>without-0 task @5804ms, 64ms (blocking 14ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: (browser: style/layout/paint/parse) 35ms, shoplc (inline/html) 22ms, Shopify (on-domain) 4ms</title></rect><rect x="580.4" y="2.0" width="6.4" height="17.8" fill="#9aa3ad"><title>without-0 task @5804ms, 64ms (blocking 14ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: (browser: style/layout/paint/parse) 35ms, shoplc (inline/html) 22ms, Shopify (on-domain) 4ms</title></rect><line x1="71.6" x2="71.6" y1="0" y2="34" class="mark "/><text x="74.6" y="9" class="mtext">FCP</text><line x1="79.9" x2="79.9" y1="0" y2="34" class="mark "/><text x="82.9" y="19" class="mtext">LCP</text></svg></div><div class="tl"><div class="tln">without-1<span>TBT 750ms</span></div>
+    <svg viewBox="0 0 1000 34" preserveAspectRatio="none" class="tlsvg"><rect x="93.8" y="3.3" width="10.1" height="30.7" fill="#2e9e6a"><title>without-1 task @938ms, 101ms (blocking 51ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 96ms, (browser: style/layout/paint/parse) 3ms, (GC) 1ms</title></rect><rect x="93.8" y="2.0" width="10.1" height="1.3" fill="#9aa3ad"><title>without-1 task @938ms, 101ms (blocking 51ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 96ms, (browser: style/layout/paint/parse) 3ms, (GC) 1ms</title></rect><rect x="227.7" y="31.4" width="9.9" height="2.6" fill="#2f6fdb"><title>without-1 task @2277ms, 99ms (blocking 49ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 66ms, (browser: style/layout/paint/parse) 22ms, shoplc (inline/html) 7ms</title></rect><rect x="227.7" y="9.8" width="9.9" height="21.6" fill="#2e9e6a"><title>without-1 task @2277ms, 99ms (blocking 49ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 66ms, (browser: style/layout/paint/parse) 22ms, shoplc (inline/html) 7ms</title></rect><rect x="227.7" y="2.0" width="9.9" height="7.8" fill="#9aa3ad"><title>without-1 task @2277ms, 99ms (blocking 49ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 66ms, (browser: style/layout/paint/parse) 22ms, shoplc (inline/html) 7ms</title></rect><rect x="262.7" y="30.2" width="6.8" height="3.8" fill="#2f6fdb"><title>without-1 task @2627ms, 68ms (blocking 18ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 31ms, (browser: style/layout/paint/parse) 23ms, shoplc (inline/html) 6ms</title></rect><rect x="262.7" y="29.2" width="6.8" height="1.0" fill="#2e9e6a"><title>without-1 task @2627ms, 68ms (blocking 18ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 31ms, (browser: style/layout/paint/parse) 23ms, shoplc (inline/html) 6ms</title></rect><rect x="262.7" y="13.0" width="6.8" height="16.2" fill="#e08a1e"><title>without-1 task @2627ms, 68ms (blocking 18ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 31ms, (browser: style/layout/paint/parse) 23ms, shoplc (inline/html) 6ms</title></rect><rect x="262.7" y="2.0" width="6.8" height="11.0" fill="#9aa3ad"><title>without-1 task @2627ms, 68ms (blocking 18ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: libraries.unbxdapi.com 31ms, (browser: style/layout/paint/parse) 23ms, shoplc (inline/html) 6ms</title></rect><rect x="309.6" y="3.6" width="7.9" height="30.4" fill="#2f6fdb"><title>without-1 task @3096ms, 79ms (blocking 29ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 74ms, (browser: style/layout/paint/parse) 4ms, (idle) 0ms</title></rect><rect x="309.6" y="2.0" width="7.9" height="1.6" fill="#9aa3ad"><title>without-1 task @3096ms, 79ms (blocking 29ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 74ms, (browser: style/layout/paint/parse) 4ms, (idle) 0ms</title></rect><rect x="361.2" y="12.8" width="9.2" height="21.2" fill="#2f6fdb"><title>without-1 task @3612ms, 92ms (blocking 42ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 60ms, (browser: style/layout/paint/parse) 24ms, Shopify 2ms</title></rect><rect x="361.2" y="11.4" width="9.2" height="1.4" fill="#2e9e6a"><title>without-1 task @3612ms, 92ms (blocking 42ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 60ms, (browser: style/layout/paint/parse) 24ms, Shopify 2ms</title></rect><rect x="361.2" y="10.3" width="9.2" height="1.0" fill="#e08a1e"><title>without-1 task @3612ms, 92ms (blocking 42ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 60ms, (browser: style/layout/paint/parse) 24ms, Shopify 2ms</title></rect><rect x="361.2" y="2.0" width="9.2" height="8.3" fill="#9aa3ad"><title>without-1 task @3612ms, 92ms (blocking 42ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 60ms, (browser: style/layout/paint/parse) 24ms, Shopify 2ms</title></rect><rect x="403.5" y="16.1" width="52.1" height="17.9" fill="#2f6fdb"><title>without-1 task @4035ms, 521ms (blocking 471ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 292ms, (browser: style/layout/paint/parse) 162ms, Shopify 61ms</title></rect><rect x="403.5" y="12.1" width="52.1" height="3.9" fill="#2e9e6a"><title>without-1 task @4035ms, 521ms (blocking 471ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 292ms, (browser: style/layout/paint/parse) 162ms, Shopify 61ms</title></rect><rect x="403.5" y="12.0" width="52.1" height="0.2" fill="#e08a1e"><title>without-1 task @4035ms, 521ms (blocking 471ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 292ms, (browser: style/layout/paint/parse) 162ms, Shopify 61ms</title></rect><rect x="403.5" y="2.0" width="52.1" height="10.0" fill="#9aa3ad"><title>without-1 task @4035ms, 521ms (blocking 471ms)
+Lighthouse blames: cdn.dynamicyield.com
+Actually ran: shoplc theme 292ms, (browser: style/layout/paint/parse) 162ms, Shopify 61ms</title></rect><rect x="465.7" y="18.8" width="10.0" height="15.2" fill="#2f6fdb"><title>without-1 task @4657ms, 100ms (blocking 50ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: (browser: style/layout/paint/parse) 48ms, shoplc theme 47ms, Shopify (on-domain) 4ms</title></rect><rect x="465.7" y="17.5" width="10.0" height="1.3" fill="#2e9e6a"><title>without-1 task @4657ms, 100ms (blocking 50ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: (browser: style/layout/paint/parse) 48ms, shoplc theme 47ms, Shopify (on-domain) 4ms</title></rect><rect x="465.7" y="2.0" width="10.0" height="15.5" fill="#9aa3ad"><title>without-1 task @4657ms, 100ms (blocking 50ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: (browser: style/layout/paint/parse) 48ms, shoplc theme 47ms, Shopify (on-domain) 4ms</title></rect><rect x="480.1" y="20.2" width="8.2" height="13.8" fill="#2f6fdb"><title>without-1 task @4801ms, 82ms (blocking 32ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: (browser: style/layout/paint/parse) 42ms, shoplc theme 35ms, Shopify (on-domain) 4ms</title></rect><rect x="480.1" y="18.6" width="8.2" height="1.6" fill="#2e9e6a"><title>without-1 task @4801ms, 82ms (blocking 32ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: (browser: style/layout/paint/parse) 42ms, shoplc theme 35ms, Shopify (on-domain) 4ms</title></rect><rect x="480.1" y="2.0" width="8.2" height="16.6" fill="#9aa3ad"><title>without-1 task @4801ms, 82ms (blocking 32ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: (browser: style/layout/paint/parse) 42ms, shoplc theme 35ms, Shopify (on-domain) 4ms</title></rect><rect x="586.1" y="22.4" width="5.8" height="11.6" fill="#2f6fdb"><title>without-1 task @5861ms, 58ms (blocking 8ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: (browser: style/layout/paint/parse) 32ms, shoplc (inline/html) 18ms, Shopify (on-domain) 5ms</title></rect><rect x="586.1" y="19.7" width="5.8" height="2.8" fill="#2e9e6a"><title>without-1 task @5861ms, 58ms (blocking 8ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: (browser: style/layout/paint/parse) 32ms, shoplc (inline/html) 18ms, Shopify (on-domain) 5ms</title></rect><rect x="586.1" y="2.0" width="5.8" height="17.7" fill="#9aa3ad"><title>without-1 task @5861ms, 58ms (blocking 8ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: (browser: style/layout/paint/parse) 32ms, shoplc (inline/html) 18ms, Shopify (on-domain) 5ms</title></rect><line x1="90.30000000000001" x2="90.30000000000001" y1="0" y2="34" class="mark "/><text x="93.30000000000001" y="9" class="mtext">FCP</text><line x1="105.89999999999999" x2="105.89999999999999" y1="0" y2="34" class="mark "/><text x="108.89999999999999" y="19" class="mtext">LCP</text></svg></div><div class="tl"><div class="tln">without-2<span>TBT 822ms</span></div>
+    <svg viewBox="0 0 1000 34" preserveAspectRatio="none" class="tlsvg"><rect x="94.3" y="33.8" width="18.6" height="0.2" fill="#2f6fdb"><title>without-2 task @943ms, 186ms (blocking 136ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 179ms, (browser: style/layout/paint/parse) 5ms, shoplc (inline/html) 1ms</title></rect><rect x="94.3" y="2.9" width="18.6" height="31.0" fill="#2e9e6a"><title>without-2 task @943ms, 186ms (blocking 136ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 179ms, (browser: style/layout/paint/parse) 5ms, shoplc (inline/html) 1ms</title></rect><rect x="94.3" y="2.0" width="18.6" height="0.9" fill="#9aa3ad"><title>without-2 task @943ms, 186ms (blocking 136ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 179ms, (browser: style/layout/paint/parse) 5ms, shoplc (inline/html) 1ms</title></rect><rect x="222.0" y="30.8" width="6.8" height="3.2" fill="#2f6fdb"><title>without-2 task @2220ms, 68ms (blocking 18ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 41ms, (browser: style/layout/paint/parse) 20ms, shoplc (inline/html) 6ms</title></rect><rect x="222.0" y="11.7" width="6.8" height="19.0" fill="#2e9e6a"><title>without-2 task @2220ms, 68ms (blocking 18ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 41ms, (browser: style/layout/paint/parse) 20ms, shoplc (inline/html) 6ms</title></rect><rect x="222.0" y="2.0" width="6.8" height="9.7" fill="#9aa3ad"><title>without-2 task @2220ms, 68ms (blocking 18ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: Shopify (on-domain) 41ms, (browser: style/layout/paint/parse) 20ms, shoplc (inline/html) 6ms</title></rect><rect x="246.8" y="7.9" width="5.4" height="26.1" fill="#2f6fdb"><title>without-2 task @2468ms, 54ms (blocking 4ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 44ms, (browser: style/layout/paint/parse) 6ms, (GC) 4ms</title></rect><rect x="246.8" y="2.0" width="5.4" height="5.9" fill="#9aa3ad"><title>without-2 task @2468ms, 54ms (blocking 4ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 44ms, (browser: style/layout/paint/parse) 6ms, (GC) 4ms</title></rect><rect x="262.2" y="3.3" width="7.6" height="30.7" fill="#2f6fdb"><title>without-2 task @2622ms, 76ms (blocking 26ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 73ms, (browser: style/layout/paint/parse) 3ms, (idle) 0ms</title></rect><rect x="262.2" y="2.0" width="7.6" height="1.3" fill="#9aa3ad"><title>without-2 task @2622ms, 76ms (blocking 26ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: shoplc (inline/html) 73ms, (browser: style/layout/paint/parse) 3ms, (idle) 0ms</title></rect><rect x="316.1" y="29.3" width="6.9" height="4.7" fill="#2f6fdb"><title>without-2 task @3161ms, 69ms (blocking 19ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: (browser: style/layout/paint/parse) 30ms, libraries.unbxdapi.com 23ms, shoplc (inline/html) 8ms</title></rect><rect x="316.1" y="28.8" width="6.9" height="0.5" fill="#2e9e6a"><title>without-2 task @3161ms, 69ms (blocking 19ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: (browser: style/layout/paint/parse) 30ms, libraries.unbxdapi.com 23ms, shoplc (inline/html) 8ms</title></rect><rect x="316.1" y="16.1" width="6.9" height="12.7" fill="#e08a1e"><title>without-2 task @3161ms, 69ms (blocking 19ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: (browser: style/layout/paint/parse) 30ms, libraries.unbxdapi.com 23ms, shoplc (inline/html) 8ms</title></rect><rect x="316.1" y="2.0" width="6.9" height="14.1" fill="#9aa3ad"><title>without-2 task @3161ms, 69ms (blocking 19ms)
+Lighthouse blames: libraries.unbxdapi.com
+Actually ran: (browser: style/layout/paint/parse) 30ms, libraries.unbxdapi.com 23ms, shoplc (inline/html) 8ms</title></rect><rect x="360.3" y="13.6" width="10.8" height="20.4" fill="#2f6fdb"><title>without-2 task @3603ms, 108ms (blocking 58ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 69ms, (browser: style/layout/paint/parse) 31ms, Intelligems 3ms</title></rect><rect x="360.3" y="12.4" width="10.8" height="1.2" fill="#2e9e6a"><title>without-2 task @3603ms, 108ms (blocking 58ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 69ms, (browser: style/layout/paint/parse) 31ms, Intelligems 3ms</title></rect><rect x="360.3" y="11.2" width="10.8" height="1.2" fill="#e08a1e"><title>without-2 task @3603ms, 108ms (blocking 58ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 69ms, (browser: style/layout/paint/parse) 31ms, Intelligems 3ms</title></rect><rect x="360.3" y="2.0" width="10.8" height="9.2" fill="#9aa3ad"><title>without-2 task @3603ms, 108ms (blocking 58ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 69ms, (browser: style/layout/paint/parse) 31ms, Intelligems 3ms</title></rect><rect x="374.2" y="18.3" width="6.3" height="15.7" fill="#2f6fdb"><title>without-2 task @3742ms, 63ms (blocking 13ms)
+Lighthouse blames: shoplc theme
+Actually ran: shoplc theme 31ms, (browser: style/layout/paint/parse) 28ms, Shopify (on-domain) 4ms</title></rect><rect x="374.2" y="16.2" width="6.3" height="2.0" fill="#2e9e6a"><title>without-2 task @3742ms, 63ms (blocking 13ms)
+Lighthouse blames: shoplc theme
+Actually ran: shoplc theme 31ms, (browser: style/layout/paint/parse) 28ms, Shopify (on-domain) 4ms</title></rect><rect x="374.2" y="2.0" width="6.3" height="14.2" fill="#9aa3ad"><title>without-2 task @3742ms, 63ms (blocking 13ms)
+Lighthouse blames: shoplc theme
+Actually ran: shoplc theme 31ms, (browser: style/layout/paint/parse) 28ms, Shopify (on-domain) 4ms</title></rect><rect x="400.1" y="18.2" width="51.4" height="15.8" fill="#2f6fdb"><title>without-2 task @4001ms, 514ms (blocking 464ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 254ms, (browser: style/layout/paint/parse) 180ms, Shopify 75ms</title></rect><rect x="400.1" y="13.4" width="51.4" height="4.8" fill="#2e9e6a"><title>without-2 task @4001ms, 514ms (blocking 464ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 254ms, (browser: style/layout/paint/parse) 180ms, Shopify 75ms</title></rect><rect x="400.1" y="13.2" width="51.4" height="0.1" fill="#e08a1e"><title>without-2 task @4001ms, 514ms (blocking 464ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 254ms, (browser: style/layout/paint/parse) 180ms, Shopify 75ms</title></rect><rect x="400.1" y="2.0" width="51.4" height="11.2" fill="#9aa3ad"><title>without-2 task @4001ms, 514ms (blocking 464ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: shoplc theme 254ms, (browser: style/layout/paint/parse) 180ms, Shopify 75ms</title></rect><rect x="464.0" y="20.4" width="10.0" height="13.6" fill="#2f6fdb"><title>without-2 task @4640ms, 100ms (blocking 50ms)
+Lighthouse blames: shoplc theme
+Actually ran: (browser: style/layout/paint/parse) 49ms, shoplc theme 39ms, Shopify (on-domain) 6ms</title></rect><rect x="464.0" y="18.5" width="10.0" height="1.9" fill="#2e9e6a"><title>without-2 task @4640ms, 100ms (blocking 50ms)
+Lighthouse blames: shoplc theme
+Actually ran: (browser: style/layout/paint/parse) 49ms, shoplc theme 39ms, Shopify (on-domain) 6ms</title></rect><rect x="464.0" y="17.5" width="10.0" height="1.0" fill="#e08a1e"><title>without-2 task @4640ms, 100ms (blocking 50ms)
+Lighthouse blames: shoplc theme
+Actually ran: (browser: style/layout/paint/parse) 49ms, shoplc theme 39ms, Shopify (on-domain) 6ms</title></rect><rect x="464.0" y="2.0" width="10.0" height="15.5" fill="#9aa3ad"><title>without-2 task @4640ms, 100ms (blocking 50ms)
+Lighthouse blames: shoplc theme
+Actually ran: (browser: style/layout/paint/parse) 49ms, shoplc theme 39ms, Shopify (on-domain) 6ms</title></rect><rect x="476.0" y="21.9" width="6.9" height="12.1" fill="#2f6fdb"><title>without-2 task @4760ms, 69ms (blocking 19ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: (browser: style/layout/paint/parse) 37ms, shoplc theme 26ms, Shopify (on-domain) 6ms</title></rect><rect x="476.0" y="19.2" width="6.9" height="2.8" fill="#2e9e6a"><title>without-2 task @4760ms, 69ms (blocking 19ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: (browser: style/layout/paint/parse) 37ms, shoplc theme 26ms, Shopify (on-domain) 6ms</title></rect><rect x="476.0" y="2.0" width="6.9" height="17.2" fill="#9aa3ad"><title>without-2 task @4760ms, 69ms (blocking 19ms)
+Lighthouse blames: Shopify (on-domain)
+Actually ran: (browser: style/layout/paint/parse) 37ms, shoplc theme 26ms, Shopify (on-domain) 6ms</title></rect><rect x="567.2" y="23.7" width="6.5" height="10.3" fill="#2f6fdb"><title>without-2 task @5672ms, 65ms (blocking 15ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: (browser: style/layout/paint/parse) 38ms, shoplc (inline/html) 18ms, Shopify (on-domain) 6ms</title></rect><rect x="567.2" y="20.7" width="6.5" height="3.0" fill="#2e9e6a"><title>without-2 task @5672ms, 65ms (blocking 15ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: (browser: style/layout/paint/parse) 38ms, shoplc (inline/html) 18ms, Shopify (on-domain) 6ms</title></rect><rect x="567.2" y="2.0" width="6.5" height="18.7" fill="#9aa3ad"><title>without-2 task @5672ms, 65ms (blocking 15ms)
+Lighthouse blames: shoplc (inline/html)
+Actually ran: (browser: style/layout/paint/parse) 38ms, shoplc (inline/html) 18ms, Shopify (on-domain) 6ms</title></rect><line x1="85.8" x2="85.8" y1="0" y2="34" class="mark "/><text x="88.8" y="9" class="mtext">FCP</text><line x1="114.6" x2="114.6" y1="0" y2="34" class="mark "/><text x="117.6" y="19" class="mtext">LCP</text></svg></div><div class="tl"><div class="tln"></div><div class="axis"><span style="left:0%">0s</span><span style="left:20%">2s</span><span style="left:40%">4s</span><span style="left:60%">6s</span><span style="left:80%">8s</span><span style="left:100%">10s</span></div></div></div>
+
+<h3>Who is actually blocking the main thread</h3>
+<p class="lead">Median self-time inside long tasks during the first 20s, grouped by owner. Solid bars are with LogRocket, faded bars are without.</p>
+<div class="owners"><div class="ohead"><span>Owner</span><span>With LogRocket</span><span>Without</span></div><div class="obar"><div class="olabel"><i style="background:#764abc"></i>LogRocket</div>
+      <div class="otrack"><div class="ofill" style="width:22.635135135135133%;background:#764abc"></div><b>134ms</b></div>
+      <div class="otrack"><div class="ofill hatch" style="width:0%;background:#764abc"></div><b>0ms</b></div></div><div class="obar"><div class="olabel"><i style="background:#2f6fdb"></i>shoplc theme / inline</div>
+      <div class="otrack"><div class="ofill" style="width:93.24324324324324%;background:#2f6fdb"></div><b>552ms</b></div>
+      <div class="otrack"><div class="ofill hatch" style="width:100%;background:#2f6fdb"></div><b>592ms</b></div></div><div class="obar"><div class="olabel"><i style="background:#2e9e6a"></i>Shopify platform</div>
+      <div class="otrack"><div class="ofill" style="width:17.905405405405407%;background:#2e9e6a"></div><b>106ms</b></div>
+      <div class="otrack"><div class="ofill hatch" style="width:46.95945945945946%;background:#2e9e6a"></div><b>278ms</b></div></div><div class="obar"><div class="olabel"><i style="background:#e08a1e"></i>Other third parties</div>
+      <div class="otrack"><div class="ofill" style="width:9.29054054054054%;background:#e08a1e"></div><b>55ms</b></div>
+      <div class="otrack"><div class="ofill hatch" style="width:6.756756756756757%;background:#e08a1e"></div><b>40ms</b></div></div><div class="obar"><div class="olabel"><i style="background:#9aa3ad"></i>Browser style / layout / paint / GC</div>
+      <div class="otrack"><div class="ofill" style="width:60.979729729729726%;background:#9aa3ad"></div><b>361ms</b></div>
+      <div class="otrack"><div class="ofill hatch" style="width:88.17567567567568%;background:#9aa3ad"></div><b>522ms</b></div></div></div>
+
+<h3>Why Lighthouse-based tools blame LogRocket</h3>
+<p class="lead">This is the same long-task time counted two ways, for every run with LogRocket. The first column is what a Lighthouse-style "main-thread work by script" breakdown bills to LogRocket. The next columns show what actually ran inside those tasks.</p>
+<table><thead><tr><th>Run</th><th>Billed to LogRocket (Lighthouse-style)</th><th>...of which LogRocket code</th><th>...of which other code / rendering</th><th>...of which browser rendering</th><th>LogRocket code billed to others</th><th>LogRocket self-time, total</th></tr></thead>
+<tbody><tr><td>with-0</td><td>513ms</td><td>55ms</td><td>459ms</td><td>368ms</td><td>79ms</td><td>134ms</td></tr><tr><td>with-1</td><td>232ms</td><td>14ms</td><td>219ms</td><td>128ms</td><td>125ms</td><td>140ms</td></tr><tr><td>with-2</td><td>200ms</td><td>8ms</td><td>192ms</td><td>99ms</td><td>23ms</td><td>32ms</td></tr></tbody></table>
+<div class="two" style="margin-top:14px">
+  <div class="note"><p><b>How the misattribution happens</b></p>
+  <p>LogRocket's exception capture wraps <code>setTimeout</code>, <code>setInterval</code>, <code>requestAnimationFrame</code> and <code>addEventListener</code>, which lets it report errors thrown by any script. As a result, the function the browser calls to start many tasks is defined in <code>LogRocket.min.js</code>, even when the work inside belongs to Dynamic Yield, Shopify's web-pixels manager or the theme.</p>
+  <p>The worst case is a rendering frame. An animation-frame callback (a few ms, run through the wrapper) is followed by a full-page style recalc for DOM changes made by other scripts. Lighthouse bills the whole frame to LogRocket.</p></div>
+  <div class="note"><p><b>Why tools can show a regression anyway</b></p>
+  <p>Lighthouse measures TBT from FCP to Time to Interactive, the start of the first 5-second stretch with no long task. Here TTI landed between 5.22s and 6.23s in both conditions. A single long task near the end of that window pushes TTI out and adds whatever blocking happens in the extra time. Combined with billing wrapped callbacks to LogRocket, one unlucky single-run report can show a LogRocket "regression" that repeated runs don't reproduce.</p></div>
+</div>
+
+<h3>Per-run results</h3>
+<table><thead><tr><th>Run</th><th>LogRocket</th><th>TTFB</th><th>FCP</th><th>LCP</th><th>LR first request</th><th>TBT (FCP to TTI)</th><th>TBT (FCP to 20s)</th><th>Long tasks</th><th>Long-task time</th><th>LR self in long tasks</th></tr></thead>
+<tbody><tr class="wr"><td>with-0</td><td>loaded</td><td>358ms</td><td>963ms</td><td>971ms</td><td>1.04s</td><td>639ms</td><td>684ms</td><td>16</td><td>1.48s</td><td>134ms</td></tr><tr class="wr"><td>with-1</td><td>loaded</td><td>32ms</td><td>850ms</td><td>992ms</td><td>1.19s</td><td>682ms</td><td>682ms</td><td>10</td><td>1.18s</td><td>140ms</td></tr><tr class="wr"><td>with-2</td><td>loaded</td><td>33ms</td><td>835ms</td><td>918ms</td><td>1.02s</td><td>585ms</td><td>585ms</td><td>9</td><td>1.03s</td><td>32ms</td></tr><tr class=""><td>without-0</td><td>blocked</td><td>245ms</td><td>716ms</td><td>799ms</td><td>-</td><td>701ms</td><td>701ms</td><td>10</td><td>1.20s</td><td>-</td></tr><tr class=""><td>without-1</td><td>blocked</td><td>33ms</td><td>903ms</td><td>1.06s</td><td>-</td><td>750ms</td><td>772ms</td><td>13</td><td>1.42s</td><td>-</td></tr><tr class=""><td>without-2</td><td>blocked</td><td>34ms</td><td>858ms</td><td>1.15s</td><td>-</td><td>822ms</td><td>832ms</td><td>17</td><td>1.68s</td><td>-</td></tr></tbody></table>
+
+<h3>What LogRocket does cost</h3>
+<div class="note honest">
+<p>LogRocket isn't free, and this report doesn't claim it is. LogRocket's own code accounted for 32ms to 140ms (median 134ms) of main-thread time inside long tasks. It runs in short, time-sliced chunks, so most of it never forms a long task of its own, and it doesn't show up as higher TBT.</p>
+<p>The theme's loader starts LogRocket from <code>requestIdleCallback(..., { timeout: 3000 })</code>, which fired around 1.04s here, while the page was still loading. Waiting for the <code>load</code> event and then an idle callback would move LogRocket's startup out of the window lab tools score.</p>
+</div>
+
+<h3>Methodology</h3>
+<div class="note"><ul>
+<li>Every run starts in a fresh isolated browser context, so the HTTP cache and storage are cold. The trace starts before navigation and stops about 10s after <code>load</code>.</li>
+<li>Both conditions run the same init script, which patches <code>Node.prototype.appendChild</code>. In "without" runs it drops the <code>cdn.logr-in.com</code> script insert, so the LogRocket recorder never loads (verified on each run). LogRocket's Shopify app pixel (<code>shopify-app-pixel.min.js</code>) still loads in both conditions. It runs inside Shopify's web-pixel sandbox and records zero main-thread LogRocket time, so it doesn't affect the comparison.</li>
+<li>No CPU or network throttling, matching Lighthouse's desktop preset. Runs alternate between conditions.</li>
+<li>TBT = the sum of (duration minus 50ms) for main-thread tasks between FCP and TTI. TTI is the start of the first 5s window with no long task; this estimate ignores network quiet. "Fixed window" ends 20s after navigation start.</li>
+<li>Ownership comes from V8 CPU profile samples on the page's main thread: each sample is charged to the script of the innermost JS frame. Samples with no JS on the stack count as browser work. "Lighthouse-style" charges the whole task to the URL of its first JS entry point.</li>
+<li>LCP comes from Chrome DevTools' trace analysis.</li>
+<li>Caveats: this is a lab test with three runs per condition, so small effects (under about 10%) are within noise. Tracing overhead (async stack capture, CPU sampling) applies to both conditions equally.</li>
+</ul></div>
+<footer>Generated from raw Chrome traces. Scripts: analyze.mjs, build-report.mjs.</footer>
+</main></body></html>

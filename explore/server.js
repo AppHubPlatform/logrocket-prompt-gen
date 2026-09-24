@@ -15,6 +15,16 @@ const app = express();
 // request never reaches the container.
 app.get("/_health", (_req, res) => res.status(200).send("ok"));
 
+// Unlisted pages under /r/<random id>/ are shared by direct link only. Keep
+// them out of search indexes, and don't leak their URL to other sites via
+// Referer. Don't add /r/ to a robots.txt Disallow: crawlers that can't fetch
+// the page never see the noindex.
+app.use("/r", (_req, res, next) => {
+  res.set("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet");
+  res.set("Referrer-Policy", "no-referrer");
+  next();
+});
+
 // extensions: ["html"] lets /monitoring-maturity-quest resolve without the
 // trailing /index.html.
 app.use(express.static(publicDir, { extensions: ["html"] }));
