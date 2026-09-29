@@ -1,8 +1,31 @@
 name: Deploy to Cloud Run
 
 on:
-  # Manual-only: deploys are triggered on demand (Actions tab → "Run workflow",
-  # or `gh workflow run deploy.yml`), not automatically on every push to main.
+  # Every push to main that touches this service ships it to production. Merging is the
+  # deploy, so anything that should not be live yet stays on a branch until it is ready.
+  #
+  # An allowlist rather than an exclusion list, because this repo holds a second service.
+  # explore/ has its own image, its own workflow and its own domain, so a quest-game merge
+  # must not roll out a new revision of the prompt generator. Anything not listed here,
+  # including README files and Terraform, cannot change the image this workflow builds.
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "api/**"
+      - "public/**"
+      - "index.html"
+      - "server.js"
+      - "vite.config.js"
+      - "package.json"
+      - "package-lock.json"
+      - "Dockerfile"
+      - ".dockerignore"
+      # Included on purpose: a change to this workflow should prove itself by running,
+      # rather than staying untested until the next code change.
+      - ".github/workflows/deploy.yml"
+  # Kept so a deploy can still be re-run by hand without an empty commit: rolling
+  # forward after a transient failure, or redeploying when only a secret changed.
   workflow_dispatch:
 
 # Required for keyless auth to GCP via Workload Identity Federation.
