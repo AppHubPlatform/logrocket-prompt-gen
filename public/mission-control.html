@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LogRocket Mission Control — Members &amp; Assignments</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Kalam:wght@400;700&family=Permanent+Marker&display=swap">
+<style>
+  :root{
+    --ink:#14161a;
+    --ink-soft:#50555e;
+    --board:#f4f6f7;
+    --flag:#d62f2a;
+    --flag-soft:#ffe6e3;
+    --purple:#6a2ee0;
+    --violet:#8b5cf0;
+    --lilac:#c9b4f5;
+    --surface:
+      linear-gradient(112deg, transparent 0 30%, rgba(255,255,255,.6) 40%, transparent 52%),
+      radial-gradient(ellipse 320px 90px at 16% 82%, rgba(110,120,130,.05), transparent 70%),
+      radial-gradient(ellipse 220px 70px at 72% 22%, rgba(110,120,130,.04), transparent 70%),
+      radial-gradient(ellipse 380px 110px at 55% 92%, rgba(110,120,130,.035), transparent 70%);
+  }
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    font-family:'Kalam','Comic Sans MS',cursive; color:var(--ink); overflow:hidden;
+    background:linear-gradient(180deg,#dfe5ea 0%,#c5cdd5 100%);
+  }
+  .marker-font{font-family:'Permanent Marker','Kalam',cursive; font-weight:400;}
+  .hl{background:linear-gradient(transparent 62%, rgba(139,92,240,.38) 62% 90%, transparent 90%); padding:0 .12em; border-radius:4px;}
+
+  /* ---------- WALL + BOARD FRAME ---------- */
+  .app{height:100vh; display:flex; flex-direction:column; padding:16px 18px 0;}
+  .board{
+    flex:1; min-height:0; display:flex; position:relative; overflow:hidden;
+    background:var(--board);
+    border:11px solid; border-color:#e6e9ec #b4bac0 #a2a8ae #d4d8dc; border-radius:8px;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.12), inset 0 3px 10px rgba(0,0,0,.08), 0 14px 28px rgba(30,40,50,.28);
+  }
+  .view{flex:1; min-width:0; min-height:0; background:var(--surface), var(--board);}
+  .ledge{
+    height:20px; flex-shrink:0; margin:0 -6px; position:relative; border-radius:0 0 8px 8px;
+    background:linear-gradient(#dde0e4,#a7adb3); box-shadow:0 8px 14px rgba(30,40,50,.28);
+  }
+  .pen{position:absolute; top:-9px; width:96px; height:13px; border-radius:7px; border:1px solid rgba(0,0,0,.4);
+    background:linear-gradient(90deg,var(--cap) 0 24px,#f3f4f5 24px 82px,var(--cap) 82px);}
+  .pen.p1{right:150px; --cap:#14161a; transform:rotate(-2deg);}
+  .pen.p2{right:40px; --cap:#6a2ee0; transform:rotate(1.5deg);}
+  .pen.p3{right:270px; --cap:#d62f2a; transform:rotate(-1deg);}
+
+  /* ---------- HAND-DRAWN BUTTONS ---------- */
+  .btn{
+    position:relative; z-index:0; cursor:pointer; border:none; background:transparent; color:var(--ink);
+    font-family:'Kalam',cursive; font-weight:700; font-size:15px; padding:6px 16px; line-height:1.2; white-space:nowrap;
+  }
+  .btn::before{
+    content:''; position:absolute; inset:0; z-index:-1; background:#fff; border:2.4px solid var(--ink);
+    border-radius:8px 12px 9px 13px / 12px 8px 13px 9px; filter:url(#rough2); transition:background .12s;
+  }
+  .btn:hover{color:#fff;}
+  .btn:hover::before{background:var(--ink);}
+  .btn.solid{color:#fff;}
+  .btn.solid::before{background:var(--ink);}
+  .btn.solid:hover{color:var(--ink);}
+  .btn.solid:hover::before{background:#fff;}
+  .btn.purple{color:#fff;}
+  .btn.purple::before{background:var(--purple);}
+  .btn.purple:hover{color:var(--purple);}
+  .btn.purple:hover::before{background:#fff; border-color:var(--purple);}
+  .btn.small{font-family:'Inter',system-ui,sans-serif; font-weight:600; font-size:13px; padding:4px 12px;}
+  .btn-block{width:100%;}
+
+  /* ---------- SHARED INK INPUTS ---------- */
+  .field label{display:block; font-family:'Permanent Marker',cursive; font-size:13px; letter-spacing:.06em; text-transform:uppercase; margin-bottom:2px;}
+  .ink-input,.ink-select{
+    width:100%; background:transparent; border:none; border-bottom:3px solid var(--ink); outline:none; padding:5px 2px;
+    font-family:'Kalam',cursive; font-size:22px; color:var(--ink); border-radius:0;
+  }
+  .ink-input::placeholder{color:#9aa0a8;}
+  .ink-input:focus,.ink-select:focus{border-bottom-color:var(--purple);}
+  .field.invalid .ink-input,.field.invalid .ink-select{border-bottom-color:var(--flag);}
+  .field.invalid label{color:var(--flag);}
+  .ink-select{
+    appearance:none; -webkit-appearance:none; cursor:pointer; padding-right:26px;
+    background:transparent url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='M3 6l5 5 5-5' fill='none' stroke='%2314161a' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/></svg>") no-repeat right 2px center / 18px;
+  }
+  .ink-select.sm{font-size:16px; border-bottom-width:2.4px; width:auto; padding:3px 26px 3px 2px;}
+  .money{position:relative;}
+  .money span{position:absolute; left:2px; bottom:6px; font-size:22px; font-weight:700; color:var(--ink-soft);}
+  .money .ink-input{padding-left:20px;}
+
+  /* ============================================================
+     SPLASH
+     ============================================================ */
+  .splash{position:relative; display:flex; flex-direction:column; padding:24px 44px 32px; overflow:auto;}
+  .splash-top{display:flex; align-items:center; justify-content:space-between; position:relative; z-index:3;}
+  .logo{display:flex; align-items:center; gap:10px; font-weight:700; font-size:32px; line-height:1;}
+  .logo svg{width:44px; height:52px;}
+  .logo .name{background:linear-gradient(transparent 78%, rgba(139,92,240,.55) 78% 92%, transparent 92%);}
+  .splash-hero{flex:1; position:relative; display:flex; align-items:center; min-height:280px;}
+  .hero-text{position:relative; z-index:2;}
+  .hero-title{font-family:'Permanent Marker',cursive; font-weight:400; margin:0; font-size:clamp(46px,6.6vw,104px); line-height:1.02; letter-spacing:.005em;}
+  .hero-title .hl{background:linear-gradient(transparent 80%, rgba(139,92,240,.4) 80% 94%, transparent 94%);}
+  .hero-sub{font-weight:700; color:var(--purple); margin:8px 0 0; font-size:clamp(26px,3.7vw,56px); line-height:1.1;
+    background:linear-gradient(transparent 86%, rgba(139,92,240,.35) 86% 96%, transparent 96%); display:inline-block;}
+  .hero-art{position:absolute; right:0; top:50%; transform:translateY(-50%); width:min(46%,620px); z-index:1; pointer-events:none;}
+  .hero-art svg{width:100%; height:auto; display:block; overflow:visible;}
+
+  .launch{
+    position:relative; z-index:3; margin-top:26px; padding:30px 30px 24px; display:grid; gap:26px; align-items:end;
+    grid-template-columns:1.7fr 1.2fr 1fr auto;
+  }
+  .launch::before{
+    content:''; position:absolute; inset:0; z-index:-1; background:rgba(255,255,255,.78); border:2.6px solid var(--ink);
+    border-radius:16px 22px 14px 24px / 22px 14px 24px 16px; filter:url(#rough);
+  }
+  .launch-tag{white-space:nowrap; position:absolute; top:-16px; left:26px; padding:0 10px; background:var(--board); font-family:'Permanent Marker',cursive; font-size:16px; letter-spacing:.05em; text-transform:uppercase;}
+  .launch .btn.go{font-family:'Permanent Marker',cursive; font-weight:400; font-size:24px; padding:10px 30px; display:flex; align-items:center; gap:10px;}
+  .launch .btn.go svg{width:22px; height:26px;}
+  @media (max-width:1000px){ .launch{grid-template-columns:1fr 1fr;} .hero-art{opacity:.35;} }
+  @media (max-width:640px){ .launch{grid-template-columns:1fr;} .splash{padding:20px;} }
+
+  /* ============================================================
+     ACCOUNT LIST
+     ============================================================ */
+  .list{display:flex; flex-direction:column; padding:22px 40px 28px; overflow:auto;}
+  .list-top{display:flex; align-items:center; gap:18px; flex-wrap:wrap;}
+  .list-title{font-family:'Permanent Marker',cursive; font-size:clamp(28px,3.4vw,44px); line-height:1.05; margin:0;}
+  .list-title small{font-family:'Kalam',cursive; font-weight:700; color:var(--purple); font-size:.62em; margin-left:6px;}
+  .list-top .spacer{flex:1;}
+  .filter{display:flex; align-items:center; gap:8px; font-weight:700; font-size:16px;}
+  .summary{display:flex; gap:26px; flex-wrap:wrap; margin:14px 0 22px; font-size:17px; color:var(--ink-soft);}
+  .summary b{font-family:'Permanent Marker',cursive; font-weight:400; font-size:24px; color:var(--ink); margin-right:4px;}
+  .summary b.red{color:var(--flag);}
+  .table-card{position:relative; padding:8px 14px 10px; overflow-x:auto;}
+  .table-card::before{
+    content:''; position:absolute; inset:0; background:rgba(255,255,255,.82); border:2.6px solid var(--ink);
+    border-radius:14px 20px 12px 22px / 20px 12px 22px 14px; filter:url(#rough); pointer-events:none; z-index:0;
+  }
+  .table-card table,.table-card .empty{font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;}
+  table{position:relative; z-index:1; width:100%; border-collapse:collapse; min-width:860px;}
+  th{
+    font-weight:700; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-soft);
+    text-align:left; padding:14px 12px 10px; border-bottom:3px solid var(--ink); white-space:nowrap;
+  }
+  th.c,td.c{text-align:center;}
+  th.r,td.r{text-align:right;}
+  td{padding:14px 12px; font-size:15px; font-weight:500; border-bottom:1.8px dashed #c3c7cd; vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover td{background:rgba(139,92,240,.07);}
+  td.acct{font-weight:700; font-size:16px;}
+  td.amt{font-weight:600; font-variant-numeric:tabular-nums;}
+  td.act{color:#22252b; font-size:14.5px; line-height:1.35;}
+  td.act .a{display:flex; align-items:center; gap:10px;}
+  td.act .a svg{width:34px; height:26px; flex-shrink:0;}
+  td.act .a.calm{color:var(--ink-soft);}
+  td.go{white-space:nowrap; text-align:right;}
+  td.go .x{margin-left:8px; background:none; border:none; cursor:pointer; font-family:'Inter',system-ui,sans-serif; font-weight:600; font-size:15px; color:#9aa0a8; padding:2px 6px;}
+  td.go .x:hover{color:var(--flag);}
+  .cbox{position:relative; display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; z-index:0; vertical-align:middle;}
+  .cbox::before{content:''; position:absolute; inset:0; z-index:-1; border:2.6px solid var(--flag); background:#fff; border-radius:5px 8px 6px 9px / 8px 5px 9px 6px; filter:url(#rough2);}
+  .cbox.on::before{border-color:var(--ink);}
+  .cbox svg{width:24px; height:24px;}
+  .empty{position:relative; z-index:1; text-align:center; padding:50px 20px; font-size:16px; color:var(--ink-soft);}
+  .empty .btn{margin-top:14px;}
+  .save-note{margin-top:14px; font-size:14px; color:var(--flag); font-weight:700;}
+
+  /* ============================================================
+     CHART VIEW
+     ============================================================ */
+  .chart{display:flex;}
+  .sidebar{width:290px; flex-shrink:0; display:flex; flex-direction:column; position:relative; z-index:6; min-height:0;}
+  .sidebar::after{
+    content:''; position:absolute; top:0; bottom:0; right:-10px; width:20px; pointer-events:none;
+    background:linear-gradient(var(--ink),var(--ink)) center/2.6px 100% no-repeat; filter:url(#roughV);
+  }
+  .sidebar-header{padding:18px 20px 10px;}
+  .brand{display:flex; align-items:center; gap:10px; cursor:pointer; text-decoration:none; color:inherit;}
+  .brand svg{width:34px; height:40px; flex-shrink:0;}
+  .brand .t{font-size:21px; line-height:1.1;}
+  .brand-sub{font-size:14px; color:var(--purple); font-weight:700; margin-top:6px;}
+
+  .section-title{font-family:'Permanent Marker',cursive; font-size:14px; letter-spacing:.06em; text-transform:uppercase; padding:10px 20px 0;}
+  .tray{flex:1; overflow-y:auto; padding:16px 22px 8px; min-height:120px;}
+  .tray-empty{font-size:14.5px; color:var(--ink-soft); line-height:1.4; padding-top:4px;}
+
+  .chip{
+    position:relative; padding:13px 14px 10px; margin-bottom:16px; cursor:grab; user-select:none;
+    background:var(--c); transform:rotate(var(--rot)); box-shadow:2px 4px 7px rgba(0,0,0,.2); transition:transform .12s, box-shadow .12s;
+  }
+  .chip:hover{transform:rotate(0deg) translateY(-2px); box-shadow:3px 8px 12px rgba(0,0,0,.24);}
+  .chip:active{cursor:grabbing;}
+  .chip::before{content:''; position:absolute; top:-8px; left:50%; width:48px; height:15px; transform:translateX(-50%) rotate(-2deg);
+    background:rgba(255,255,255,.6); box-shadow:0 1px 2px rgba(0,0,0,.12);}
+  .chip-name{font-weight:700; font-size:17px; line-height:1.2;}
+  .chip-title{font-size:14px; color:#3a3d44; margin-top:1px;}
+  .chip-hint{font-size:12.5px; color:#5a5d63; margin-top:5px;}
+
+  .add-wrap{padding:10px 22px 4px; display:flex; flex-direction:column; gap:10px;}
+  .btn:disabled{opacity:.6; cursor:wait;}
+  .btn:disabled:hover{color:inherit;} .btn.purple:disabled:hover{color:#fff;}
+  .btn:disabled:hover::before{background:#fff;} .btn.purple:disabled:hover::before{background:var(--purple);}
+  .rog-status{font-size:13.5px; line-height:1.3; color:var(--ink-soft); padding:0 22px; margin-top:6px; min-height:0;}
+  .rog-status.err{color:var(--flag); font-weight:700;}
+  .rog-status.ok{color:var(--purple); font-weight:700;}
+  .help{padding:10px 22px 16px; font-size:13.5px; color:var(--ink-soft); line-height:1.35;}
+  .help ul{margin:6px 0 0; padding-left:18px;}
+  .help li{margin-bottom:3px;}
+  .legend{display:flex; flex-direction:column; gap:6px; margin-bottom:8px; color:var(--ink); font-weight:700;}
+  .legend div{display:flex; align-items:center; gap:10px; line-height:1.15;}
+  .legend svg{width:34px; height:26px; flex-shrink:0;}
+  .legend .g svg{width:40px;}
+  .legend .g{color:var(--flag);}
+  .legend .g span:last-child{color:var(--ink);}
+
+  .main{flex:1; display:flex; flex-direction:column; min-width:0;}
+  .topbar{height:64px; flex-shrink:0; display:flex; align-items:center; padding:0 26px 0 30px; gap:16px;}
+  .topbar > *{white-space:nowrap;}
+  .account-title{font-family:'Permanent Marker',cursive; font-size:28px; line-height:1.1;}
+  .account-sub{font-size:16px; color:var(--ink-soft);}
+  .account-sub b{color:var(--purple);}
+  .topbar .spacer{flex:1;}
+  @media (max-width:1100px){ .account-sub{display:none;} }
+  .target-count{display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px;}
+  .target-count svg{width:36px; height:27px;}
+  .target-count b{font-family:'Permanent Marker',cursive; font-weight:400; font-size:20px; color:var(--flag);}
+
+  .canvas-wrap{flex:1; overflow:auto; position:relative;}
+  .canvas{position:relative; width:2200px; height:1300px;}
+  .canvas.drag-over{background:rgba(20,22,26,.025);}
+
+  svg#connSvg{position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:visible; z-index:2;}
+  svg#connSvg path.hit{pointer-events:stroke; cursor:pointer;}
+  svg#connSvg path.ink{stroke-linecap:round; stroke-linejoin:round; fill:none;}
+
+  .bucket{position:absolute; z-index:1; pointer-events:none; --bc:var(--ink);}
+  .bucket::before{
+    content:''; position:absolute; inset:0; border:2.6px dashed var(--bc); pointer-events:none;
+    border-radius:16px 22px 14px 24px / 22px 14px 24px 16px; filter:url(#rough);
+  }
+  .bucket-label{
+    position:absolute; top:-17px; left:22px; padding:0 10px; background:#f6f7f8; pointer-events:auto;
+    font-family:'Permanent Marker',cursive; font-size:17px; letter-spacing:.05em; text-transform:uppercase; color:var(--bc);
+    cursor:move; user-select:none; display:flex; align-items:center; gap:8px; white-space:nowrap;
+  }
+  .bucket-label span[contenteditable]{outline:none; min-width:10px; cursor:text;}
+  .bucket-label .swatch,.bucket-label .del{opacity:0; transition:opacity .12s; cursor:pointer;}
+  .bucket-label:hover .swatch,.bucket-label:hover .del{opacity:1;}
+  .bucket-label .swatch{width:13px; height:13px; border-radius:50%; background:var(--bc); border:2px solid #fff; box-shadow:0 0 0 1.5px var(--bc);}
+  .bucket-label .del{font-family:'Kalam',cursive; font-size:14px; font-weight:700; color:var(--ink-soft);}
+  .bucket-label .del:hover{color:var(--flag);}
+  .bucket-resize{
+    position:absolute; right:-3px; bottom:-3px; width:20px; height:20px; cursor:nwse-resize; pointer-events:auto; opacity:.45;
+    background:linear-gradient(135deg, transparent 42%, var(--bc) 42% 54%, transparent 54% 68%, var(--bc) 68% 80%, transparent 80%);
+  }
+  .bucket:hover .bucket-resize,.bucket-resize:hover{opacity:1;}
+  .swatch-menu{position:absolute; z-index:50; background:#fff; border:2px solid var(--ink); border-radius:10px 14px 10px 14px; padding:7px; display:flex; gap:8px; box-shadow:3px 5px 0 rgba(0,0,0,.15);}
+  .swatch-menu div{width:20px; height:20px; border-radius:50%; cursor:pointer; border:2px solid #fff; box-shadow:0 0 0 1.5px var(--ink);}
+
+  .card{position:absolute; z-index:3; width:250px; padding:11px 14px 10px 12px; cursor:grab; user-select:none; color:var(--ink);}
+  .card::before{
+    content:''; position:absolute; inset:0; z-index:-1; background:#fff; border:2.6px solid var(--ink);
+    border-radius:6px 10px 7px 11px / 10px 6px 11px 7px; filter:url(#rough);
+  }
+  .card.target::after{
+    content:''; position:absolute; inset:5px; z-index:-1; pointer-events:none; border:1.8px solid var(--flag);
+    border-radius:5px 8px 6px 9px / 8px 5px 9px 6px; filter:url(#rough2);
+  }
+  .card.target{padding:14px 17px 13px 15px;}
+  .card:active{cursor:grabbing;}
+  .card.dragging{z-index:30; transform:rotate(-1deg);}
+  .card.dragging::before{box-shadow:5px 9px 14px rgba(0,0,0,.22);}
+  .card-row{display:flex; align-items:center; gap:11px;}
+  .card-icon{flex-shrink:0; display:flex; align-items:center; justify-content:center; width:46px;}
+  .card.target .card-icon{width:58px;}
+  .card-icon svg{display:block;}
+  .card-text{min-width:0;}
+  .card-name{font-weight:700; font-size:17px; line-height:1.15;}
+  .card-title{font-size:14px; color:var(--ink-soft); line-height:1.2; margin-top:1px;}
+  .card-contact{margin-top:7px; padding-top:5px; border-top:1.6px dashed #b9bdc3; font-size:12.5px; color:var(--ink-soft);}
+  .card-contact div{display:flex; align-items:center; gap:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.45;}
+  .card-contact svg{width:13px; height:13px; flex-shrink:0;}
+
+  .export-wrap{position:relative;}
+  .export-menu{position:absolute; right:0; top:calc(100% + 8px); z-index:60; min-width:170px; padding:6px; background:#fff; border:2.4px solid var(--ink);
+    border-radius:10px 14px 10px 14px; box-shadow:3px 5px 0 rgba(0,0,0,.15);}
+  .export-menu button{display:block; width:100%; text-align:left; background:none; border:none; cursor:pointer; padding:7px 10px; border-radius:6px;
+    font-family:'Kalam',cursive; font-weight:700; font-size:16px; color:var(--ink);}
+  .export-menu button:hover{background:var(--purple); color:#fff;}
+  .export-menu small{display:block; font-family:'Inter',sans-serif; font-weight:400; font-size:11px; opacity:.7;}
+
+  /* action items strip */
+  .actions{flex-shrink:0; position:relative; margin:0 26px 14px; padding:12px 16px 12px; font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;}
+  .actions::before{content:''; position:absolute; inset:0; z-index:0; background:rgba(255,246,245,.9); border:2.4px solid var(--ink);
+    border-radius:12px 18px 11px 19px / 18px 11px 19px 12px; filter:url(#rough); pointer-events:none;}
+  .actions > *{position:relative; z-index:1;}
+  .actions-head{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+  .actions-title{font-family:'Permanent Marker',cursive; font-size:18px; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap;}
+  .actions-count{display:inline-block; margin-left:8px; min-width:26px; padding:0 8px; border-radius:13px; background:var(--flag); color:#fff; font-family:'Inter',sans-serif; font-weight:700; font-size:13px; text-align:center; letter-spacing:0; vertical-align:2px;}
+  .actions-count.zero{background:#9aa0a8;}
+  .actions-primary{flex:1; min-width:200px; font-size:14px; color:var(--ink-soft);}
+  .actions-primary b{color:var(--ink);}
+  .actions-list{display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:10px; margin-top:10px; max-height:172px; overflow-y:auto; padding:2px;}
+  .actions.collapsed .actions-list{display:none;}
+  .actions-empty{grid-column:1/-1; font-size:14px; color:var(--ink-soft); padding:4px 2px;}
+  .ai{display:flex; align-items:center; gap:10px; padding:8px 10px; background:#fff; border:1.6px solid #e2b0ab; border-left:5px solid var(--flag); border-radius:8px; cursor:pointer;}
+  .ai:hover{background:#fffafa; box-shadow:0 2px 6px rgba(214,47,42,.15);}
+  .ai svg.g{width:36px; height:27px; flex-shrink:0;}
+  .ai-body{flex:1; min-width:0;}
+  .ai-act{font-weight:700; font-size:14px; line-height:1.25;}
+  .ai-who{font-size:13px; color:var(--ink-soft); line-height:1.3;}
+  .ai-who{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .ai-who a{color:var(--purple); text-decoration:none; font-weight:500;}
+  .ai-who a:hover{text-decoration:underline;}
+  .ai-who .off{color:#9aa0a8;}
+  .ai .done{flex-shrink:0; font-family:'Inter',sans-serif; font-weight:600; font-size:12px; padding:4px 9px; cursor:pointer; background:#fff; color:var(--ink); border:1.6px solid var(--ink); border-radius:6px;}
+  .ai .done:hover{background:var(--ink); color:#fff;}
+
+  .card-actions{position:absolute; top:-14px; right:8px; display:none; gap:5px; z-index:4;}
+  .card:hover .card-actions{display:flex;}
+  .card-actions button{
+    width:26px; height:26px; padding:0; cursor:pointer; background:#fff; color:var(--ink); border:2px solid var(--ink);
+    border-radius:50%; font-size:13px; font-weight:700; line-height:1; display:flex; align-items:center; justify-content:center;
+  }
+  .card-actions button svg{width:18px; height:14px;}
+  .card-actions button:hover{background:var(--ink); color:#fff;}
+  .card-actions button.targetBtn{border-color:var(--flag);}
+  .card-actions button.targetBtn:hover,.card-actions button.targetBtn.on{background:var(--flag-soft); color:inherit;}
+
+  .handle{
+    position:absolute; left:50%; bottom:-9px; width:16px; height:16px; margin-left:-8px; border-radius:50%;
+    background:#fff; border:2.4px solid var(--ink); cursor:crosshair; z-index:5; opacity:0; transition:opacity .12s, transform .12s;
+  }
+  .card:hover .handle{opacity:1;}
+  .handle:hover{transform:scale(1.3); background:var(--ink);}
+
+  /* ---------- MODAL (sticky note) ---------- */
+  .modal-overlay{position:fixed; inset:0; background:rgba(30,40,50,.4); display:none; align-items:center; justify-content:center; z-index:100;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:#fff27a; padding:28px 26px 20px; width:370px; transform:rotate(-.8deg); box-shadow:4px 12px 30px rgba(0,0,0,.3); position:relative;}
+  .modal::before{content:''; position:absolute; top:-10px; left:50%; width:70px; height:20px; transform:translateX(-50%) rotate(2deg);
+    background:rgba(255,255,255,.6); box-shadow:0 1px 3px rgba(0,0,0,.12);}
+  .modal h4{font-family:'Permanent Marker',cursive; font-weight:400; margin:0 0 14px; font-size:22px;}
+  .modal label.lbl{font-size:13px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:#4a4630; display:block;}
+  .modal input[type=text]{
+    width:100%; background:transparent; border:none; border-bottom:2px solid var(--ink); outline:none; padding:3px 2px; margin-bottom:14px;
+    font-family:'Kalam',cursive; font-size:18px; color:var(--ink);
+  }
+  .target-toggle{display:flex; align-items:center; gap:10px; cursor:pointer; margin:2px 0 16px; font-weight:700; font-size:15px; line-height:1.15;}
+  .target-toggle input{width:20px; height:20px; accent-color:var(--flag); flex-shrink:0; cursor:pointer;}
+  .target-toggle svg{width:44px; height:33px; flex-shrink:0;}
+  .modal-actions{display:flex; justify-content:space-between; align-items:center;}
+  .modal-actions .right{display:flex; gap:10px;}
+  .modal.confirm{width:400px; background:#ffe0dc; transform:rotate(.6deg);}
+  .modal.confirm p{margin:0 0 20px; font-size:18px; line-height:1.35;}
+  .modal.confirm p b{font-weight:700;}
+  .btn.danger{color:#fff;}
+  .btn.danger::before{background:var(--flag); border-color:var(--flag);}
+  .btn.danger:hover{color:var(--flag);}
+  .btn.danger:hover::before{background:#fff;}
+  .link-btn{background:none; border:none; color:var(--flag); font-family:'Kalam',cursive; font-size:15px; font-weight:700; padding:0; cursor:pointer; text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<!-- Shared SVG: marker wobble filters + reusable symbols -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <filter id="rough" x="-12%" y="-12%" width="124%" height="124%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="3.4" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="rough2" x="-12%" y="-12%" width="124%" height="124%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" seed="11" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="roughV" x="-100%" y="-2%" width="300%" height="104%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.03" numOctaves="2" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="6" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+
+    <symbol id="rocket" viewBox="0 0 100 130">
+      <g stroke="#14161a" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M28 66 L8 98 L32 90 Z" fill="#8b5cf0"/>
+        <path d="M72 66 L92 98 L68 90 Z" fill="#8b5cf0"/>
+        <path d="M50 6 C72 26 78 56 72 92 L28 92 C22 56 28 26 50 6 Z" fill="#b79cf6"/>
+        <circle cx="50" cy="46" r="9" fill="#fff"/>
+        <path d="M38 92 L40 102 L60 102 L62 92" fill="#8b5cf0"/>
+      </g>
+      <g stroke="#8b5cf0" stroke-width="4" stroke-linecap="round"><path d="M42 112 v12"/><path d="M50 112 v16"/><path d="M58 112 v12"/></g>
+    </symbol>
+    <symbol id="spark" viewBox="-16 -16 32 32">
+      <path d="M0-14C2-4 4-2 14 0 4 2 2 4 0 14-2 4-4 2-14 0-4-2-2-4 0-14Z" fill="#8b5cf0" stroke="#6a2ee0" stroke-width="1.5" stroke-linejoin="round"/>
+    </symbol>
+    <g id="miniCard">
+      <rect x="0" y="0" width="200" height="120" rx="10" fill="#fff" stroke="#14161a" stroke-width="4"/>
+      <circle cx="100" cy="42" r="27" fill="#fff" stroke="#14161a" stroke-width="3.5"/>
+      <circle cx="100" cy="34" r="10" fill="#8b5cf0"/>
+      <path d="M81 58 Q100 34 119 58 Z" fill="#8b5cf0"/>
+      <rect x="52" y="82" width="96" height="11" rx="5.5" fill="#6a2ee0"/>
+      <rect x="66" y="99" width="68" height="8" rx="4" fill="#c9b4f5"/>
+    </g>
+  </defs>
+</svg>
+
+<div class="app">
+  <div class="board">
+
+    <!-- ===================== SPLASH ===================== -->
+    <section class="view splash" id="viewSplash" hidden>
+      <div class="splash-top">
+        <div class="logo"><svg viewBox="0 0 100 130"><use href="#rocket"/></svg><span class="name">LogRocket</span></div>
+        <button class="btn" id="splashToList">All accounts (<span id="splashCount">0</span>)</button>
+      </div>
+
+      <div class="splash-hero">
+        <div class="hero-text">
+          <h1 class="hero-title"><span class="hl">Mission Control</span></h1>
+          <div class="hero-sub">Members &amp; Assignments</div>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <svg viewBox="0 0 720 470" fill="none">
+            <g filter="url(#rough2)">
+              <path d="M70 250 C20 360 160 440 330 400" stroke="#c9b4f5" stroke-width="7" stroke-linecap="round"/>
+              <path d="M110 300 C90 400 330 450 560 360" stroke="#8b5cf0" stroke-width="3" stroke-dasharray="10 12" stroke-linecap="round"/>
+              <path d="M660 180 C720 260 690 330 640 370" stroke="#c9b4f5" stroke-width="7" stroke-linecap="round"/>
+              <path d="M410 80 C470 40 540 30 600 20" stroke="#c9b4f5" stroke-width="6" stroke-linecap="round"/>
+              <path d="M440 105 C500 70 560 60 620 40" stroke="#8b5cf0" stroke-width="3" stroke-linecap="round" opacity=".6"/>
+            </g>
+            <g transform="translate(575 -6) rotate(42 45 60) scale(.95)"><svg width="100" height="130" viewBox="0 0 100 130"><use href="#rocket"/></svg></g>
+
+            <g filter="url(#rough2)">
+              <g transform="translate(-105 0)">
+              <rect x="300" y="120" width="330" height="128" rx="10" fill="#fff" stroke="#14161a" stroke-width="4.5"/>
+              <circle cx="372" cy="184" r="36" fill="#fff" stroke="#14161a" stroke-width="4"/>
+              <circle cx="372" cy="173" r="13" fill="#8b5cf0"/>
+              <path d="M348 208 Q372 174 396 208 Z" fill="#8b5cf0"/>
+              <rect x="432" y="148" width="160" height="15" rx="7.5" fill="#6a2ee0"/>
+              <rect x="432" y="176" width="120" height="11" rx="5.5" fill="#c9b4f5"/>
+              <rect x="432" y="199" width="84" height="10" rx="5" fill="#c9b4f5"/>
+              </g>
+
+              <circle cx="360" cy="248" r="8" fill="#8b5cf0" stroke="#14161a" stroke-width="3"/>
+              <path d="M360 256 V292 M360 292 H135 V325 M360 292 V325 M360 292 H585 V325" stroke="#14161a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              <path d="M123 313 L135 328 L147 313 M348 313 L360 328 L372 313 M573 313 L585 328 L597 313" stroke="#14161a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </g>
+            <g filter="url(#rough2)" transform="translate(40 335) scale(.95)"><use href="#miniCard"/></g>
+            <g filter="url(#rough2)" transform="translate(265 335) scale(.95)"><use href="#miniCard"/></g>
+            <g filter="url(#rough2)" transform="translate(490 335) scale(.95)"><use href="#miniCard"/></g>
+
+            <use href="#spark" x="300" y="34" width="34" height="34"/>
+            <use href="#spark" x="230" y="120" width="28" height="28"/>
+            <use href="#spark" x="690" y="130" width="26" height="26"/>
+            <use href="#spark" x="20" y="330" width="30" height="30"/>
+            <use href="#spark" x="150" y="440" width="24" height="24"/>
+            <circle cx="255" cy="70" r="5" fill="#c9b4f5"/><circle cx="90" cy="380" r="5" fill="#8b5cf0"/><circle cx="690" cy="230" r="5" fill="#8b5cf0"/>
+          </svg>
+        </div>
+      </div>
+
+      <form class="launch" id="launchForm" novalidate>
+        <div class="launch-tag">Start a new org map</div>
+        <div class="field" id="fAccount">
+          <label for="inAccount">Account name</label>
+          <input class="ink-input" id="inAccount" type="text" placeholder="e.g. Meridian Robotics" autocomplete="off">
+        </div>
+        <div class="field" id="fRep">
+          <label for="inRep">Rep</label>
+          <select class="ink-select" id="inRep"></select>
+        </div>
+        <div class="field" id="fArr">
+          <label for="inArr">ARR value</label>
+          <div class="money"><span>$</span><input class="ink-input" id="inArr" type="text" inputmode="numeric" placeholder="250,000" autocomplete="off"></div>
+        </div>
+        <button class="btn purple go" type="submit"><svg viewBox="0 0 100 130"><use href="#rocket"/></svg>Launch</button>
+      </form>
+    </section>
+
+    <!-- ===================== ACCOUNT LIST ===================== -->
+    <section class="view list" id="viewList" hidden>
+      <div class="list-top">
+        <div class="logo"><svg viewBox="0 0 100 130"><use href="#rocket"/></svg></div>
+        <h2 class="list-title"><span class="hl">Mission Control</span><small>Accounts</small></h2>
+        <div class="spacer"></div>
+        <label class="filter">Rep <select class="ink-select sm" id="repFilter"></select></label>
+        <button class="btn purple" id="newAccountBtn">+ New account</button>
+      </div>
+      <div class="summary" id="summary"></div>
+      <div class="table-card">
+        <table>
+          <thead>
+            <tr><th>Account</th><th>Rep</th><th class="r">Amount</th><th class="c">Exec Engagement</th><th>Primary Action Item</th><th class="r">Open</th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="empty" id="emptyState" hidden>
+          <div>No accounts on the board yet.</div>
+          <button class="btn purple" id="emptyNewBtn">+ Map your first account</button>
+        </div>
+      </div>
+      <div class="save-note" id="saveNote" hidden>Heads up: this viewer can't save, so changes will be lost when you reload.</div>
+    </section>
+
+    <!-- ===================== CHART ===================== -->
+    <section class="view chart" id="viewChart" hidden>
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <a class="brand" id="brandLink" href="#/list" title="Back to all accounts">
+            <svg viewBox="0 0 100 130"><use href="#rocket"/></svg>
+            <span class="t marker-font">Mission Control</span>
+          </a>
+          <div class="brand-sub">Members &amp; Assignments</div>
+        </div>
+
+        <div class="section-title"><span class="hl">Contacts to place</span></div>
+        <div class="tray" id="tray"></div>
+
+        <div class="add-wrap">
+          <button class="btn purple btn-block" id="rogBtn" title="Pull the customer-side contacts in the current deal cycle (last 6 months of Gong calls and email) from Rog">&#10022; Enrich with Rog</button>
+          <button class="btn btn-block" id="addContactBtn">+ Add contact</button>
+        </div>
+        <div class="rog-status" id="rogStatus" role="status" aria-live="polite" hidden></div>
+
+        <div class="help">
+          <div class="legend">
+            <div><span data-icon="single"></span> <span>contact</span></div>
+            <div class="g"><span data-icon="group"></span> <span>red flag: not engaged yet</span></div>
+          </div>
+          <ul>
+            <li>Drag a sticky onto the board</li>
+            <li>Drag any card to move it</li>
+            <li>Pull the dot under a card onto another to draw an arrow</li>
+            <li>Click an arrow to erase it</li>
+            <li>Click a card to edit, or hit the red people button to flag or clear it</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="topbar">
+          <button class="btn" id="backBtn">&larr; Accounts</button>
+          <div class="account-title"><span class="hl" id="chartTitle">Account</span></div>
+          <div class="account-sub" id="chartMeta"></div>
+          <div class="spacer"></div>
+          <div class="target-count"><span data-icon="group" style="color:var(--flag)"></span><span><b id="targetCount">0</b> to engage</span></div>
+          <button class="btn" id="addBucketBtn">+ Add zone</button>
+          <div class="export-wrap">
+            <button class="btn solid" id="exportBtn" aria-haspopup="true">&#8681; Export &#9662;</button>
+            <div class="export-menu" id="exportMenu" hidden>
+              <button data-fmt="png">PNG image<small>sharp, best for slides</small></button>
+              <button data-fmt="jpeg">JPEG image<small>smaller file, best for email</small></button>
+            </div>
+          </div>
+        </div>
+        <div class="actions" id="actions">
+          <div class="actions-head">
+            <div class="actions-title"><span class="hl">Action items</span><span class="actions-count" id="actionsCount">0</span></div>
+            <div class="actions-primary" id="actionsPrimary"></div>
+            <button class="btn small" id="actionsToggle">Hide</button>
+          </div>
+          <div class="actions-list" id="actionsList"></div>
+        </div>
+        <div class="canvas-wrap" id="canvasWrap">
+          <div class="canvas" id="canvas">
+            <svg id="connSvg">
+              <defs>
+                <marker id="arrow" viewBox="0 0 14 14" refX="11" refY="7" markerWidth="14" markerHeight="14" markerUnits="userSpaceOnUse" orient="auto">
+                  <path d="M2 2 L12 7 L2 12" fill="none" stroke="#14161a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path>
+                </marker>
+              </defs>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+  <div class="ledge"><div class="pen p3"></div><div class="pen p1"></div><div class="pen p2"></div></div>
+</div>
+
+<div class="modal-overlay" id="editOverlay">
+  <div class="modal">
+    <h4>Edit contact</h4>
+    <label class="lbl">Name</label>
+    <input type="text" id="editName">
+    <label class="lbl">Title / role</label>
+    <input type="text" id="editTitle">
+    <label class="lbl">Email</label>
+    <input type="text" id="editEmail">
+    <label class="lbl">Phone</label>
+    <input type="text" id="editPhone" placeholder="e.g. +1 415 555 0134">
+    <label class="target-toggle"><input type="checkbox" id="editTarget"><span data-icon="group" style="color:var(--flag)"></span><span>Red flag: we haven't engaged this person</span></label>
+    <div class="modal-actions">
+      <button class="link-btn" id="editDeleteBtn">Remove card</button>
+      <div class="right">
+        <button class="btn" id="editCancelBtn">Cancel</button>
+        <button class="btn solid" id="editSaveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="deleteOverlay">
+  <div class="modal confirm" role="alertdialog" aria-labelledby="delTitle">
+    <h4 id="delTitle">Delete this account?</h4>
+    <p>Are you sure you want to delete <b id="delName"></b>? Its org map will be gone for good.</p>
+    <div class="modal-actions" style="justify-content:flex-end">
+      <div class="right">
+        <button class="btn" id="delCancelBtn">Cancel</button>
+        <button class="btn danger" id="delConfirmBtn">Yes, delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   CONSTANTS + ICONS
+   ============================================================ */
+const REPS   = ['Joe Clancy','Jordan Jacobs','Gazel Hebbert','Nic Acevedo','Jackson Bartlett','Greg Allen'];
+const COLORS = ['#14161a','#6a2ee0','#d62f2a','#1f8a4c'];      // black, purple, red, green markers
+const STICKY = ['#f7e76a','#b9e35a','#ffae5c','#9fdc6b'];
+const ROT    = [-2.2, 1.6, -1, 2];
+const STORE_KEY = 'logrocket-mission-control-v1';
+
+const SINGLE = `<svg width="44" height="44" viewBox="0 0 44 44" fill="none" aria-hidden="true">
+  <circle cx="22" cy="22" r="19" stroke="currentColor" stroke-width="2.4"/>
+  <circle cx="22" cy="17" r="5.6" fill="currentColor"/>
+  <path d="M11.5 33c1.6-6 6-8.6 10.5-8.6s8.900 2.600 10.500 8.600z" fill="currentColor"/>
+</svg>`;
+// The three-person "get to" symbol is always red: it's the red flag for "not engaged yet".
+const GROUP = `<svg width="56" height="42" viewBox="0 0 56 42" fill="none" aria-hidden="true" style="color:var(--flag)">
+  <g fill="currentColor">
+    <circle cx="11" cy="16" r="4.6"/><path d="M2 33c.8-6 4.500-9 9-9s8.200 3 9 9z"/>
+    <circle cx="45" cy="16" r="4.6"/><path d="M36 33c.8-6 4.500-9 9-9s8.200 3 9 9z"/>
+    <g stroke="#fff" stroke-width="1.8" stroke-linejoin="round">
+      <circle cx="28" cy="13" r="5.8"/><path d="M16.500 38c1-7.500 5.500-11.500 11.500-11.500s10.500 4 11.500 11.500z"/>
+    </g>
+  </g>
+</svg>`;
+const MAIL = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 4.500l6 4.500 6-4.500" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+const PHONE = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.500 1.800h2.400l1 3-1.500 1.100a8 8 0 0 0 3.700 3.700l1.100-1.500 3 1v2.400a1.500 1.500 0 0 1-1.600 1.500A11.500 11.500 0 0 1 2 3.400 1.500 1.500 0 0 1 3.500 1.800z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+const CHECK = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12.500 L9.500 18 L20.500 5" stroke="#6a2ee0" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+document.querySelectorAll('[data-icon]').forEach(el=>{
+  el.innerHTML = el.dataset.icon === 'group' ? GROUP : SINGLE;
+  el.style.display = 'inline-flex';
+});
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+const $ = id => document.getElementById(id);
+function uid(){ return Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4); }
+function hash(str){ let h = 2166136261; for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function rng(seed){ let a = seed; return function(){ a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function escapeHtml(str){
+  return (str==null?'':String(str)).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function money(n){ return '$' + (Number(n)||0).toLocaleString('en-US'); }
+
+/* ============================================================
+   STORAGE — every account (and its org chart) lives in one store.
+   Uses window.storage when the host provides it, else localStorage.
+   ============================================================ */
+let store = {accounts:[]};
+let canSave = true;
+
+async function safeGet(key){
+  try{ if(window.storage){ const r = await window.storage.get(key, false); if(r && r.value) return r.value; } }catch(e){}
+  try{ return localStorage.getItem(key); }catch(e){ return null; }
+}
+async function safeSet(key, value){
+  try{ if(window.storage){ await window.storage.set(key, value, false); return true; } }catch(e){}
+  try{ localStorage.setItem(key, value); return localStorage.getItem(key) === value; }catch(e){ return false; }
+}
+async function persist(){ canSave = await safeSet(STORE_KEY, JSON.stringify(store)); }
+
+async function loadStore(){
+  const raw = await safeGet(STORE_KEY);
+  if(raw){
+    try{ const d = JSON.parse(raw); if(d && Array.isArray(d.accounts)){ store = d; return; } }catch(e){}
+  }
+  store = {accounts:[sampleAccount()]};
+  await persist();
+}
+
+/* ============================================================
+   ACCOUNT DATA
+   ============================================================ */
+function blankAccount({name, rep, arr}){
+  const now = Date.now();
+  return {
+    id:uid(), name, rep, arr, created:now, updated:now,
+    contacts:[],
+    buckets:[{id:uid(), label:'Executive Team', x:120, y:70, w:560, h:300, color:COLORS[0]}],
+    connections:[]
+  };
+}
+
+function sampleAccount(){
+  const ink = COLORS[0];
+  const E = n => n + '@meridianrobotics.com';
+  const now = Date.now();
+  return {
+    id:uid(), name:'Meridian Robotics', rep:'Greg Allen', arr:480000, created:now, updated:now,
+    buckets:[
+      {id:'b-csuite', label:'C-Suite',          x:800, y:40,  w:420, h:330, color:ink},
+      {id:'b-prod',   label:'Product Team',     x:220, y:470, w:640, h:360, color:ink},
+      {id:'b-eng',    label:'Engineering Team', x:940, y:470, w:760, h:540, color:ink},
+    ],
+    contacts:[
+      {id:'ceo',  name:'Elena Cho',    title:'Chief Executive Officer',  email:E('elena.cho'), phone:'+1 415 555 0101',    target:false, placed:true, x:885,  y:90,  bucketId:'b-csuite'},
+      {id:'cto',  name:'Marcus Webb',  title:'Chief Technology Officer', email:E('marcus.webb'), phone:'+1 415 555 0102',  target:true,  placed:true, x:885,  y:240, bucketId:'b-csuite'},
+      {id:'vpp',  name:'Dana Reyes',   title:'VP, Product',              email:E('dana.reyes'), phone:'+1 415 555 0134',   target:true,  placed:true, x:410,  y:520, bucketId:'b-prod'},
+      {id:'pm1',  name:'Sam Ortiz',    title:'Product Manager',          email:E('sam.ortiz'),    target:false, placed:true, x:250,  y:700, bucketId:'b-prod'},
+      {id:'pm2',  name:'Priya Nair',   title:'Product Manager',          email:E('priya.nair'),   target:false, placed:true, x:570,  y:700, bucketId:'b-prod'},
+      {id:'vpe',  name:'Tom Alvarez',  title:'VP, Engineering',          email:E('tom.alvarez'), phone:'+1 415 555 0177',  target:true,  placed:true, x:1200, y:520, bucketId:'b-eng'},
+      {id:'em1',  name:'Jordan Lee',   title:'Engineering Manager',      email:E('jordan.lee'),   target:false, placed:true, x:1000, y:700, bucketId:'b-eng'},
+      {id:'em2',  name:'Ana Kim',      title:'Engineering Manager',      email:E('ana.kim'),      target:false, placed:true, x:1400, y:700, bucketId:'b-eng'},
+      {id:'se1',  name:'Chen Wu',      title:'Senior Engineer',          email:E('chen.wu'),      target:false, placed:true, x:1000, y:870, bucketId:'b-eng'},
+      {id:'u1', name:'Jamie Fox',   title:'Chief of Staff', email:E('jamie.fox'),   target:false, placed:false, x:0,y:0, bucketId:null},
+      {id:'u2', name:'Priya Singh', title:'Head of Data',   email:E('priya.singh'), target:false, placed:false, x:0,y:0, bucketId:null},
+      {id:'u3', name:'Noah Diaz',   title:'Staff Engineer', email:E('noah.diaz'),   target:false, placed:false, x:0,y:0, bucketId:null},
+    ],
+    connections:[
+      {from:'ceo', to:'cto'}, {from:'cto', to:'vpp'}, {from:'cto', to:'vpe'},
+      {from:'vpp', to:'pm1'}, {from:'vpp', to:'pm2'},
+      {from:'vpe', to:'em1'}, {from:'vpe', to:'em2'}, {from:'em1', to:'se1'},
+    ]
+  };
+}
+
+/* ---- Reading the org map: exec engagement + primary action item ---- */
+function execRank(title){
+  const t = (title||'').toLowerCase();
+  if(/\bceo\b|chief executive/.test(t)) return 0;
+  if(/\bchief\b|\bc[a-z]o\b|president(?!ial)/.test(t) && !/vice president/.test(t)) return 1;
+  if(/\b(svp|evp)\b|senior vice|executive vice/.test(t)) return 2;
+  if(/\bvp\b|vice president/.test(t)) return 3;
+  if(/\bhead of\b/.test(t)) return 4;
+  return null;
+}
+
+function analyze(acct){
+  const placed = acct.contacts;
+  const flagged = placed.filter(c=>c.target);
+  const execs = placed.filter(c=>execRank(c.title) !== null);
+  const flaggedExecs = flagged.filter(c=>execRank(c.title) !== null).sort((a,b)=>execRank(a.title)-execRank(b.title));
+  const execEngaged = execs.length > 0 && flaggedExecs.length === 0;
+
+  let text, flag = false;
+  if(!placed.length){
+    text = 'Build the org map: add the key contacts';
+  } else if(flaggedExecs.length){
+    const top = flaggedExecs[0];
+    text = 'Get ' + (top.title || 'exec') + ' — ' + top.name + (flaggedExecs.length > 1 ? ' (+' + (flaggedExecs.length-1) + ' more)' : '');
+    flag = true;
+  } else if(flagged.length){
+    const inZone = c => acct.buckets.find(b=>{
+      const cx = c.x + 125, cy = c.y + 45;
+      return cx > b.x && cx < b.x+b.w && cy > b.y && cy < b.y+b.h;
+    });
+    const counts = {};
+    flagged.forEach(c=>{ const b = inZone(c); if(b) counts[b.id] = (counts[b.id]||0) + 1; });
+    const busy = acct.buckets.find(b=>counts[b.id] >= 2);
+    text = busy ? 'Build ' + busy.label + ' engagement' : 'Engage ' + flagged[0].name + (flagged[0].title ? ' (' + flagged[0].title + ')' : '');
+    flag = true;
+  } else if(!execs.length){
+    text = 'Identify an executive sponsor';
+  } else {
+    text = 'No open red flags: keep the cadence';
+  }
+  return {execEngaged, text, flag, flagCount:flagged.length};
+}
+
+/* ============================================================
+   ROUTING  (#/  splash · #/list · #/account/<id>)
+   ============================================================ */
+let shownHash = null;
+let current = null;                       // account being edited
+
+function navigate(h){
+  try{ if(location.hash !== h) location.hash = h; }catch(e){}
+  show(h);
+}
+window.addEventListener('hashchange', ()=> show(location.hash));
+
+function show(h){
+  h = h || '#/';
+  if(h === shownHash) return;
+  shownHash = h;
+  const m = h.match(/^#\/account\/(.+)$/);
+  const acct = m ? store.accounts.find(a=>a.id === m[1]) : null;
+  let view = 'splash';
+  if(m && acct) view = 'chart'; else if(h === '#/list' || m) view = 'list';
+
+  $('viewSplash').hidden = view !== 'splash';
+  $('viewList').hidden   = view !== 'list';
+  $('viewChart').hidden  = view !== 'chart';
+
+  if(view === 'splash') renderSplash();
+  if(view === 'list')   renderList();
+  if(view === 'chart')  openChart(acct);
+}
+
+/* ============================================================
+   SPLASH
+   ============================================================ */
+const inAccount = $('inAccount'), inRep = $('inRep'), inArr = $('inArr');
+inRep.innerHTML = '<option value="">Choose a rep…</option>' + REPS.map(r=>`<option>${escapeHtml(r)}</option>`).join('');
+
+inArr.addEventListener('input', ()=>{
+  const digits = inArr.value.replace(/\D/g,'').slice(0,12);
+  inArr.value = digits ? Number(digits).toLocaleString('en-US') : '';
+});
+[['fAccount',inAccount],['fRep',inRep],['fArr',inArr]].forEach(([f,el])=>{
+  el.addEventListener('input', ()=> $(f).classList.remove('invalid'));
+  el.addEventListener('change', ()=> $(f).classList.remove('invalid'));
+});
+
+function renderSplash(){
+  $('splashCount').textContent = store.accounts.length;
+}
+
+$('launchForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const name = inAccount.value.trim(), rep = inRep.value;
+  $('fAccount').classList.toggle('invalid', !name);
+  $('fRep').classList.toggle('invalid', !rep);
+  if(!name || !rep){ (name ? inRep : inAccount).focus(); return; }
+  const acct = blankAccount({name, rep, arr:Number(inArr.value.replace(/\D/g,''))||0});
+  store.accounts.push(acct);
+  await persist();
+  inAccount.value = ''; inRep.value = ''; inArr.value = '';
+  navigate('#/account/' + acct.id);
+});
+$('splashToList').addEventListener('click', ()=> navigate('#/list'));
+
+/* ============================================================
+   ACCOUNT LIST
+   ============================================================ */
+const repFilter = $('repFilter');
+repFilter.innerHTML = '<option value="">All reps</option>' + REPS.map(r=>`<option>${escapeHtml(r)}</option>`).join('');
+repFilter.addEventListener('change', renderList);
+$('newAccountBtn').addEventListener('click', ()=> navigate('#/'));
+$('emptyNewBtn').addEventListener('click', ()=> navigate('#/'));
+
+function renderList(){
+  const rep = repFilter.value;
+  const accts = store.accounts.filter(a=>!rep || a.rep === rep).sort((a,b)=>(b.arr||0)-(a.arr||0));
+  const info = accts.map(a=>({a, r:analyze(a)}));
+
+  const total = accts.reduce((s,a)=>s + (a.arr||0), 0);
+  const open = info.filter(x=>!x.r.execEngaged).length;
+  $('summary').innerHTML =
+    `<span><b>${accts.length}</b>account${accts.length===1?'':'s'}</span>` +
+    `<span><b>${money(total)}</b>ARR</span>` +
+    `<span><b class="red">${open}</b>without exec engagement</span>`;
+
+  $('emptyState').hidden = accts.length > 0;
+  $('rows').innerHTML = info.map(({a,r})=>`
+    <tr>
+      <td class="acct">${escapeHtml(a.name)}</td>
+      <td>${escapeHtml(a.rep)}</td>
+      <td class="r amt">${money(a.arr)}</td>
+      <td class="c"><span class="cbox ${r.execEngaged?'on':''}" role="img" aria-label="${r.execEngaged?'Executives engaged':'Executives not engaged'}" title="${r.execEngaged?'Executives engaged':'Executives not engaged yet'}">${r.execEngaged?CHECK:''}</span></td>
+      <td class="act"><div class="a ${r.flag?'':'calm'}">${r.flag?GROUP:''}<span>${escapeHtml(r.text)}</span></div></td>
+      <td class="go"><button class="btn small" data-open="${a.id}">View &rarr;</button><button class="x" data-del="${a.id}" title="Delete account">&#10005;</button></td>
+    </tr>`).join('');
+
+  $('saveNote').hidden = canSave;
+}
+$('rows').addEventListener('click', async e=>{
+  const open = e.target.closest('[data-open]');
+  if(open){ navigate('#/account/' + open.dataset.open); return; }
+  const del = e.target.closest('[data-del]');
+  if(del){
+    const a = store.accounts.find(x=>x.id === del.dataset.del);
+    if(a){ pendingDelete = a; $('delName').textContent = a.name; $('deleteOverlay').classList.add('open'); $('delCancelBtn').focus(); }
+  }
+});
+let pendingDelete = null;
+function closeDelete(){ pendingDelete = null; $('deleteOverlay').classList.remove('open'); }
+$('delCancelBtn').addEventListener('click', closeDelete);
+$('deleteOverlay').addEventListener('click', e=>{ if(e.target === $('deleteOverlay')) closeDelete(); });
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && pendingDelete) closeDelete(); });
+$('delConfirmBtn').addEventListener('click', async ()=>{
+  if(!pendingDelete) return;
+  store.accounts = store.accounts.filter(x=>x !== pendingDelete);
+  closeDelete();
+  await persist();
+  renderList();
+});
+
+/* ============================================================
+   CHART STATE
+   ============================================================ */
+let contacts = [], buckets = [], connections = [];
+let editingContactId = null;
+let dragCtx = null;
+
+const canvas = $('canvas');
+const svg = $('connSvg');
+const tray = $('tray');
+
+async function saveChart(){
+  if(!current) return;
+  current.contacts = contacts; current.buckets = buckets; current.connections = connections;
+  current.updated = Date.now();
+  await persist();
+}
+
+function openChart(acct){
+  current = acct;
+  contacts = acct.contacts; buckets = acct.buckets; connections = acct.connections;
+  $('chartTitle').textContent = acct.name;
+  $('chartMeta').innerHTML = `${escapeHtml(acct.rep)} &middot; <b>${money(acct.arr)}</b>`;
+  $('canvasWrap').scrollTo(0,0);
+  if(typeof setRogStatus === 'function') setRogStatus('');
+  renderAll();
+}
+$('backBtn').addEventListener('click', ()=> navigate('#/list'));
+$('brandLink').addEventListener('click', e=>{ e.preventDefault(); navigate('#/list'); });
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function renderAll(){
+  renderTray();
+  renderBuckets();
+  renderCards();
+  renderConnections();
+  updateTargetCount();
+}
+
+function updateTargetCount(){
+  $('targetCount').textContent = contacts.filter(c=>c.target).length;
+  renderActions();
+}
+
+/* ---- Action items strip: everyone with a red flag, most senior first ---- */
+function telHref(v){ return 'tel:' + String(v).replace(/[^\d+]/g,''); }
+function renderActions(){
+  if(!current) return;
+  const flagged = contacts.filter(c=>c.target)
+    .sort((a,b)=>{
+      const ra = execRank(a.title), rb = execRank(b.title);
+      return (ra===null?9:ra) - (rb===null?9:rb) || (a.name||'').localeCompare(b.name||'');
+    });
+  const n = flagged.length;
+  const cnt = $('actionsCount');
+  cnt.textContent = n; cnt.classList.toggle('zero', n === 0);
+  const r = analyze(current);
+  $('actionsPrimary').innerHTML = (r.flag ? '<b>Next up:</b> ' : '') + escapeHtml(r.text);
+
+  const list = $('actionsList');
+  if(!n){
+    list.innerHTML = '<div class="actions-empty">' + (contacts.length
+      ? 'No open red flags. Everyone on the map has been engaged.'
+      : 'Add contacts, or use Enrich with Rog, then flag the people we still need to reach.') + '</div>';
+    return;
+  }
+  list.innerHTML = flagged.map(c=>{
+    const verb = execRank(c.title) !== null ? 'Get' : 'Engage';
+    const bits = [];
+    bits.push(escapeHtml(c.name));
+    if(c.phone) bits.push(`<a href="${escapeHtml(telHref(c.phone))}" data-stop>${escapeHtml(c.phone)}</a>`);
+    if(c.email) bits.push(`<a href="mailto:${escapeHtml(c.email)}" data-stop>${escapeHtml(c.email)}</a>`);
+    if(!c.placed) bits.push('<span class="off">not on board yet</span>');
+    return `<div class="ai" data-id="${c.id}">
+      ${GROUP.replace('<svg ','<svg class="g" ')}
+      <div class="ai-body">
+        <div class="ai-act">${verb} ${escapeHtml(c.title || 'this contact')}</div>
+        <div class="ai-who">${bits.join('</div><div class="ai-who">')}</div>
+      </div>
+      <button class="done" data-done="${c.id}" title="We've engaged them: clear the red flag">&#10003; Engaged</button>
+    </div>`;
+  }).join('');
+}
+$('actionsList').addEventListener('click', async e=>{
+  if(e.target.closest('[data-stop]')) return;
+  const done = e.target.closest('[data-done]');
+  if(done){
+    const c = contacts.find(x=>x.id === done.dataset.done);
+    if(c){ c.target = false; await saveChart(); renderCards(); renderConnections(); updateTargetCount(); }
+    return;
+  }
+  const row = e.target.closest('.ai');
+  if(row) openEditModal(row.dataset.id);
+});
+$('actionsToggle').addEventListener('click', ()=>{
+  const box = $('actions'); box.classList.toggle('collapsed');
+  $('actionsToggle').textContent = box.classList.contains('collapsed') ? 'Show' : 'Hide';
+});
+
+function renderTray(){
+  tray.innerHTML = '';
+  const unplaced = contacts.filter(c=>!c.placed);
+  if(!unplaced.length){
+    const div = document.createElement('div');
+    div.className = 'tray-empty';
+    div.textContent = contacts.length ? 'Everyone is up on the board.' : 'No contacts yet. Add your first one below, then stick it on the board.';
+    tray.appendChild(div);
+    return;
+  }
+  unplaced.forEach(c=>{
+    const k = hash(c.id) % 4;
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.style.setProperty('--c', STICKY[k]);
+    chip.style.setProperty('--rot', ROT[k] + 'deg');
+    chip.draggable = true;
+    chip.dataset.id = c.id;
+    chip.innerHTML = `<div class="chip-name">${escapeHtml(c.name)}</div>
+      <div class="chip-title">${escapeHtml(c.title||'')}</div>
+      <div class="chip-hint">${c.rog ? '&#10022; Rog' + (c.rogNote ? ': ' + escapeHtml(c.rogNote) : '') + ' &middot; ' + (c.rogEngaged ? 'engaged' : 'not engaged yet') : 'stick me on the board &rarr;'}</div>`;
+    chip.addEventListener('dragstart', e=>{
+      e.dataTransfer.setData('text/plain', c.id);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    chip.addEventListener('click', ()=> openEditModal(c.id));
+    tray.appendChild(chip);
+  });
+}
+
+function clearNodes(selector){ canvas.querySelectorAll(selector).forEach(n=>n.remove()); }
+
+function renderBuckets(){
+  clearNodes('.bucket');
+  buckets.forEach(b=>{
+    const el = document.createElement('div');
+    el.className = 'bucket';
+    el.style.left = b.x+'px'; el.style.top = b.y+'px';
+    el.style.width = b.w+'px'; el.style.height = b.h+'px';
+    el.style.setProperty('--bc', b.color);
+    el.dataset.id = b.id;
+
+    const label = document.createElement('div');
+    label.className = 'bucket-label';
+    label.innerHTML = `<span class="swatch" title="Change marker color"></span><span contenteditable="true" spellcheck="false">${escapeHtml(b.label)}</span><span class="del" title="Erase zone">&#10005;</span>`;
+    label.querySelector('span[contenteditable]').addEventListener('blur', async (e)=>{
+      b.label = e.target.textContent.trim() || 'Untitled';
+      await saveChart();
+    });
+    label.querySelector('.swatch').addEventListener('click', (e)=>{ e.stopPropagation(); openSwatchMenu(b, label.querySelector('.swatch')); });
+    label.querySelector('.del').addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      if(confirm('Erase this zone? Contacts inside will stay on the board.')){
+        buckets = buckets.filter(x=>x.id!==b.id);
+        await saveChart();
+        renderBuckets();
+      }
+    });
+    label.addEventListener('mousedown', (e)=>{
+      if(e.target.tagName==='SPAN' && e.target.hasAttribute('contenteditable')) return;
+      if(e.target.classList.contains('swatch') || e.target.classList.contains('del')) return;
+      startBucketDrag(e, b);
+    });
+    el.appendChild(label);
+
+    const resize = document.createElement('div');
+    resize.className = 'bucket-resize';
+    resize.addEventListener('mousedown', (e)=>{ e.stopPropagation(); startBucketResize(e, b); });
+    el.appendChild(resize);
+
+    canvas.appendChild(el);
+  });
+}
+
+function openSwatchMenu(bucket, anchor){
+  document.querySelectorAll('.swatch-menu').forEach(m=>m.remove());
+  const rect = anchor.getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+  const menu = document.createElement('div');
+  menu.className = 'swatch-menu';
+  menu.style.left = (rect.left - canvasRect.left) + 'px';
+  menu.style.top = (rect.bottom - canvasRect.top + 8) + 'px';
+  COLORS.forEach(col=>{
+    const dot = document.createElement('div');
+    dot.style.background = col;
+    dot.addEventListener('click', async ()=>{
+      bucket.color = col;
+      await saveChart();
+      renderBuckets();
+      menu.remove();
+    });
+    menu.appendChild(dot);
+  });
+  canvas.appendChild(menu);
+  setTimeout(()=>{ document.addEventListener('click', function h(){ menu.remove(); document.removeEventListener('click', h); }); },0);
+}
+
+function renderCards(){
+  clearNodes('.card');
+  contacts.filter(c=>c.placed).forEach(c=>{
+    const el = document.createElement('div');
+    el.className = 'card' + (c.target ? ' target' : '');
+    el.style.left = c.x+'px'; el.style.top = c.y+'px';
+    el.dataset.id = c.id;
+    el.innerHTML = `
+      <div class="card-actions">
+        <button class="targetBtn ${c.target?'on':''}" title="${c.target?'Red flag on. Click to clear (engaged)':'Red flag: we haven\'t engaged this person'}">${GROUP}</button>
+        <button class="editBtn" title="Edit">&#9998;</button>
+        <button class="unplaceBtn" title="Take off the board">&#8630;</button>
+      </div>
+      <div class="card-row">
+        <div class="card-icon">${c.target ? GROUP : SINGLE}</div>
+        <div class="card-text">
+          <div class="card-name">${escapeHtml(c.name)}</div>
+          <div class="card-title">${escapeHtml(c.title||'')}</div>
+        </div>
+      </div>
+      ${(c.email || c.phone) ? `<div class="card-contact">${c.email ? `<div title="${escapeHtml(c.email)}">${MAIL}<span>${escapeHtml(c.email)}</span></div>` : ''}${c.phone ? `<div title="${escapeHtml(c.phone)}">${PHONE}<span>${escapeHtml(c.phone)}</span></div>` : ''}</div>` : ''}
+      <div class="handle" title="Drag onto another card to draw an arrow"></div>
+    `;
+    el.querySelector('.targetBtn').addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      c.target = !c.target;
+      await saveChart();
+      renderCards(); renderConnections(); updateTargetCount();
+    });
+    el.querySelector('.editBtn').addEventListener('click', (e)=>{ e.stopPropagation(); openEditModal(c.id); });
+    el.querySelector('.unplaceBtn').addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      c.placed = false;
+      connections = connections.filter(cn=>cn.from!==c.id && cn.to!==c.id);
+      await saveChart();
+      renderAll();
+    });
+    el.addEventListener('mousedown', (e)=>{
+      if(e.target.classList.contains('handle') || e.target.closest('.card-actions')) return;
+      startCardDrag(e, c, el);
+    });
+    el.addEventListener('click', (e)=>{
+      if(dragCtx && dragCtx.moved) return;
+      if(e.target.classList.contains('handle') || e.target.closest('.card-actions')) return;
+      openEditModal(c.id);
+    });
+    el.querySelector('.handle').addEventListener('mousedown', (e)=>{ e.stopPropagation(); startConnectionDrag(e, c.id); });
+    canvas.appendChild(el);
+  });
+}
+
+function cardEl(id){ return canvas.querySelector('.card[data-id="'+id+'"]'); }
+
+/* A hand-drawn line: a gently bowed, slightly shaky path.
+   Deterministic per seed so it doesn't jitter while cards move. */
+function inkPath(x1, y1, x2, y2, seed, amp){
+  const rnd = rng(seed);
+  const dx = x2-x1, dy = y2-y1, len = Math.hypot(dx,dy) || 1;
+  const nx = -dy/len, ny = dx/len;
+  const a = amp * Math.min(1, len/240);
+  const bow = (rnd()-0.5) * 4 * a;
+  const N = 4, pts = [];
+  for(let i=1;i<=N;i++){
+    const t = i/(N+1);
+    const o = bow*Math.sin(Math.PI*t) + (rnd()-0.5)*a;
+    pts.push([x1+dx*t+nx*o, y1+dy*t+ny*o]);
+  }
+  pts.push([x2,y2]);
+  let d = `M ${x1} ${y1}`;
+  for(let i=0;i<pts.length-1;i++){
+    const m = [(pts[i][0]+pts[i+1][0])/2, (pts[i][1]+pts[i+1][1])/2];
+    d += ` Q ${pts[i][0]} ${pts[i][1]} ${m[0]} ${m[1]}`;
+  }
+  return d + ` L ${x2} ${y2}`;
+}
+
+function renderConnections(){
+  svg.querySelectorAll('path.ink, path.hit, line.temp').forEach(p=>p.remove());
+  connections.forEach(cn=>{
+    const fromEl = cardEl(cn.from), toEl = cardEl(cn.to);
+    if(!fromEl || !toEl) return;
+    drawConnection(fromEl, toEl, cn);
+  });
+}
+
+function svgPath(cls, d, attrs){
+  const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+  p.setAttribute('d', d);
+  p.setAttribute('class', cls);
+  Object.keys(attrs||{}).forEach(k=>p.setAttribute(k, attrs[k]));
+  svg.appendChild(p);
+  return p;
+}
+
+function drawConnection(fromEl, toEl, cn){
+  const x1 = fromEl.offsetLeft + fromEl.offsetWidth/2, y1 = fromEl.offsetTop + fromEl.offsetHeight + 2;
+  const x2 = toEl.offsetLeft + toEl.offsetWidth/2,     y2 = toEl.offsetTop - 3;
+  const seed = hash(cn.from + '>' + cn.to);
+
+  svgPath('ink', inkPath(x1, y1, x2, y2, seed+1, 5), {stroke:'#14161a', 'stroke-width':'1.5', opacity:'.45'});
+  svgPath('ink', inkPath(x1, y1, x2, y2, seed, 5),   {stroke:'#14161a', 'stroke-width':'3', 'marker-end':'url(#arrow)'});
+
+  const hit = svgPath('hit', `M ${x1} ${y1} L ${x2} ${y2}`, {stroke:'transparent', 'stroke-width':'16', fill:'none'});
+  hit.addEventListener('click', async ()=>{
+    if(confirm('Erase this arrow?')){
+      connections = connections.filter(x=>!(x.from===cn.from && x.to===cn.to));
+      await saveChart();
+      renderConnections();
+    }
+  });
+}
+
+/* ============================================================
+   CARD DRAG
+   ============================================================ */
+function startCardDrag(e, contact, el){
+  e.preventDefault();
+  const startX = e.clientX, startY = e.clientY;
+  const origX = contact.x, origY = contact.y;
+  dragCtx = {moved:false};
+  el.classList.add('dragging');
+
+  function onMove(ev){
+    const dx = ev.clientX - startX, dy = ev.clientY - startY;
+    if(Math.abs(dx)>3 || Math.abs(dy)>3) dragCtx.moved = true;
+    contact.x = origX + dx; contact.y = origY + dy;
+    el.style.left = contact.x+'px'; el.style.top = contact.y+'px';
+    renderConnections();
+  }
+  async function onUp(){
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    el.classList.remove('dragging');
+    await saveChart();
+    setTimeout(()=>{ dragCtx=null; }, 0);
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+/* ============================================================
+   ZONE DRAG / RESIZE
+   ============================================================ */
+function startBucketDrag(e, bucket){
+  e.preventDefault();
+  const startX = e.clientX, startY = e.clientY;
+  const origX = bucket.x, origY = bucket.y;
+  const el = canvas.querySelector('.bucket[data-id="'+bucket.id+'"]');
+  function onMove(ev){
+    bucket.x = origX + ev.clientX - startX; bucket.y = origY + ev.clientY - startY;
+    el.style.left = bucket.x+'px'; el.style.top = bucket.y+'px';
+  }
+  async function onUp(){
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    await saveChart();
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function startBucketResize(e, bucket){
+  e.preventDefault();
+  const startX = e.clientX, startY = e.clientY;
+  const origW = bucket.w, origH = bucket.h;
+  const el = canvas.querySelector('.bucket[data-id="'+bucket.id+'"]');
+  function onMove(ev){
+    bucket.w = Math.max(180, origW + ev.clientX - startX); bucket.h = Math.max(100, origH + ev.clientY - startY);
+    el.style.width = bucket.w+'px'; el.style.height = bucket.h+'px';
+  }
+  async function onUp(){
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    await saveChart();
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+/* ============================================================
+   ARROW DRAWING
+   ============================================================ */
+function startConnectionDrag(e, fromId){
+  e.preventDefault();
+  const cRect = canvas.getBoundingClientRect();
+  const temp = document.createElementNS('http://www.w3.org/2000/svg','line');
+  temp.classList.add('temp');
+  temp.setAttribute('stroke', '#14161a');
+  temp.setAttribute('stroke-width', '2.5');
+  temp.setAttribute('stroke-linecap', 'round');
+  temp.setAttribute('stroke-dasharray', '2,8');
+  svg.appendChild(temp);
+
+  function onMove(ev){
+    const fromEl = cardEl(fromId);
+    const x1 = fromEl.offsetLeft + fromEl.offsetWidth/2, y1 = fromEl.offsetTop + fromEl.offsetHeight;
+    temp.setAttribute('x1', x1); temp.setAttribute('y1', y1);
+    temp.setAttribute('x2', ev.clientX - cRect.left); temp.setAttribute('y2', ev.clientY - cRect.top);
+  }
+  async function onUp(ev){
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    temp.remove();
+    const target = document.elementFromPoint(ev.clientX, ev.clientY);
+    const targetCard = target ? target.closest('.card') : null;
+    if(targetCard){
+      const toId = targetCard.dataset.id;
+      if(toId !== fromId && !connections.some(c=>c.from===fromId && c.to===toId)){
+        connections.push({from:fromId, to:toId});
+        await saveChart();
+        renderConnections();
+      }
+    }
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+/* ============================================================
+   DROP FROM TRAY ONTO CANVAS
+   ============================================================ */
+canvas.addEventListener('dragover', e=>{ e.preventDefault(); canvas.classList.add('drag-over'); });
+canvas.addEventListener('dragleave', ()=> canvas.classList.remove('drag-over'));
+canvas.addEventListener('drop', async e=>{
+  e.preventDefault();
+  canvas.classList.remove('drag-over');
+  const id = e.dataTransfer.getData('text/plain');
+  const contact = contacts.find(c=>c.id===id);
+  if(!contact) return;
+  const cRect = canvas.getBoundingClientRect();
+  contact.x = e.clientX - cRect.left - 125;
+  contact.y = e.clientY - cRect.top - 40;
+  contact.placed = true;
+  const b = buckets.find(b=> contact.x > b.x && contact.x < b.x+b.w && contact.y > b.y && contact.y < b.y+b.h);
+  contact.bucketId = b ? b.id : null;
+  await saveChart();
+  renderAll();
+});
+
+/* ============================================================
+   ADD ZONE / ADD CONTACT
+   ============================================================ */
+$('addBucketBtn').addEventListener('click', async ()=>{
+  const wrap = $('canvasWrap');
+  buckets.push({id:uid(), label:'New Zone', x:wrap.scrollLeft+60+buckets.length*24, y:wrap.scrollTop+50+buckets.length*24, w:340, h:200, color:COLORS[0]});
+  await saveChart();
+  renderBuckets();
+});
+
+$('addContactBtn').addEventListener('click', async ()=>{
+  const c = {id:uid(), name:'New contact', title:'', email:'', phone:'', target:true, placed:false, x:0, y:0, bucketId:null};
+  contacts.push(c);
+  await saveChart();
+  renderTray();
+  openEditModal(c.id, true);
+});
+
+
+/* ============================================================
+   ENRICH WITH ROG
+   Uses the same-origin proxy that prompts.logrocket.com already
+   exposes (POST /api/rog {question} -> {answer}); the token stays
+   server-side behind IAP, so this page needs no secrets.
+   ============================================================ */
+const ROG_WINDOW = 'last 6 months';   // enterprise deal cycles run long
+
+function rogQuestion(account){
+  return `For the customer account "${account}", list the people involved in the current open deal cycle, based on Gong calls, meetings and email from the ${ROG_WINDOW}. Include buyers, champions, economic buyers, technical evaluators and executives. Customer-side only: exclude LogRocket employees. For each person give: name, job title, email if known, direct phone number if known, their role in the deal (a few words), and "engaged": true if they personally attended a call or meeting or exchanged email with us in that window, false if they were only mentioned by others or identified but never engaged. Only include real people found in the data. Do not guess or invent names or titles; leave title empty if unknown. Return at most 15 people, most senior first. Respond with ONLY a JSON array like [{"name":"","title":"","email":"","phone":"","role":"","engaged":true}] and no other text.`;
+}
+
+function extractJsonArray(text){
+  const t = (text||'').replace(/^```(?:json)?\s*/i,'').replace(/\s*```\s*$/i,'').trim();
+  try{ const v = JSON.parse(t); if(Array.isArray(v)) return v; if(v && Array.isArray(v.contacts)) return v.contacts; }catch(e){}
+  const a = t.indexOf('['), b = t.lastIndexOf(']');
+  if(a !== -1 && b > a){ try{ const v = JSON.parse(t.slice(a, b+1)); if(Array.isArray(v)) return v; }catch(e){} }
+  return null;
+}
+
+// If Rog answered in prose, have Claude turn it into the same JSON (no inventing).
+async function structureWithClaude(answer){
+  const res = await fetch('/api/anthropic', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      model:'claude-sonnet-4-6', max_tokens:1500,
+      system:'Extract people from the text. Respond with ONLY a JSON array of {"name","title","email","phone","role","engaged"} (engaged is a boolean: true if the text says they attended a call/meeting or exchanged email, else false). Use only what the text states; never invent names, titles, emails or phone numbers; use "" when unknown. If there are no people, respond with [].',
+      messages:[{role:'user', content:answer}]
+    })
+  });
+  const data = await res.json();
+  if(!res.ok || data.error) throw new Error((data.error && data.error.message) || 'Could not read the Rog answer (' + res.status + ')');
+  const raw = ((data.content||[]).find(b=>b.type==='text')||{}).text || '';
+  const arr = extractJsonArray(raw);
+  if(!arr) throw new Error('Rog answered, but the reply could not be read as a contact list.');
+  return arr;
+}
+
+async function fetchRogContacts(account){
+  let res;
+  try{
+    res = await fetch('/api/rog', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({question: rogQuestion(account)})});
+  }catch(e){
+    throw new Error('Could not reach Rog. This only works when the page is served from prompts.logrocket.com.');
+  }
+  let data = null;
+  try{ data = await res.json(); }catch(e){}
+  if(!res.ok) throw new Error((data && (data.error && data.error.message || data.error)) || ('Rog API error ' + res.status + (res.status === 404 ? ' (this page needs to be hosted on prompts.logrocket.com)' : '')));
+  const answer = (data && data.answer) || '';
+  if(!answer.trim()) return [];
+  return extractJsonArray(answer) || await structureWithClaude(answer);
+}
+
+function cleanText(v, max){ return (typeof v === 'string' ? v : '').replace(/\s+/g,' ').trim().slice(0, max); }
+
+let rogBusy = false;
+function setRogStatus(msg, kind){
+  const el = $('rogStatus');
+  el.textContent = msg || '';
+  el.className = 'rog-status' + (kind ? ' ' + kind : '');
+  el.hidden = !msg;
+}
+
+$('rogBtn').addEventListener('click', async ()=>{
+  if(rogBusy || !current) return;
+  const acct = current;
+  rogBusy = true;
+  const btn = $('rogBtn');
+  btn.disabled = true; btn.innerHTML = '&#9203; Asking Rog…';
+  setRogStatus('Looking through calls and email from the ' + ROG_WINDOW.replace('last ','last ') + '. This can take a moment.');
+  try{
+    const found = await fetchRogContacts(acct.name);
+    const list = (current === acct) ? contacts : acct.contacts;
+    const have = new Set(list.map(c=>(c.name||'').trim().toLowerCase()));
+    let added = 0, skipped = 0;
+    found.slice(0, 25).forEach(p=>{
+      const name = cleanText(p && p.name, 80);
+      if(!name) return;
+      const key = name.toLowerCase();
+      if(have.has(key)){ skipped++; return; }
+      have.add(key);
+      const email = cleanText(p.email, 120);
+      const phoneRaw = cleanText(p.phone, 30);
+      const phone = phoneRaw.replace(/\D/g,'').length >= 7 ? phoneRaw : '';
+      const engaged = p.engaged === true || p.engaged === 'true';
+      list.push({
+        id:uid(), name, title:cleanText(p.title, 100), email:/^\S+@\S+\.\S+$/.test(email) ? email : '', phone,
+        target:!engaged,                       // not engaged yet = red flag
+        placed:false, x:0, y:0, bucketId:null,
+        rog:true, rogEngaged:engaged, rogNote:cleanText(p.role, 60)
+      });
+      added++;
+    });
+    acct.contacts = list;
+    acct.updated = Date.now();
+    await persist();
+    if(current === acct){ contacts = acct.contacts; renderAll(); }
+    if(!found.length) setRogStatus('Rog had no contacts for "' + acct.name + '". Try the exact account name from Salesforce.', 'err');
+    else setRogStatus(added ? 'Added ' + added + ' contact' + (added===1?'':'s') + ' as stickies' + (skipped ? ' (' + skipped + ' already on the chart)' : '') + '. Review them, then stick them on the board.' : 'Nothing new: all ' + skipped + ' were already on the chart.', 'ok');
+  }catch(e){
+    setRogStatus('Rog error: ' + e.message, 'err');
+  }finally{
+    rogBusy = false;
+    btn.disabled = false; btn.innerHTML = '&#10022; Enrich with Rog';
+  }
+});
+
+
+/* ============================================================
+   EXPORT ORG CHART  (PNG / JPEG)
+   Drawn straight onto a canvas from the chart data, so it needs no
+   libraries and captures the whole map, not just what's on screen.
+   ============================================================ */
+const ROCKET_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="130" viewBox="0 0 100 130"><g stroke="#14161a" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"><path d="M28 66 L8 98 L32 90 Z" fill="#8b5cf0"/><path d="M72 66 L92 98 L68 90 Z" fill="#8b5cf0"/><path d="M50 6 C72 26 78 56 72 92 L28 92 C22 56 28 26 50 6 Z" fill="#b79cf6"/><circle cx="50" cy="46" r="9" fill="#fff"/><path d="M38 92 L40 102 L60 102 L62 92" fill="#8b5cf0"/></g><g stroke="#8b5cf0" stroke-width="4" stroke-linecap="round"><path d="M42 112 v12"/><path d="M50 112 v16"/><path d="M58 112 v12"/></g></svg>`;
+
+function svgToImage(svg, color){
+  let str = svg.replace(/ style="[^"]*"/, '').replace(/currentColor/g, color || '#14161a');
+  if(!/xmlns=/.test(str)) str = str.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
+  return new Promise(res=>{
+    const im = new Image();
+    im.onload = ()=> res(im); im.onerror = ()=> res(null);
+    im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(str);
+  });
+}
+
+// Closed, slightly wobbly rectangle as a smooth hand-drawn outline.
+function roughRectPath(ctx, x, y, w, h, seed, amp){
+  const rnd = rng(seed);
+  const pts = [];
+  const seg = (x1,y1,x2,y2)=>{
+    const n = Math.max(2, Math.round(Math.hypot(x2-x1,y2-y1)/70));
+    for(let i=0;i<n;i++){ const t=i/n; pts.push([x1+(x2-x1)*t+(rnd()-.5)*amp, y1+(y2-y1)*t+(rnd()-.5)*amp]); }
+  };
+  seg(x,y,x+w,y); seg(x+w,y,x+w,y+h); seg(x+w,y+h,x,y+h); seg(x,y+h,x,y);
+  const mid = (a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2];
+  ctx.beginPath();
+  let m = mid(pts[pts.length-1], pts[0]);
+  ctx.moveTo(m[0], m[1]);
+  for(let i=0;i<pts.length;i++){
+    const nx = pts[(i+1)%pts.length]; m = mid(pts[i], nx);
+    ctx.quadraticCurveTo(pts[i][0], pts[i][1], m[0], m[1]);
+  }
+  ctx.closePath();
+}
+
+function fitText(ctx, text, maxW){
+  if(ctx.measureText(text).width <= maxW) return text;
+  while(text.length > 1 && ctx.measureText(text + '…').width > maxW) text = text.slice(0, -1);
+  return text + '…';
+}
+
+async function exportChart(fmt){
+  if(!current) return;
+  const cardEls = [...canvas.querySelectorAll('.card')];
+  if(!cardEls.length){ alert('Nothing to export yet. Stick some contacts on the board first.'); return; }
+  const btn = $('exportBtn'), label = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = 'Exporting…';
+  try{
+    try{ await Promise.all(['700 17px Kalam','400 14px Kalam','400 30px "Permanent Marker"'].map(f=>document.fonts.load(f))); }catch(e){}
+
+    const cards = cardEls.map(el=>({el, x:el.offsetLeft, y:el.offsetTop, w:el.offsetWidth, h:el.offsetHeight, c:contacts.find(k=>k.id===el.dataset.id)}));
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const grow = (x1,y1,x2,y2)=>{ minX=Math.min(minX,x1); minY=Math.min(minY,y1); maxX=Math.max(maxX,x2); maxY=Math.max(maxY,y2); };
+    cards.forEach(k=>grow(k.x, k.y, k.x+k.w, k.y+k.h+10));
+    buckets.forEach(b=>grow(b.x, b.y-24, b.x+b.w, b.y+b.h));
+
+    const PAD = 50, HEAD = 104, FOOT = 46, S = 2;
+    const W = Math.max(maxX-minX + PAD*2, 900), H = HEAD + (maxY-minY) + PAD*2 + FOOT;
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(W*S); cv.height = Math.round(H*S);
+    const ctx = cv.getContext('2d');
+    ctx.scale(S, S);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+    const INK = '#14161a', SOFT = '#50555e', FLAG = '#d62f2a';
+    const [imgRocket, imgSingle, imgGroup, imgGroupSm, imgMail, imgPhone] = await Promise.all([
+      svgToImage(ROCKET_SVG), svgToImage(SINGLE, INK), svgToImage(GROUP, FLAG), svgToImage(GROUP, FLAG), svgToImage(MAIL, SOFT), svgToImage(PHONE, SOFT)
+    ]);
+
+    /* ---- header ---- */
+    if(imgRocket) ctx.drawImage(imgRocket, 30, 24, 40, 52);
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.fillStyle = INK; ctx.font = '30px "Permanent Marker", Kalam, cursive';
+    const title = fitText(ctx, current.name, W - 420);
+    const tw = ctx.measureText(title).width;
+    ctx.fillStyle = 'rgba(139,92,240,.38)'; ctx.fillRect(84, 44, tw + 8, 12);
+    ctx.fillStyle = INK; ctx.fillText(title, 88, 44);
+    ctx.fillStyle = SOFT; ctx.font = '700 17px Kalam, cursive';
+    ctx.fillText(`${current.rep}  ·  ${money(current.arr)}  ·  ${new Date().toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'})}`, 88, 78);
+    const nFlag = contacts.filter(c=>c.target).length;
+    ctx.textAlign = 'right'; ctx.fillStyle = INK; ctx.font = '700 17px Kalam, cursive';
+    ctx.fillText(`${nFlag} to engage`, W - 34, 50);
+    const nw = ctx.measureText(`${nFlag} to engage`).width;
+    if(imgGroupSm) ctx.drawImage(imgGroupSm, W - 34 - nw - 46, 34, 38, 29);
+    ctx.textAlign = 'left';
+    ctx.strokeStyle = INK; ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.moveTo(30, HEAD - 8);
+    for(let x = 30; x < W - 30; x += 60) ctx.quadraticCurveTo(x + 30, HEAD - 8 + (((x/60)|0)%2 ? 1.6 : -1.6), Math.min(x + 60, W - 30), HEAD - 8);
+    ctx.stroke();
+
+    /* ---- chart (shifted so the top-left of the content sits inside the padding) ---- */
+    ctx.save();
+    ctx.translate(PAD - minX, HEAD + PAD - minY);
+
+    // zones
+    buckets.forEach(b=>{
+      ctx.strokeStyle = b.color; ctx.lineWidth = 2.6; ctx.setLineDash([11, 9]);
+      roughRectPath(ctx, b.x, b.y, b.w, b.h, hash(b.id), 3.2); ctx.stroke(); ctx.setLineDash([]);
+      ctx.font = '17px "Permanent Marker", Kalam, cursive'; ctx.textBaseline = 'middle';
+      const txt = (b.label || '').toUpperCase(), w = ctx.measureText(txt).width + 20;
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(b.x + 22, b.y - 12, w, 24);
+      ctx.fillStyle = b.color; ctx.fillText(txt, b.x + 32, b.y + 1);
+    });
+
+    // arrows
+    ctx.strokeStyle = INK;
+    connections.forEach(cn=>{
+      const f = cards.find(k=>k.c && k.c.id === cn.from), t = cards.find(k=>k.c && k.c.id === cn.to);
+      if(!f || !t) return;
+      const x1 = f.x + f.w/2, y1 = f.y + f.h + 2, x2 = t.x + t.w/2, y2 = t.y - 3;
+      const seed = hash(cn.from + '>' + cn.to);
+      ctx.globalAlpha = .45; ctx.lineWidth = 1.5; ctx.stroke(new Path2D(inkPath(x1, y1, x2, y2, seed+1, 5)));
+      ctx.globalAlpha = 1;   ctx.lineWidth = 3;   ctx.stroke(new Path2D(inkPath(x1, y1, x2, y2, seed, 5)));
+      const a = Math.atan2(y2 - y1, x2 - x1), hx = x2 - Math.cos(a)*1, hy = y2 - Math.sin(a)*1;
+      ctx.lineWidth = 2.6; ctx.beginPath();
+      ctx.moveTo(hx - Math.cos(a-.5)*12, hy - Math.sin(a-.5)*12); ctx.lineTo(hx, hy); ctx.lineTo(hx - Math.cos(a+.5)*12, hy - Math.sin(a+.5)*12);
+      ctx.stroke();
+    });
+
+    // cards
+    cards.forEach(k=>{
+      const c = k.c; if(!c) return;
+      const seed = hash(c.id);
+      roughRectPath(ctx, k.x, k.y, k.w, k.h, seed, 3);
+      ctx.fillStyle = '#ffffff'; ctx.fill();
+      ctx.strokeStyle = INK; ctx.lineWidth = 2.6; ctx.stroke();
+      if(c.target){
+        roughRectPath(ctx, k.x + 5, k.y + 5, k.w - 10, k.h - 10, seed + 7, 2.4);
+        ctx.strokeStyle = FLAG; ctx.lineWidth = 1.8; ctx.stroke();
+      }
+      const base = k.el.getBoundingClientRect();
+      const rel = n => { const r = n.getBoundingClientRect(); return {x:r.left - base.left + k.x, y:r.top - base.top + k.y, w:r.width, h:r.height}; };
+
+      const ic = k.el.querySelector('.card-icon svg');
+      if(ic){ const r = rel(ic); const im = c.target ? imgGroup : imgSingle; if(im) ctx.drawImage(im, r.x, r.y, r.w, r.h); }
+
+      ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+      const nm = k.el.querySelector('.card-name');
+      if(nm){ const r = rel(nm); ctx.fillStyle = INK; ctx.font = '700 17px Kalam, cursive'; ctx.fillText(fitText(ctx, c.name || '', r.w), r.x, r.y + r.h/2 + 1); }
+      const tt = k.el.querySelector('.card-title');
+      if(tt && c.title){ const r = rel(tt); ctx.fillStyle = SOFT; ctx.font = '14px Kalam, cursive'; ctx.fillText(fitText(ctx, c.title, r.w), r.x, r.y + r.h/2 + 1); }
+
+      const lines = k.el.querySelectorAll('.card-contact div');
+      if(lines.length){
+        const first = rel(lines[0]);
+        ctx.strokeStyle = '#b9bdc3'; ctx.lineWidth = 1.4; ctx.setLineDash([5, 4]);
+        ctx.beginPath(); ctx.moveTo(first.x, first.y - 5); ctx.lineTo(first.x + first.w, first.y - 5); ctx.stroke(); ctx.setLineDash([]);
+        lines.forEach(div=>{
+          const isMail = !!(div.querySelector('svg rect'));
+          const sv = rel(div.querySelector('svg')), sp = rel(div.querySelector('span'));
+          const im = isMail ? imgMail : imgPhone;
+          if(im) ctx.drawImage(im, sv.x, sv.y, sv.w, sv.h);
+          ctx.fillStyle = SOFT; ctx.font = '12.5px Kalam, cursive';
+          ctx.fillText(fitText(ctx, div.querySelector('span').textContent, sp.w), sp.x, sp.y + sp.h/2 + 1);
+        });
+      }
+    });
+    ctx.restore();
+
+    /* ---- footer legend ---- */
+    const fy = H - FOOT/2 - 2;
+    if(imgSingle) ctx.drawImage(imgSingle, 32, fy - 11, 22, 22);
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.fillStyle = SOFT; ctx.font = '700 14px Kalam, cursive';
+    ctx.fillText('contact', 60, fy + 1);
+    if(imgGroup) ctx.drawImage(imgGroup, 130, fy - 10, 30, 22);
+    ctx.fillText('red flag: not engaged yet', 168, fy + 1);
+    ctx.textAlign = 'right'; ctx.fillStyle = '#9aa0a8'; ctx.font = '13px Kalam, cursive';
+    ctx.fillText('LogRocket Mission Control', W - 34, fy + 1);
+
+    const mime = fmt === 'jpeg' ? 'image/jpeg' : 'image/png';
+    const blob = await new Promise(res=>cv.toBlob(res, mime, .92));
+    if(!blob) throw new Error('The browser could not create the image.');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = current.name.replace(/[^\w\-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() + '-org-chart.' + (fmt === 'jpeg' ? 'jpg' : 'png');
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  }catch(e){
+    alert('Export failed: ' + e.message);
+  }finally{
+    btn.disabled = false; btn.innerHTML = label;
+  }
+}
+
+$('exportBtn').addEventListener('click', e=>{ e.stopPropagation(); $('exportMenu').hidden = !$('exportMenu').hidden; });
+$('exportMenu').addEventListener('click', e=>{
+  const b = e.target.closest('[data-fmt]'); if(!b) return;
+  $('exportMenu').hidden = true; exportChart(b.dataset.fmt);
+});
+document.addEventListener('click', ()=>{ $('exportMenu').hidden = true; });
+
+/* ============================================================
+   EDIT MODAL
+   ============================================================ */
+const editOverlay = $('editOverlay');
+function openEditModal(id, isNew){
+  const c = contacts.find(x=>x.id===id);
+  if(!c) return;
+  editingContactId = id;
+  $('editName').value = c.name || '';
+  $('editTitle').value = c.title || '';
+  $('editEmail').value = c.email || '';
+  $('editPhone').value = c.phone || '';
+  $('editTarget').checked = !!c.target;
+  editOverlay.classList.add('open');
+  if(isNew){ $('editName').focus(); $('editName').select(); }
+}
+$('editCancelBtn').addEventListener('click', ()=> editOverlay.classList.remove('open'));
+$('editSaveBtn').addEventListener('click', async ()=>{
+  const c = contacts.find(x=>x.id===editingContactId);
+  if(c){
+    c.name = $('editName').value.trim() || c.name;
+    c.title = $('editTitle').value.trim();
+    c.email = $('editEmail').value.trim();
+    c.phone = $('editPhone').value.trim();
+    c.target = $('editTarget').checked;
+    await saveChart();
+    renderAll();
+  }
+  editOverlay.classList.remove('open');
+});
+$('editDeleteBtn').addEventListener('click', async ()=>{
+  if(confirm('Remove this card from the board?')){
+    contacts = contacts.filter(x=>x.id!==editingContactId);
+    connections = connections.filter(c=>c.from!==editingContactId && c.to!==editingContactId);
+    await saveChart();
+    renderAll();
+  }
+  editOverlay.classList.remove('open');
+});
+
+window.addEventListener('resize', ()=>{ if(!$('viewChart').hidden) renderConnections(); });
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+(async function init(){
+  await loadStore();
+  show(location.hash || '#/');
+})();
+</script>
+</body>
+</html>
