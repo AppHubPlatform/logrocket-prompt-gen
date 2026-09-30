@@ -2,7 +2,8 @@
 
 Two **Cloud Run** services in project `logrocket-enablement` (region
 `us-east1`), both behind Cloudflare (DNS-only) with Google-managed TLS and
-deployed via **GitHub Actions + Workload Identity Federation**:
+auto-deployed on push to `main` via **GitHub Actions + Workload Identity
+Federation** (see [Deploys](#deploys)):
 
 | Service                | Domain                    | Access                          |
 | ---------------------- | ------------------------- | ------------------------------- |
@@ -230,16 +231,24 @@ Actions -> **Variables**, add (all non-secret; WIF means no JSON keys):
 
 ## Deploys
 
-Both workflows are **manual** (`workflow_dispatch`): Actions tab -> "Run
-workflow", or `gh workflow run <file>`. Each authenticates via WIF, builds the
-container, pushes it to Artifact Registry, and deploys a new Cloud Run
-revision. Terraform ignores image drift (`lifecycle.ignore_changes`), so CI and
-Terraform don't fight over the image.
+Both workflows deploy **automatically on push to `main`**, and can also be run
+on demand (Actions tab -> "Run workflow", or `gh workflow run <file>`). Each
+authenticates via WIF, builds the container, pushes it to Artifact Registry,
+and deploys a new Cloud Run revision. Terraform ignores image drift
+(`lifecycle.ignore_changes`), so CI and Terraform don't fight over the image.
 
-| Workflow                                                                       | Service                |
-| ------------------------------------------------------------------------------ | ---------------------- |
-| [../.github/workflows/deploy.yml](../.github/workflows/deploy.yml)               | `logrocket-prompt-gen` |
-| [../.github/workflows/deploy-explore.yml](../.github/workflows/deploy-explore.yml) | `logrocket-explore`    |
+| Workflow                                                                       | Service                | Auto-deploys when you touch                                          |
+| ------------------------------------------------------------------------------ | ---------------------- | -------------------------------------------------------------------- |
+| [../.github/workflows/deploy.yml](../.github/workflows/deploy.yml)               | `logrocket-prompt-gen` | `src/`, `public/`, `api/`, `index.html`, `vite.config.js`, `server.js`, `package*.json`, `Dockerfile` |
+| [../.github/workflows/deploy-explore.yml](../.github/workflows/deploy-explore.yml) | `logrocket-explore`    | `explore/`, `Dockerfile.explore`                                     |
+
+Each workflow has a `paths` filter so a commit only redeploys the service it
+actually affects. Without it, every push would rebuild both services, including
+docs-only and `infra/`-only commits. The practical consequence is that a
+**Terraform-only change deploys nothing** — that is intended, since `terraform
+apply` is run locally, but it means the `paths` list has to be kept in sync with
+what each Dockerfile pulls in. If you add a new top-level directory that ends up
+in an image, add it to the relevant filter or it will silently never deploy.
 
 Note that `workflow_dispatch` only exposes workflows that exist on the **default
 branch**, so a new deploy workflow is not runnable until it merges to `main`.

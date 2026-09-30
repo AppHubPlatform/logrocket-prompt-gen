@@ -1,8 +1,27 @@
 name: Deploy to Cloud Run
 
 on:
-  # Manual-only: deploys are triggered on demand (Actions tab → "Run workflow",
-  # or `gh workflow run deploy.yml`), not automatically on every push to main.
+  # Auto-deploy on push to main, but only when something that actually ends up
+  # in this service's image changes. Without the paths filter every commit --
+  # including docs-only and infra-only ones, and anything under explore/ --
+  # would redeploy this service for no reason.
+  #
+  # Keep this list in sync with what ../../Dockerfile pulls in: the build stage
+  # runs `vite build` (src, public, index.html, vite.config.js, and api/, which
+  # vite.config.js imports from) and the runtime stage copies server.js + api/.
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "api/**"
+      - "index.html"
+      - "vite.config.js"
+      - "server.js"
+      - "package.json"
+      - "package-lock.json"
+      - "Dockerfile"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
 # Required for keyless auth to GCP via Workload Identity Federation.
