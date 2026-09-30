@@ -27,6 +27,11 @@ resource "google_cloud_run_v2_service" "app" {
       }
 
       env {
+        name  = "FIRESTORE_DATABASE_ID"
+        value = google_firestore_database.mission_control.name
+      }
+
+      env {
         name = "ROG_TOKEN"
         value_source {
           secret_key_ref {
@@ -51,5 +56,6 @@ resource "google_cloud_run_v2_service" "app" {
     google_project_service.services,
     google_secret_manager_secret_iam_member.runtime_anthropic,
     google_secret_manager_secret_iam_member.runtime_rog,
+    google_project_iam_member.runtime_firestore,
   ]
 }

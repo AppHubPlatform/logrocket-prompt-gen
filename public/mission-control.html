@@ -110,8 +110,10 @@
 
   .launch{
     position:relative; z-index:3; margin-top:26px; padding:30px 30px 24px; display:grid; gap:26px; align-items:end;
-    grid-template-columns:1.7fr 1.2fr 1fr auto;
+    grid-template-columns:1.5fr 1.1fr .9fr 1.3fr auto;
   }
+  .launch .save-note{grid-column:1 / -1; margin-top:-10px;}
+  .field label small{font-family:'Inter',system-ui,sans-serif; font-size:11px; text-transform:none; letter-spacing:0; color:var(--ink-soft);}
   .launch::before{
     content:''; position:absolute; inset:0; z-index:-1; background:rgba(255,255,255,.78); border:2.6px solid var(--ink);
     border-radius:16px 22px 14px 24px / 22px 14px 24px 16px; filter:url(#rough);
@@ -166,6 +168,9 @@
   .empty{position:relative; z-index:1; text-align:center; padding:50px 20px; font-size:16px; color:var(--ink-soft);}
   .empty .btn{margin-top:14px;}
   .save-note{margin-top:14px; font-size:14px; color:var(--flag); font-weight:700;}
+  .import-note{margin-top:14px; display:flex; align-items:center; gap:12px; font-size:14px; font-weight:600;}
+  .conflict-banner{display:flex; align-items:center; gap:12px; padding:10px 16px; background:#fdecea; border-bottom:2px solid var(--flag); color:var(--flag); font-size:14px; font-weight:700; position:relative; z-index:7;}
+  .conflict-banner[hidden], .import-note[hidden]{display:none;}
 
   /* ============================================================
      CHART VIEW
@@ -474,7 +479,12 @@
           <label for="inArr">ARR value</label>
           <div class="money"><span>$</span><input class="ink-input" id="inArr" type="text" inputmode="numeric" placeholder="250,000" autocomplete="off"></div>
         </div>
+        <div class="field" id="fRef">
+          <label for="inRef">Salesforce ID or website <small>(optional)</small></label>
+          <input class="ink-input" id="inRef" type="text" placeholder="001A000001abcDE or meridian.com" autocomplete="off">
+        </div>
         <button class="btn purple go" type="submit"><svg viewBox="0 0 100 130"><use href="#rocket"/></svg>Launch</button>
+        <div class="save-note" id="launchError" hidden></div>
       </form>
     </section>
 
@@ -500,7 +510,11 @@
           <button class="btn purple" id="emptyNewBtn">+ Map your first account</button>
         </div>
       </div>
-      <div class="save-note" id="saveNote" hidden>Heads up: this viewer can't save, so changes will be lost when you reload.</div>
+      <div class="save-note" id="saveNote" hidden></div>
+      <div class="import-note" id="importNote" hidden>
+        <span id="importMsg"></span>
+        <button class="btn small" id="importBtn">Import to the team board</button>
+      </div>
     </section>
 
     <!-- ===================== CHART ===================== -->
@@ -539,6 +553,10 @@
       </div>
 
       <div class="main">
+        <div class="conflict-banner" id="conflictBanner" role="alert" hidden>
+          <span id="conflictMsg"></span>
+          <button class="btn small" id="conflictReload">Reload latest</button>
+        </div>
         <div class="topbar">
           <button class="btn" id="backBtn">&larr; Accounts</button>
           <div class="account-title"><span class="hl" id="chartTitle">Account</span></div>
@@ -589,8 +607,10 @@
     <input type="text" id="editTitle">
     <label class="lbl">Email</label>
     <input type="text" id="editEmail">
-    <label class="lbl">Phone</label>
-    <input type="text" id="editPhone" placeholder="e.g. +1 415 555 0134">
+    <div id="editPhoneWrap">
+      <label class="lbl">Phone</label>
+      <input type="text" id="editPhone" placeholder="e.g. +1 415 555 0134">
+    </div>
     <label class="target-toggle"><input type="checkbox" id="editTarget"><span data-icon="group" style="color:var(--flag)"></span><span>Red flag: we haven't engaged this person</span></label>
     <div class="modal-actions">
       <button class="link-btn" id="editDeleteBtn">Remove card</button>
@@ -662,75 +682,158 @@ function escapeHtml(str){
 function money(n){ return '$' + (Number(n)||0).toLocaleString('en-US'); }
 
 /* ============================================================
-   STORAGE — every account (and its org chart) lives in one store.
-   Uses window.storage when the host provides it, else localStorage.
+   STORAGE — accounts live in the team's shared store (/api/accounts).
+   The list holds summaries (no zones/arrows); a chart loads its full
+   account when opened. Saves carry `version`; a 409 means a teammate
+   saved first and we must reload before saving again.
    ============================================================ */
 let store = {accounts:[]};
-let canSave = true;
+let storePhone = false;
+let saveError = '';
+const SAVE_DELAY = 600;
+const saveTimers = new Map();
+const saveQueues = new Map();
 
-async function safeGet(key){
-  try{ if(window.storage){ const r = await window.storage.get(key, false); if(r && r.value) return r.value; } }catch(e){}
-  try{ return localStorage.getItem(key); }catch(e){ return null; }
-}
-async function safeSet(key, value){
-  try{ if(window.storage){ await window.storage.set(key, value, false); return true; } }catch(e){}
-  try{ localStorage.setItem(key, value); return localStorage.getItem(key) === value; }catch(e){ return false; }
-}
-async function persist(){ canSave = await safeSet(STORE_KEY, JSON.stringify(store)); }
-
-async function loadStore(){
-  const raw = await safeGet(STORE_KEY);
-  if(raw){
-    try{ const d = JSON.parse(raw); if(d && Array.isArray(d.accounts)){ store = d; return; } }catch(e){}
+async function api(method, path, body){
+  const res = await fetch('/api/accounts' + path, {
+    method,
+    headers: body ? {'Content-Type':'application/json'} : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  let data = null;
+  if(res.status !== 204){ try{ data = await res.json(); }catch(e){} }
+  if(!res.ok){
+    const err = new Error((data && data.error) || ('Request failed (' + res.status + ')'));
+    err.status = res.status; err.data = data;
+    throw err;
   }
-  store = {accounts:[sampleAccount()]};
-  await persist();
+  return data;
 }
+function accountPath(acct){ return '/' + encodeURIComponent(acct.id); }
+
+function setSaveError(msg){
+  saveError = msg || '';
+  const note = $('saveNote');
+  note.textContent = saveError;
+  note.hidden = !saveError;
+}
+
+const LOAD_ERROR = 'Could not load the team board: ';
+async function loadStore(){
+  try{
+    const data = await api('GET', '');
+    store = {accounts:data.accounts};
+    storePhone = !!(data.config && data.config.storePhone);
+    $('editPhoneWrap').hidden = !storePhone;
+    if(saveError.startsWith(LOAD_ERROR)) setSaveError('');
+  }catch(e){
+    setSaveError(LOAD_ERROR + e.message);
+  }
+  renderImportNote();
+}
+
+function replaceInStore(acct){
+  const i = store.accounts.findIndex(a=>a.id === acct.id);
+  if(i === -1) store.accounts.push(acct); else store.accounts[i] = acct;
+  return acct;
+}
+
+function accountPayload(acct){
+  return {
+    name:acct.name, rep:acct.rep, arr:acct.arr, sfAccountId:acct.sfAccountId, domain:acct.domain,
+    contacts:acct.contacts, buckets:acct.buckets||[], connections:acct.connections||[], version:acct.version,
+  };
+}
+
+function scheduleSave(acct){
+  clearTimeout(saveTimers.get(acct.id));
+  saveTimers.set(acct.id, setTimeout(()=>flushSave(acct), SAVE_DELAY));
+}
+
+// Saves for one account run one at a time so each PUT carries the version
+// returned by the previous one.
+function flushSave(acct){
+  if(saveTimers.has(acct.id)){ clearTimeout(saveTimers.get(acct.id)); saveTimers.delete(acct.id); }
+  const prev = saveQueues.get(acct.id) || Promise.resolve();
+  const next = prev.then(()=>putAccount(acct));
+  saveQueues.set(acct.id, next);
+  next.finally(()=>{ if(saveQueues.get(acct.id) === next) saveQueues.delete(acct.id); });
+  return next;
+}
+
+async function putAccount(acct){
+  if(acct.conflict) return;
+  try{
+    const saved = await api('PUT', accountPath(acct), accountPayload(acct));
+    acct.version = saved.version; acct.updatedAt = saved.updatedAt; acct.updatedBy = saved.updatedBy;
+    setSaveError('');
+  }catch(e){
+    if(e.status === 409){ acct.conflict = (e.data && e.data.current) || {}; showConflict(acct); }
+    else setSaveError('Changes not saved: ' + e.message);
+  }
+}
+
+function hasPendingSaves(){ return saveTimers.size > 0 || saveQueues.size > 0; }
+window.addEventListener('beforeunload', e=>{
+  if(!hasPendingSaves()) return;
+  saveTimers.forEach((_t, id)=>{ const a = store.accounts.find(x=>x.id === id); if(a) flushSave(a); });
+  e.preventDefault();
+});
+
+function showConflict(acct){
+  if(current !== acct) return;
+  const who = acct.conflict.updatedBy || 'A teammate';
+  $('conflictMsg').textContent = who + ' changed this account while you were editing. Your latest changes were not saved.';
+  $('conflictBanner').hidden = false;
+}
+function hideConflict(){ $('conflictBanner').hidden = true; }
+
+/* ---- One-time import of charts saved in this browser before the shared board ---- */
+const IMPORTED_KEY = STORE_KEY + ':imported';
+function localAccounts(){
+  try{
+    if(localStorage.getItem(IMPORTED_KEY)) return [];
+    const d = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+    return (d && Array.isArray(d.accounts)) ? d.accounts : [];
+  }catch(e){ return []; }
+}
+function renderImportNote(){
+  const n = localAccounts().length;
+  $('importNote').hidden = !n;
+  $('importMsg').textContent = n ? n + ' account' + (n===1?'':'s') + ' saved only in this browser.' : '';
+}
+$('importBtn').addEventListener('click', async ()=>{
+  const btn = $('importBtn');
+  btn.disabled = true;
+  let added = 0, existed = 0, failed = 0;
+  for(const a of localAccounts()){
+    try{ await api('POST', '', accountPayload(a)); added++; }
+    catch(e){ if(e.status === 409) existed++; else failed++; }
+  }
+  if(!failed){ try{ localStorage.setItem(IMPORTED_KEY, String(Date.now())); }catch(e){} }
+  btn.disabled = false;
+  await loadStore();
+  renderList();
+  $('importNote').hidden = false;
+  $('importMsg').textContent = 'Imported ' + added + (existed ? ', ' + existed + ' already on the board' : '') + (failed ? ', ' + failed + ' failed (try again)' : '') + '.';
+  btn.hidden = !failed;
+});
 
 /* ============================================================
    ACCOUNT DATA
    ============================================================ */
-function blankAccount({name, rep, arr}){
-  const now = Date.now();
-  return {
-    id:uid(), name, rep, arr, created:now, updated:now,
+const SF_ID = /^[a-zA-Z0-9]{15}(?:[a-zA-Z0-9]{3})?$/;
+
+function blankAccount({name, rep, arr, ref}){
+  const acct = {
+    name, rep, arr,
     contacts:[],
     buckets:[{id:uid(), label:'Executive Team', x:120, y:70, w:560, h:300, color:COLORS[0]}],
-    connections:[]
+    connections:[],
   };
-}
-
-function sampleAccount(){
-  const ink = COLORS[0];
-  const E = n => n + '@meridianrobotics.com';
-  const now = Date.now();
-  return {
-    id:uid(), name:'Meridian Robotics', rep:'Greg Allen', arr:480000, created:now, updated:now,
-    buckets:[
-      {id:'b-csuite', label:'C-Suite',          x:800, y:40,  w:420, h:330, color:ink},
-      {id:'b-prod',   label:'Product Team',     x:220, y:470, w:640, h:360, color:ink},
-      {id:'b-eng',    label:'Engineering Team', x:940, y:470, w:760, h:540, color:ink},
-    ],
-    contacts:[
-      {id:'ceo',  name:'Elena Cho',    title:'Chief Executive Officer',  email:E('elena.cho'), phone:'+1 415 555 0101',    target:false, placed:true, x:885,  y:90,  bucketId:'b-csuite'},
-      {id:'cto',  name:'Marcus Webb',  title:'Chief Technology Officer', email:E('marcus.webb'), phone:'+1 415 555 0102',  target:true,  placed:true, x:885,  y:240, bucketId:'b-csuite'},
-      {id:'vpp',  name:'Dana Reyes',   title:'VP, Product',              email:E('dana.reyes'), phone:'+1 415 555 0134',   target:true,  placed:true, x:410,  y:520, bucketId:'b-prod'},
-      {id:'pm1',  name:'Sam Ortiz',    title:'Product Manager',          email:E('sam.ortiz'),    target:false, placed:true, x:250,  y:700, bucketId:'b-prod'},
-      {id:'pm2',  name:'Priya Nair',   title:'Product Manager',          email:E('priya.nair'),   target:false, placed:true, x:570,  y:700, bucketId:'b-prod'},
-      {id:'vpe',  name:'Tom Alvarez',  title:'VP, Engineering',          email:E('tom.alvarez'), phone:'+1 415 555 0177',  target:true,  placed:true, x:1200, y:520, bucketId:'b-eng'},
-      {id:'em1',  name:'Jordan Lee',   title:'Engineering Manager',      email:E('jordan.lee'),   target:false, placed:true, x:1000, y:700, bucketId:'b-eng'},
-      {id:'em2',  name:'Ana Kim',      title:'Engineering Manager',      email:E('ana.kim'),      target:false, placed:true, x:1400, y:700, bucketId:'b-eng'},
-      {id:'se1',  name:'Chen Wu',      title:'Senior Engineer',          email:E('chen.wu'),      target:false, placed:true, x:1000, y:870, bucketId:'b-eng'},
-      {id:'u1', name:'Jamie Fox',   title:'Chief of Staff', email:E('jamie.fox'),   target:false, placed:false, x:0,y:0, bucketId:null},
-      {id:'u2', name:'Priya Singh', title:'Head of Data',   email:E('priya.singh'), target:false, placed:false, x:0,y:0, bucketId:null},
-      {id:'u3', name:'Noah Diaz',   title:'Staff Engineer', email:E('noah.diaz'),   target:false, placed:false, x:0,y:0, bucketId:null},
-    ],
-    connections:[
-      {from:'ceo', to:'cto'}, {from:'cto', to:'vpp'}, {from:'cto', to:'vpe'},
-      {from:'vpp', to:'pm1'}, {from:'vpp', to:'pm2'},
-      {from:'vpe', to:'em1'}, {from:'vpe', to:'em2'}, {from:'em1', to:'se1'},
-    ]
-  };
+  if(ref && SF_ID.test(ref)) acct.sfAccountId = ref;
+  else if(ref) acct.domain = ref;
+  return acct;
 }
 
 /* ---- Reading the org map: exec engagement + primary action item ---- */
@@ -792,18 +895,29 @@ function show(h){
   h = h || '#/';
   if(h === shownHash) return;
   shownHash = h;
+  if(current){
+    if(saveTimers.has(current.id)) flushSave(current);
+    current = null;
+    hideConflict();
+  }
   const m = h.match(/^#\/account\/(.+)$/);
-  const acct = m ? store.accounts.find(a=>a.id === m[1]) : null;
-  let view = 'splash';
-  if(m && acct) view = 'chart'; else if(h === '#/list' || m) view = 'list';
+  const view = m ? 'chart' : h === '#/list' ? 'list' : 'splash';
 
   $('viewSplash').hidden = view !== 'splash';
   $('viewList').hidden   = view !== 'list';
   $('viewChart').hidden  = view !== 'chart';
 
   if(view === 'splash') renderSplash();
-  if(view === 'list')   renderList();
-  if(view === 'chart')  openChart(acct);
+  if(view === 'list')   refreshList();
+  if(view === 'chart')  openChart(decodeURIComponent(m[1]), h);
+}
+function accountHash(id){ return '#/account/' + encodeURIComponent(id); }
+
+async function refreshList(){
+  renderList();
+  await Promise.all([...saveQueues.values()]);
+  await loadStore();
+  if(shownHash === '#/list') renderList();
 }
 
 /* ============================================================
@@ -825,17 +939,32 @@ function renderSplash(){
   $('splashCount').textContent = store.accounts.length;
 }
 
+const inRef = $('inRef');
 $('launchForm').addEventListener('submit', async e=>{
   e.preventDefault();
   const name = inAccount.value.trim(), rep = inRep.value;
   $('fAccount').classList.toggle('invalid', !name);
   $('fRep').classList.toggle('invalid', !rep);
   if(!name || !rep){ (name ? inRep : inAccount).focus(); return; }
-  const acct = blankAccount({name, rep, arr:Number(inArr.value.replace(/\D/g,''))||0});
-  store.accounts.push(acct);
-  await persist();
-  inAccount.value = ''; inRep.value = ''; inArr.value = '';
-  navigate('#/account/' + acct.id);
+  const launchError = $('launchError');
+  launchError.hidden = true;
+  const draft = blankAccount({name, rep, arr:Number(inArr.value.replace(/\D/g,''))||0, ref:inRef.value.trim()});
+  let id;
+  try{
+    id = replaceInStore(await api('POST', '', draft)).id;
+  }catch(err){
+    if(err.status === 409 && err.data && err.data.id){
+      id = err.data.id;
+    }else{
+      launchError.textContent = err.status === 400
+        ? 'Check the Salesforce ID or website: it should look like 001A000001abcDE or meridian.com.'
+        : 'Could not create the account: ' + err.message;
+      launchError.hidden = false;
+      return;
+    }
+  }
+  inAccount.value = ''; inRep.value = ''; inArr.value = ''; inRef.value = '';
+  navigate(accountHash(id));
 });
 $('splashToList').addEventListener('click', ()=> navigate('#/list'));
 
@@ -868,14 +997,12 @@ function renderList(){
       <td class="r amt">${money(a.arr)}</td>
       <td class="c"><span class="cbox ${r.execEngaged?'on':''}" role="img" aria-label="${r.execEngaged?'Executives engaged':'Executives not engaged'}" title="${r.execEngaged?'Executives engaged':'Executives not engaged yet'}">${r.execEngaged?CHECK:''}</span></td>
       <td class="act"><div class="a ${r.flag?'':'calm'}">${r.flag?GROUP:''}<span>${escapeHtml(r.text)}</span></div></td>
-      <td class="go"><button class="btn small" data-open="${a.id}">View &rarr;</button><button class="x" data-del="${a.id}" title="Delete account">&#10005;</button></td>
+      <td class="go"><button class="btn small" data-open="${escapeHtml(a.id)}">View &rarr;</button><button class="x" data-del="${escapeHtml(a.id)}" title="Delete account">&#10005;</button></td>
     </tr>`).join('');
-
-  $('saveNote').hidden = canSave;
 }
 $('rows').addEventListener('click', async e=>{
   const open = e.target.closest('[data-open]');
-  if(open){ navigate('#/account/' + open.dataset.open); return; }
+  if(open){ navigate(accountHash(open.dataset.open)); return; }
   const del = e.target.closest('[data-del]');
   if(del){
     const a = store.accounts.find(x=>x.id === del.dataset.del);
@@ -889,9 +1016,15 @@ $('deleteOverlay').addEventListener('click', e=>{ if(e.target === $('deleteOverl
 document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && pendingDelete) closeDelete(); });
 $('delConfirmBtn').addEventListener('click', async ()=>{
   if(!pendingDelete) return;
-  store.accounts = store.accounts.filter(x=>x !== pendingDelete);
+  const acct = pendingDelete;
   closeDelete();
-  await persist();
+  try{
+    await api('DELETE', accountPath(acct));
+    store.accounts = store.accounts.filter(x=>x.id !== acct.id);
+    setSaveError('');
+  }catch(e){
+    setSaveError('Could not delete ' + acct.name + ': ' + e.message);
+  }
   renderList();
 });
 
@@ -909,11 +1042,26 @@ const tray = $('tray');
 async function saveChart(){
   if(!current) return;
   current.contacts = contacts; current.buckets = buckets; current.connections = connections;
-  current.updated = Date.now();
-  await persist();
+  scheduleSave(current);
 }
 
-function openChart(acct){
+async function openChart(id, h){
+  const cached = store.accounts.find(a=>a.id === id);
+  contacts = []; buckets = []; connections = [];
+  $('chartTitle').textContent = cached ? cached.name : 'Loading…';
+  $('chartMeta').textContent = '';
+  renderTray(); renderBuckets(); renderCards(); renderConnections();
+  if(saveQueues.has(id)) await saveQueues.get(id);
+  let acct;
+  try{
+    acct = replaceInStore(await api('GET', '/' + encodeURIComponent(id)));
+  }catch(e){
+    if(shownHash !== h) return;
+    setSaveError(e.status === 404 ? 'That account is no longer on the board.' : 'Could not open the account: ' + e.message);
+    navigate('#/list');
+    return;
+  }
+  if(shownHash !== h) return;
   current = acct;
   contacts = acct.contacts; buckets = acct.buckets; connections = acct.connections;
   $('chartTitle').textContent = acct.name;
@@ -923,6 +1071,14 @@ function openChart(acct){
   renderAll();
 }
 $('backBtn').addEventListener('click', ()=> navigate('#/list'));
+$('conflictReload').addEventListener('click', ()=>{
+  if(!current) return;
+  clearTimeout(saveTimers.get(current.id));
+  saveTimers.delete(current.id);
+  const h = shownHash;
+  shownHash = null;
+  show(h);
+});
 $('brandLink').addEventListener('click', e=>{ e.preventDefault(); navigate('#/list'); });
 
 /* ============================================================
@@ -970,13 +1126,13 @@ function renderActions(){
     if(c.phone) bits.push(`<a href="${escapeHtml(telHref(c.phone))}" data-stop>${escapeHtml(c.phone)}</a>`);
     if(c.email) bits.push(`<a href="mailto:${escapeHtml(c.email)}" data-stop>${escapeHtml(c.email)}</a>`);
     if(!c.placed) bits.push('<span class="off">not on board yet</span>');
-    return `<div class="ai" data-id="${c.id}">
+    return `<div class="ai" data-id="${escapeHtml(c.id)}">
       ${GROUP.replace('<svg ','<svg class="g" ')}
       <div class="ai-body">
         <div class="ai-act">${verb} ${escapeHtml(c.title || 'this contact')}</div>
         <div class="ai-who">${bits.join('</div><div class="ai-who">')}</div>
       </div>
-      <button class="done" data-done="${c.id}" title="We've engaged them: clear the red flag">&#10003; Engaged</button>
+      <button class="done" data-done="${escapeHtml(c.id)}" title="We've engaged them: clear the red flag">&#10003; Engaged</button>
     </div>`;
   }).join('');
 }
@@ -1360,7 +1516,7 @@ $('addContactBtn').addEventListener('click', async ()=>{
 const ROG_WINDOW = 'last 6 months';   // enterprise deal cycles run long
 
 function rogQuestion(account){
-  return `For the customer account "${account}", list the people involved in the current open deal cycle, based on Gong calls, meetings and email from the ${ROG_WINDOW}. Include buyers, champions, economic buyers, technical evaluators and executives. Customer-side only: exclude LogRocket employees. For each person give: name, job title, email if known, direct phone number if known, their role in the deal (a few words), and "engaged": true if they personally attended a call or meeting or exchanged email with us in that window, false if they were only mentioned by others or identified but never engaged. Only include real people found in the data. Do not guess or invent names or titles; leave title empty if unknown. Return at most 15 people, most senior first. Respond with ONLY a JSON array like [{"name":"","title":"","email":"","phone":"","role":"","engaged":true}] and no other text.`;
+  return `For the customer account "${account}", list the people involved in the current open deal cycle, based on Gong calls, meetings and email from the ${ROG_WINDOW}. Include buyers, champions, economic buyers, technical evaluators and executives. Customer-side only: exclude LogRocket employees. For each person give: name, job title, email if known, ${storePhone ? 'direct phone number if known, ' : ''}their role in the deal (a few words), and "engaged": true if they personally attended a call or meeting or exchanged email with us in that window, false if they were only mentioned by others or identified but never engaged. Only include real people found in the data. Do not guess or invent names or titles; leave title empty if unknown. Return at most 15 people, most senior first. Respond with ONLY a JSON array like [{"name":"","title":"","email":"","phone":"","role":"","engaged":true}] and no other text.`;
 }
 
 function extractJsonArray(text){
@@ -1437,7 +1593,7 @@ $('rogBtn').addEventListener('click', async ()=>{
       const phone = phoneRaw.replace(/\D/g,'').length >= 7 ? phoneRaw : '';
       const engaged = p.engaged === true || p.engaged === 'true';
       list.push({
-        id:uid(), name, title:cleanText(p.title, 100), email:/^\S+@\S+\.\S+$/.test(email) ? email : '', phone,
+        id:uid(), name, title:cleanText(p.title, 100), email:/^\S+@\S+\.\S+$/.test(email) ? email : '', phone:storePhone ? phone : '',
         target:!engaged,                       // not engaged yet = red flag
         placed:false, x:0, y:0, bucketId:null,
         rog:true, rogEngaged:engaged, rogNote:cleanText(p.role, 60)
@@ -1445,8 +1601,7 @@ $('rogBtn').addEventListener('click', async ()=>{
       added++;
     });
     acct.contacts = list;
-    acct.updated = Date.now();
-    await persist();
+    scheduleSave(acct);
     if(current === acct){ contacts = acct.contacts; renderAll(); }
     if(!found.length) setRogStatus('Rog had no contacts for "' + acct.name + '". Try the exact account name from Salesforce.', 'err');
     else setRogStatus(added ? 'Added ' + added + ' contact' + (added===1?'':'s') + ' as stickies' + (skipped ? ' (' + skipped + ' already on the chart)' : '') + '. Review them, then stick them on the board.' : 'Nothing new: all ' + skipped + ' were already on the chart.', 'ok');

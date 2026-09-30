@@ -52,6 +52,12 @@ variable "github_repo" {
   default     = "AppHubPlatform/logrocket-prompt-gen"
 }
 
+variable "firestore_database_id" {
+  description = "Named Firestore database holding Mission Control accounts. Must match FIRESTORE_DATABASE_ID in the Cloud Run env."
+  type        = string
+  default     = "mission-control"
+}
+
 variable "artifact_repo_id" {
   description = "Artifact Registry repository ID for container images."
   type        = string

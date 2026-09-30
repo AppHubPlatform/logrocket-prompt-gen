@@ -8,16 +8,22 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "node server.js"
+    "start": "node server.js",
+    "emulator": "gcloud emulators firestore start --host-port=127.0.0.1:8181",
+    "dev:shared": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8181 vite",
+    "test": "node --test api/",
+    "test:emulator": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8181 GOOGLE_CLOUD_PROJECT=demo-mission-control node --test api/"
   },
   "dependencies": {
+    "@google-cloud/firestore": "^8.7.1",
     "express": "^5.2.1",
     "html2canvas-pro": "^2.3.2",
     "jspdf": "^4.2.1",
     "logrocket": "^12.1.1",
     "logrocket-react": "^7.0.1",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
