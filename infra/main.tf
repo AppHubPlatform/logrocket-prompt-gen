@@ -12,6 +12,7 @@ resource "google_project_service" "services" {
     "iamcredentials.googleapis.com",
     "sts.googleapis.com",
     "cloudresourcemanager.googleapis.com",
+    "firestore.googleapis.com",
   ])
 
   project            = var.project_id

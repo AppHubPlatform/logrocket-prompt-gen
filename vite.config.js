@@ -4,6 +4,8 @@ import { fetchIntegrationCatalogue, fetchLogosFor, CATALOGUE_URL } from './api/_
 import { fetchCustomerLogos } from './api/_customerLogos.js'
 import { fetchBrandLogos } from './api/_brandLogos.js'
 import { fetchSiteLogos } from './api/_siteLogos.js'
+import express from 'express'
+import { createAccountsRouter } from './api/accounts.js'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
@@ -66,6 +68,25 @@ export default defineConfig(({ mode }) => {
               res.end(JSON.stringify({ error: e.message }))
             }
           })
+        },
+      },
+      {
+        // Mounts the same router as server.js. Dev only ever talks to the Firestore
+        // emulator: without FIRESTORE_EMULATOR_HOST the client would use your gcloud
+        // credentials against the production database.
+        name: 'dev-api-accounts',
+        configureServer(server) {
+          const app = express()
+          if (process.env.FIRESTORE_EMULATOR_HOST) {
+            process.env.GOOGLE_CLOUD_PROJECT ||= 'demo-mission-control'
+            app.use(express.json({ limit: '2mb' }))
+            app.use(createAccountsRouter({ fallbackUser: 'dev@localhost' }))
+          } else {
+            app.use((_req, res) => {
+              res.status(503).json({ error: 'Start the Firestore emulator (npm run emulator) and run dev with FIRESTORE_EMULATOR_HOST=127.0.0.1:8181' })
+            })
+          }
+          server.middlewares.use('/api/accounts', app)
         },
       },
     ],

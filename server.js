@@ -6,6 +6,7 @@ import anthropic from "./api/anthropic.js";
 import rog from "./api/rog.js";
 import me from "./api/me.js";
 import integrations from "./api/integrations.js";
+import { createAccountsRouter } from "./api/accounts.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.join(__dirname, "dist");
@@ -20,6 +21,7 @@ app.get("/api/me", me);
 app.get("/api/integrations", integrations);
 app.post("/api/anthropic", anthropic);
 app.post("/api/rog", rog);
+app.use("/api/accounts", createAccountsRouter());
 
 app.use(express.static(distDir));
 
