@@ -625,10 +625,6 @@
     <input type="text" id="editTitle">
     <label class="lbl">Email</label>
     <input type="text" id="editEmail">
-    <div id="editPhoneWrap">
-      <label class="lbl">Phone</label>
-      <input type="text" id="editPhone" placeholder="e.g. +1 415 555 0134">
-    </div>
     <label class="target-toggle"><input type="checkbox" id="editTarget"><span data-icon="group" style="color:var(--flag)"></span><span>Red flag: we haven't engaged this person</span></label>
     <div class="modal-actions">
       <button class="link-btn" id="editDeleteBtn">Remove card</button>
@@ -679,7 +675,6 @@ const GROUP = `<svg width="56" height="42" viewBox="0 0 56 42" fill="none" aria-
   </g>
 </svg>`;
 const MAIL = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 4.500l6 4.500 6-4.500" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
-const PHONE = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.500 1.800h2.400l1 3-1.500 1.100a8 8 0 0 0 3.700 3.700l1.100-1.500 3 1v2.400a1.500 1.500 0 0 1-1.600 1.500A11.500 11.500 0 0 1 2 3.400 1.500 1.500 0 0 1 3.500 1.800z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
 const CHECK = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12.500 L9.500 18 L20.500 5" stroke="#6a2ee0" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 document.querySelectorAll('[data-icon]').forEach(el=>{
@@ -706,7 +701,6 @@ function money(n){ return '$' + (Number(n)||0).toLocaleString('en-US'); }
    saved first and we must reload before saving again.
    ============================================================ */
 let store = {accounts:[]};
-let storePhone = false;
 let saveError = '';
 const SAVE_DELAY = 600;
 const saveTimers = new Map();
@@ -741,8 +735,6 @@ async function loadStore(){
   try{
     const data = await api('GET', '');
     store = {accounts:data.accounts};
-    storePhone = !!(data.config && data.config.storePhone);
-    $('editPhoneWrap').hidden = !storePhone;
     if(saveError.startsWith(LOAD_ERROR)) setSaveError('');
   }catch(e){
     setSaveError(LOAD_ERROR + e.message);
@@ -1193,7 +1185,6 @@ function updateTargetCount(){
 }
 
 /* ---- Action items strip: everyone with a red flag, most senior first ---- */
-function telHref(v){ return 'tel:' + String(v).replace(/[^\d+]/g,''); }
 function renderActions(){
   if(!current) return;
   const flagged = contacts.filter(c=>c.target)
@@ -1218,7 +1209,6 @@ function renderActions(){
     const verb = execRank(c.title) !== null ? 'Get' : 'Engage';
     const bits = [];
     bits.push(escapeHtml(c.name));
-    if(c.phone) bits.push(`<a href="${escapeHtml(telHref(c.phone))}" data-stop>${escapeHtml(c.phone)}</a>`);
     if(c.email) bits.push(`<a href="mailto:${escapeHtml(c.email)}" data-stop>${escapeHtml(c.email)}</a>`);
     if(!c.placed) bits.push('<span class="off">not on board yet</span>');
     return `<div class="ai" data-id="${escapeHtml(c.id)}">
@@ -1370,7 +1360,7 @@ function renderCards(){
           <div class="card-title">${escapeHtml(c.title||'')}</div>
         </div>
       </div>
-      ${(c.email || c.phone || c.rog) ? `<div class="card-contact">${c.rog ? `<div class="rog-note"><span>${escapeHtml(rogLine(c))}</span></div>` : ''}${c.email ? `<div title="${escapeHtml(c.email)}">${MAIL}<span>${escapeHtml(c.email)}</span></div>` : ''}${c.phone ? `<div title="${escapeHtml(c.phone)}">${PHONE}<span>${escapeHtml(c.phone)}</span></div>` : ''}</div>` : ''}
+      ${(c.email || c.rog) ? `<div class="card-contact">${c.rog ? `<div class="rog-note"><span>${escapeHtml(rogLine(c))}</span></div>` : ''}${c.email ? `<div title="${escapeHtml(c.email)}">${MAIL}<span>${escapeHtml(c.email)}</span></div>` : ''}</div>` : ''}
       <div class="handle" title="Drag onto another card to draw an arrow"></div>
     `;
     el.querySelector('.targetBtn').addEventListener('click', async (e)=>{
@@ -1603,7 +1593,7 @@ $('addBucketBtn').addEventListener('click', async ()=>{
 });
 
 $('addContactBtn').addEventListener('click', async ()=>{
-  const c = {id:uid(), name:'New contact', title:'', email:'', phone:'', target:true, placed:false, x:0, y:0, bucketId:null};
+  const c = {id:uid(), name:'New contact', title:'', email:'', target:true, placed:false, x:0, y:0, bucketId:null};
   contacts.push(c);
   await saveChart();
   renderTray();
@@ -1620,7 +1610,7 @@ $('addContactBtn').addEventListener('click', async ()=>{
 const ROG_WINDOW = 'last 6 months';   // enterprise deal cycles run long
 
 function rogQuestion(account){
-  return `For the customer account "${account}", list the people involved in the current open deal cycle, based on Gong calls, meetings and email from the ${ROG_WINDOW}. Include buyers, champions, economic buyers, technical evaluators and executives. Customer-side only: exclude LogRocket employees. For each person give: name, job title, email if known, ${storePhone ? 'direct phone number if known, ' : ''}their role in the deal (a few words), and "engaged": true if they personally attended a call or meeting or exchanged email with us in that window, false if they were only mentioned by others or identified but never engaged. Only include real people found in the data. Do not guess or invent names or titles; leave title empty if unknown. Return at most 15 people, most senior first. Respond with ONLY a JSON array like [{"name":"","title":"","email":"","phone":"","role":"","engaged":true}] and no other text.`;
+  return `For the customer account "${account}", list the people involved in the current open deal cycle, based on Gong calls, meetings and email from the ${ROG_WINDOW}. Include buyers, champions, economic buyers, technical evaluators and executives. Customer-side only: exclude LogRocket employees. For each person give: name, job title, email if known, their role in the deal (a few words), and "engaged": true if they personally attended a call or meeting or exchanged email with us in that window, false if they were only mentioned by others or identified but never engaged. Only include real people found in the data. Do not guess or invent names or titles; leave title empty if unknown. Return at most 15 people, most senior first. Respond with ONLY a JSON array like [{"name":"","title":"","email":"","role":"","engaged":true}] and no other text.`;
 }
 
 function extractJsonArray(text){
@@ -1637,7 +1627,7 @@ async function structureWithClaude(answer){
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       model:'claude-sonnet-4-6', max_tokens:1500,
-      system:'Extract people from the text. Respond with ONLY a JSON array of {"name","title","email","phone","role","engaged"} (engaged is a boolean: true if the text says they attended a call/meeting or exchanged email, else false). Use only what the text states; never invent names, titles, emails or phone numbers; use "" when unknown. If there are no people, respond with [].',
+      system:'Extract people from the text. Respond with ONLY a JSON array of {"name","title","email","role","engaged"} (engaged is a boolean: true if the text says they attended a call/meeting or exchanged email, else false). Use only what the text states; never invent names, titles or emails; use "" when unknown. If there are no people, respond with [].',
       messages:[{role:'user', content:answer}]
     })
   });
@@ -1693,11 +1683,9 @@ $('rogBtn').addEventListener('click', async ()=>{
       if(have.has(key)){ skipped++; return; }
       have.add(key);
       const email = cleanText(p.email, 120);
-      const phoneRaw = cleanText(p.phone, 30);
-      const phone = phoneRaw.replace(/\D/g,'').length >= 7 ? phoneRaw : '';
       const engaged = p.engaged === true || p.engaged === 'true';
       list.push({
-        id:uid(), name, title:cleanText(p.title, 100), email:/^\S+@\S+\.\S+$/.test(email) ? email : '', phone:storePhone ? phone : '',
+        id:uid(), name, title:cleanText(p.title, 100), email:/^\S+@\S+\.\S+$/.test(email) ? email : '',
         target:!engaged,                       // not engaged yet = red flag
         placed:false, x:0, y:0, bucketId:null,
         rog:true, rogEngaged:engaged, rogNote:cleanText(p.role, 60)
@@ -1786,8 +1774,8 @@ async function exportChart(fmt){
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
     const INK = '#14161a', SOFT = '#50555e', FLAG = '#d62f2a';
-    const [imgRocket, imgSingle, imgGroup, imgGroupSm, imgMail, imgPhone] = await Promise.all([
-      svgToImage(ROCKET_SVG), svgToImage(SINGLE, INK), svgToImage(GROUP, FLAG), svgToImage(GROUP, FLAG), svgToImage(MAIL, SOFT), svgToImage(PHONE, SOFT)
+    const [imgRocket, imgSingle, imgGroup, imgGroupSm, imgMail] = await Promise.all([
+      svgToImage(ROCKET_SVG), svgToImage(SINGLE, INK), svgToImage(GROUP, FLAG), svgToImage(GROUP, FLAG), svgToImage(MAIL, SOFT)
     ]);
 
     /* ---- header ---- */
@@ -1883,9 +1871,8 @@ async function exportChart(fmt){
             if(row) ctx.fillText(row, r.x, y);
             return;
           }
-          const isMail = !!(div.querySelector('svg rect'));
           const sv = rel(div.querySelector('svg')), sp = rel(div.querySelector('span'));
-          const im = isMail ? imgMail : imgPhone;
+          const im = imgMail;
           if(im) ctx.drawImage(im, sv.x, sv.y, sv.w, sv.h);
           ctx.fillStyle = SOFT; ctx.font = '12.5px Kalam, cursive';
           ctx.fillText(fitText(ctx, div.querySelector('span').textContent, sp.w), sp.x, sp.y + sp.h/2 + 1);
@@ -1937,7 +1924,6 @@ function openEditModal(id, isNew){
   $('editName').value = c.name || '';
   $('editTitle').value = c.title || '';
   $('editEmail').value = c.email || '';
-  $('editPhone').value = c.phone || '';
   $('editTarget').checked = !!c.target;
   editOverlay.classList.add('open');
   if(isNew){ $('editName').focus(); $('editName').select(); }
@@ -1949,7 +1935,6 @@ $('editSaveBtn').addEventListener('click', async ()=>{
     c.name = $('editName').value.trim() || c.name;
     c.title = $('editTitle').value.trim();
     c.email = $('editEmail').value.trim();
-    c.phone = $('editPhone').value.trim();
     c.target = $('editTarget').checked;
     await saveChart();
     renderAll();
