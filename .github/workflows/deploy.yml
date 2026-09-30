@@ -1,27 +1,13 @@
 name: Deploy to Cloud Run
 
 on:
-  # Auto-deploy on push to main, but only when something that actually ends up
-  # in this service's image changes. Without the paths filter every commit --
-  # including docs-only and infra-only ones, and anything under explore/ --
-  # would redeploy this service for no reason.
-  #
-  # Keep this list in sync with what ../../Dockerfile pulls in: the build stage
-  # runs `vite build` (src, public, index.html, vite.config.js, and api/, which
-  # vite.config.js imports from) and the runtime stage copies server.js + api/.
+  # Deliberately not scoped with a paths filter. The build stage does
+  # `COPY . .` before `vite build`, so this image's real input is the whole
+  # repo minus .dockerignore -- any path list would be an approximation that
+  # silently stops deploying the day someone adds a file it doesn't cover.
+  # A redundant deploy is cheap: an identical image and an atomic revision.
   push:
     branches: [main]
-    paths:
-      - "src/**"
-      - "public/**"
-      - "api/**"
-      - "index.html"
-      - "vite.config.js"
-      - "server.js"
-      - "package.json"
-      - "package-lock.json"
-      - "Dockerfile"
-      - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
 # Required for keyless auth to GCP via Workload Identity Federation.

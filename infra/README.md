@@ -237,18 +237,22 @@ authenticates via WIF, builds the container, pushes it to Artifact Registry,
 and deploys a new Cloud Run revision. Terraform ignores image drift
 (`lifecycle.ignore_changes`), so CI and Terraform don't fight over the image.
 
-| Workflow                                                                       | Service                | Auto-deploys when you touch                                          |
-| ------------------------------------------------------------------------------ | ---------------------- | -------------------------------------------------------------------- |
-| [../.github/workflows/deploy.yml](../.github/workflows/deploy.yml)               | `logrocket-prompt-gen` | `src/`, `public/`, `api/`, `index.html`, `vite.config.js`, `server.js`, `package*.json`, `Dockerfile` |
-| [../.github/workflows/deploy-explore.yml](../.github/workflows/deploy-explore.yml) | `logrocket-explore`    | `explore/`, `Dockerfile.explore`                                     |
+| Workflow                                                                       | Service                |
+| ------------------------------------------------------------------------------ | ---------------------- |
+| [../.github/workflows/deploy.yml](../.github/workflows/deploy.yml)               | `logrocket-prompt-gen` |
+| [../.github/workflows/deploy-explore.yml](../.github/workflows/deploy-explore.yml) | `logrocket-explore`    |
 
-Each workflow has a `paths` filter so a commit only redeploys the service it
-actually affects. Without it, every push would rebuild both services, including
-docs-only and `infra/`-only commits. The practical consequence is that a
-**Terraform-only change deploys nothing** — that is intended, since `terraform
-apply` is run locally, but it means the `paths` list has to be kept in sync with
-what each Dockerfile pulls in. If you add a new top-level directory that ends up
-in an image, add it to the relevant filter or it will silently never deploy.
+Every push to `main` deploys **both** services, with no `paths` filter. That is
+a deliberate choice: the prompt-gen build stage does `COPY . .` before
+`vite build`, so its real input is the whole repo minus `.dockerignore`, and any
+path list would be an approximation that silently stops deploying the day
+someone adds a file it doesn't cover. A change that never deploys and never
+warns you is a far worse failure than a redundant build, and a redundant build
+here is only a couple of CI minutes plus a byte-identical Cloud Run revision
+with an atomic traffic shift.
+
+So an `infra/`-only or docs-only commit will still rebuild and redeploy both
+services. That is expected and harmless.
 
 Note that `workflow_dispatch` only exposes workflows that exist on the **default
 branch**, so a new deploy workflow is not runnable until it merges to `main`.
