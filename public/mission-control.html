@@ -154,6 +154,11 @@
   tbody tr:hover td{background:rgba(139,92,240,.07);}
   td.acct{font-weight:700; font-size:16px;}
   td.amt{font-weight:600; font-variant-numeric:tabular-nums;}
+  .amt-val{cursor:text; padding:3px 6px; margin:-3px -6px; border-radius:6px; border-bottom:1.5px dashed transparent;}
+  .amt-val:hover,.amt-val:focus{background:rgba(139,92,240,.12); border-bottom-color:var(--violet); outline:none;}
+  .amt-val::after{content:' \270E'; font-size:12px; color:var(--violet); opacity:0; margin-left:4px;}
+  .amt-val:hover::after,.amt-val:focus::after{opacity:1;}
+  .amt-input{width:130px; text-align:right; font:600 15px 'Inter',system-ui,sans-serif; padding:4px 8px; border:2px solid var(--purple); border-radius:6px; background:#fff; color:var(--ink); outline:none; box-shadow:0 0 0 3px rgba(106,46,224,.18);}
   td.act{color:#22252b; font-size:14.5px; line-height:1.35;}
   td.act .a{display:flex; align-items:center; gap:10px;}
   td.act .a svg{width:34px; height:26px; flex-shrink:0;}
@@ -175,8 +180,14 @@
   /* ============================================================
      CHART VIEW
      ============================================================ */
-  .chart{display:flex;}
-  .sidebar{width:290px; flex-shrink:0; display:flex; flex-direction:column; position:relative; z-index:6; min-height:0;}
+  .chart{display:flex; position:relative;}
+  .sidebar{width:290px; flex-shrink:0; display:flex; flex-direction:column; position:relative; z-index:6; min-height:0; transition:width .2s ease;}
+  .chart.collapsed .sidebar{width:0; overflow:hidden;}
+  .side-toggle{position:absolute; z-index:12; left:274px; top:50%; margin-top:-15px; width:30px; height:30px; padding:0; cursor:pointer; background:#fff; color:var(--ink);
+    border:2.4px solid var(--ink); border-radius:50%; font-family:'Kalam',cursive; font-weight:700; font-size:22px; line-height:1; display:flex; align-items:center; justify-content:center;
+    box-shadow:2px 3px 0 rgba(0,0,0,.14); transition:left .2s ease, background .12s;}
+  .side-toggle:hover{background:var(--purple); color:#fff; border-color:var(--purple);}
+  .chart.collapsed .side-toggle{left:-2px;}
   .sidebar::after{
     content:''; position:absolute; top:0; bottom:0; right:-10px; width:20px; pointer-events:none;
     background:linear-gradient(var(--ink),var(--ink)) center/2.6px 100% no-repeat; filter:url(#roughV);
@@ -236,6 +247,13 @@
   .canvas-wrap{flex:1; min-width:0; overflow:auto; position:relative;}
   .canvas-sizer{position:relative;}
   .canvas{position:absolute; left:0; top:0; width:2200px; height:1300px; transform-origin:0 0;}
+  .marquee{position:absolute; z-index:40; pointer-events:none; border:1.8px dashed var(--purple); background:rgba(106,46,224,.08); border-radius:4px;}
+  .card.selected::before{box-shadow:0 0 0 4px rgba(106,46,224,.4);}
+  .bucket.selected::after{content:''; position:absolute; inset:-7px; border:2px dotted var(--violet); border-radius:18px 24px 16px 26px / 24px 16px 26px 18px; pointer-events:none; background:rgba(139,92,240,.05);}
+  .sel-bar{position:absolute; top:10px; left:50%; transform:translateX(-50%); z-index:9; display:flex; align-items:center; gap:10px; padding:5px 10px 5px 14px;
+    background:var(--purple); color:#fff; border-radius:999px; font-family:'Inter',system-ui,sans-serif; font-weight:600; font-size:13px; box-shadow:0 3px 10px rgba(106,46,224,.35);}
+  .sel-bar button{background:rgba(255,255,255,.2); color:#fff; border:none; border-radius:999px; padding:3px 10px; font-family:inherit; font-weight:600; font-size:12px; cursor:pointer;}
+  .sel-bar button:hover{background:rgba(255,255,255,.35);}
   .zoom-ctl{position:absolute; right:26px; bottom:18px; z-index:8; display:flex; align-items:center; gap:6px; padding:6px 8px;
     background:rgba(255,255,255,.92); border:2.2px solid var(--ink); border-radius:12px 16px 12px 16px; box-shadow:2px 4px 0 rgba(0,0,0,.12);}
   .zoom-ctl .btn{padding:2px 10px; font-size:17px; min-width:34px;}
@@ -503,6 +521,7 @@
         <h2 class="list-title"><span class="hl">Mission Control</span><small>Accounts</small></h2>
         <div class="spacer"></div>
         <label class="filter">Rep <select class="ink-select sm" id="repFilter"></select></label>
+        <label class="filter">ARR <select class="ink-select sm" id="sortSel"><option value="desc">High to low</option><option value="asc">Low to high</option></select></label>
         <button class="btn purple" id="newAccountBtn">+ New account</button>
       </div>
       <div class="summary" id="summary"></div>
@@ -527,6 +546,7 @@
 
     <!-- ===================== CHART ===================== -->
     <section class="view chart" id="viewChart" hidden>
+      <button class="side-toggle" id="sideToggle" title="Hide the side panel" aria-label="Hide the side panel" aria-expanded="true">&lsaquo;</button>
       <div class="sidebar">
         <div class="sidebar-header">
           <a class="brand" id="brandLink" href="#/list" title="Back to all accounts">
@@ -556,6 +576,7 @@
             <li>Pull the dot under a card onto another to draw an arrow</li>
             <li>Click an arrow to erase it</li>
             <li>Click a card to edit, or hit the red people button to flag or clear it</li>
+            <li>Drag on empty board to select several things, then drag one to move them all (Shift-click adds or removes)</li>
           </ul>
         </div>
       </div>
@@ -602,6 +623,7 @@
           </div>
           </div>
         </div>
+        <div class="sel-bar" id="selBar" hidden><span id="selCount"></span><button id="selClear">Clear</button></div>
         <div class="zoom-ctl" role="group" aria-label="Zoom">
           <button class="btn" id="zoomOut" title="Zoom out (or Ctrl/Cmd + scroll)">&minus;</button>
           <button class="btn pct" id="zoomPct" title="Reset to 100%">100%</button>
@@ -984,12 +1006,14 @@ $('splashToList').addEventListener('click', ()=> navigate('#/list'));
 const repFilter = $('repFilter');
 repFilter.innerHTML = '<option value="">All reps</option>' + REPS.map(r=>`<option>${escapeHtml(r)}</option>`).join('');
 repFilter.addEventListener('change', renderList);
+$('sortSel').addEventListener('change', renderList);
 $('newAccountBtn').addEventListener('click', ()=> navigate('#/'));
 $('emptyNewBtn').addEventListener('click', ()=> navigate('#/'));
 
 function renderList(){
   const rep = repFilter.value;
-  const accts = store.accounts.filter(a=>!rep || a.rep === rep).sort((a,b)=>(b.arr||0)-(a.arr||0));
+  const dir = $('sortSel').value === 'asc' ? 1 : -1;
+  const accts = store.accounts.filter(a=>!rep || a.rep === rep).sort((a,b)=>dir * ((a.arr||0)-(b.arr||0)) || a.name.localeCompare(b.name));
   const info = accts.map(a=>({a, r:analyze(a)}));
 
   const total = accts.reduce((s,a)=>s + (a.arr||0), 0);
@@ -1004,7 +1028,7 @@ function renderList(){
     <tr>
       <td class="acct">${escapeHtml(a.name)}</td>
       <td>${escapeHtml(a.rep)}</td>
-      <td class="r amt">${money(a.arr)}</td>
+      <td class="r amt"><span class="amt-val" tabindex="0" role="button" data-arr="${escapeHtml(a.id)}" title="Click to edit the ARR">${money(a.arr)}</span></td>
       <td class="c"><span class="cbox ${r.execEngaged?'on':''}" role="img" aria-label="${r.execEngaged?'Executives engaged':'Executives not engaged'}" title="${r.execEngaged?'Executives engaged':'Executives not engaged yet'}">${r.execEngaged?CHECK:''}</span></td>
       <td class="act"><div class="a ${r.flag?'':'calm'}">${r.flag?GROUP:''}<span>${escapeHtml(r.text)}</span></div></td>
       <td class="go"><button class="btn small" data-open="${escapeHtml(a.id)}">View &rarr;</button><button class="x" data-del="${escapeHtml(a.id)}" title="Delete account">&#10005;</button></td>
@@ -1019,6 +1043,54 @@ $('rows').addEventListener('click', async e=>{
     if(a){ pendingDelete = a; $('delName').textContent = a.name; $('deleteOverlay').classList.add('open'); $('delCancelBtn').focus(); }
   }
 });
+
+/* ---- Inline ARR edit: click the amount, type, Enter to save (Esc cancels) ---- */
+// The list only holds summaries (no arrows), so load the whole account before saving,
+// otherwise the PUT would wipe its connections.
+async function saveArr(a, arr){
+  if(saveQueues.has(a.id)) await saveQueues.get(a.id);
+  for(let attempt = 0; attempt < 2; attempt++){
+    const full = await api('GET', accountPath(a));
+    try{
+      return await api('PUT', accountPath(a), {...accountPayload(full), arr});
+    }catch(e){ if(e.status !== 409 || attempt) throw e; }
+  }
+}
+function startArrEdit(span){
+  if(span.dataset.editing) return;
+  const a = store.accounts.find(x=>x.id === span.dataset.arr);
+  if(!a) return;
+  span.dataset.editing = '1';
+  const input = document.createElement('input');
+  input.className = 'amt-input'; input.inputMode = 'numeric'; input.value = (a.arr || 0).toLocaleString('en-US');
+  span.replaceWith(input);
+  input.focus(); input.select();
+  let done = false;
+  input.addEventListener('input', ()=>{ const d = input.value.replace(/\D/g,'').slice(0,12); input.value = d ? Number(d).toLocaleString('en-US') : ''; });
+  async function finish(commit){
+    if(done) return; done = true;
+    const next = Number(input.value.replace(/\D/g,'')) || 0;
+    if(!commit || next === (a.arr || 0)){ renderList(); return; }
+    const prev = a.arr;
+    a.arr = next; renderList();                              // show the new amount straight away
+    try{
+      const saved = await saveArr(a, next);
+      a.arr = saved.arr; a.version = saved.version; a.updatedAt = saved.updatedAt; a.updatedBy = saved.updatedBy;
+      setSaveError('');
+    }catch(e){
+      a.arr = prev;
+      setSaveError('ARR not saved: ' + e.message);
+    }
+    renderList();
+  }
+  input.addEventListener('keydown', e=>{
+    if(e.key === 'Enter'){ e.preventDefault(); finish(true); }
+    else if(e.key === 'Escape'){ e.preventDefault(); finish(false); }
+  });
+  input.addEventListener('blur', ()=> finish(true));
+}
+$('rows').addEventListener('click', e=>{ const s = e.target.closest('.amt-val'); if(s) startArrEdit(s); });
+$('rows').addEventListener('keydown', e=>{ if((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('amt-val')){ e.preventDefault(); startArrEdit(e.target); } });
 let pendingDelete = null;
 function closeDelete(){ pendingDelete = null; $('deleteOverlay').classList.remove('open'); }
 $('delCancelBtn').addEventListener('click', closeDelete);
@@ -1076,6 +1148,7 @@ async function openChart(id, h){
   contacts = acct.contacts; buckets = acct.buckets; connections = acct.connections;
   $('chartTitle').textContent = acct.name;
   $('chartMeta').innerHTML = `${escapeHtml(acct.rep)} &middot; <b>${money(acct.arr)}</b>`;
+  selected = {cards:new Set(), buckets:new Set()};
   zoom = recallZoom(acct.id);
   $('canvasWrap').scrollTo(0,0);
   if(typeof setRogStatus === 'function') setRogStatus('');
@@ -1092,6 +1165,19 @@ $('conflictReload').addEventListener('click', ()=>{
 });
 $('brandLink').addEventListener('click', e=>{ e.preventDefault(); navigate('#/list'); });
 
+
+
+/* ---- Collapse the side panel for more board ---- */
+function setSideCollapsed(on, remember){
+  $('viewChart').classList.toggle('collapsed', on);
+  const b = $('sideToggle');
+  b.innerHTML = on ? '&rsaquo;' : '&lsaquo;';
+  b.title = b.ariaLabel = on ? 'Show the side panel' : 'Hide the side panel';
+  b.setAttribute('aria-expanded', String(!on));
+  if(remember){ try{ localStorage.setItem('mc-side-collapsed', on ? '1' : '0'); }catch(e){} }
+}
+$('sideToggle').addEventListener('click', ()=> setSideCollapsed(!$('viewChart').classList.contains('collapsed'), true));
+try{ if(localStorage.getItem('mc-side-collapsed') === '1') setSideCollapsed(true); }catch(e){}
 
 /* ============================================================
    ZOOM  (the canvas is scaled with CSS; all stored coordinates stay in
@@ -1304,6 +1390,7 @@ function renderBuckets(){
     label.addEventListener('mousedown', (e)=>{
       if(e.target.tagName==='SPAN' && e.target.hasAttribute('contenteditable')) return;
       if(e.target.classList.contains('swatch') || e.target.classList.contains('del')) return;
+      if(isAdditive(e)){ e.preventDefault(); toggleIn(selected.buckets, b.id); return; }
       startBucketDrag(e, b);
     });
     el.appendChild(label);
@@ -1315,6 +1402,7 @@ function renderBuckets(){
 
     canvas.appendChild(el);
   });
+  applySelection();
 }
 
 function openSwatchMenu(bucket, anchor){
@@ -1379,6 +1467,7 @@ function renderCards(){
     });
     el.addEventListener('mousedown', (e)=>{
       if(e.target.classList.contains('handle') || e.target.closest('.card-actions')) return;
+      if(isAdditive(e)){ e.preventDefault(); toggleIn(selected.cards, c.id); swallowNextClick(); return; }
       startCardDrag(e, c, el);
     });
     el.addEventListener('click', (e)=>{
@@ -1389,6 +1478,7 @@ function renderCards(){
     el.querySelector('.handle').addEventListener('mousedown', (e)=>{ e.stopPropagation(); startConnectionDrag(e, c.id); });
     canvas.appendChild(el);
   });
+  applySelection();
 }
 
 function cardEl(id){ return canvas.querySelector('.card[data-id="'+id+'"]'); }
@@ -1452,10 +1542,107 @@ function drawConnection(fromEl, toEl, cn){
   });
 }
 
+
+/* ============================================================
+   MULTI-SELECT  (drag a box on the empty board; Shift/Cmd/Ctrl-click adds or removes)
+   Cards are picked when the box touches them, zones when it fully contains them.
+   Dragging any selected item moves the whole selection.
+   ============================================================ */
+let selected = {cards:new Set(), buckets:new Set()};
+const selectionSize = ()=> selected.cards.size + selected.buckets.size;
+const isAdditive = e => e.shiftKey || e.metaKey || e.ctrlKey;
+
+function applySelection(){
+  const liveCards = new Set(contacts.filter(c=>c.placed).map(c=>c.id)), liveBuckets = new Set(buckets.map(b=>b.id));
+  selected.cards.forEach(id=>{ if(!liveCards.has(id)) selected.cards.delete(id); });
+  selected.buckets.forEach(id=>{ if(!liveBuckets.has(id)) selected.buckets.delete(id); });
+  canvas.querySelectorAll('.card').forEach(el=> el.classList.toggle('selected', selected.cards.has(el.dataset.id)));
+  canvas.querySelectorAll('.bucket').forEach(el=> el.classList.toggle('selected', selected.buckets.has(el.dataset.id)));
+  const n = selectionSize();
+  $('selBar').hidden = n < 1;
+  $('selCount').textContent = n + ' selected · drag one to move all';
+}
+function clearSelection(){ selected = {cards:new Set(), buckets:new Set()}; applySelection(); }
+function toggleIn(set, id){ set.has(id) ? set.delete(id) : set.add(id); applySelection(); }
+
+// After a modifier-click, swallow the click that follows so the edit note doesn't open.
+function swallowNextClick(){
+  dragCtx = {moved:true};
+  document.addEventListener('mouseup', ()=> setTimeout(()=>{ dragCtx = null; }, 0), {once:true});
+}
+
+function startGroupDrag(e){
+  e.preventDefault();
+  const sx = e.clientX, sy = e.clientY, items = [];
+  contacts.forEach(c=>{ if(c.placed && selected.cards.has(c.id)){ const el = cardEl(c.id); if(el) items.push({o:c, el, x:c.x, y:c.y}); } });
+  buckets.forEach(b=>{ if(selected.buckets.has(b.id)){ const el = canvas.querySelector('.bucket[data-id="' + b.id + '"]'); if(el) items.push({o:b, el, x:b.x, y:b.y}); } });
+  dragCtx = {moved:false};
+  items.forEach(i=>{ if(i.el.classList.contains('card')) i.el.classList.add('dragging'); });
+  function onMove(ev){
+    const dx = (ev.clientX - sx) / zoom, dy = (ev.clientY - sy) / zoom;
+    if(Math.abs(dx) > 3 || Math.abs(dy) > 3) dragCtx.moved = true;
+    items.forEach(i=>{ i.o.x = i.x + dx; i.o.y = i.y + dy; i.el.style.left = i.o.x + 'px'; i.el.style.top = i.o.y + 'px'; });
+    renderConnections();
+  }
+  async function onUp(){
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    items.forEach(i=> i.el.classList.remove('dragging'));
+    applyZoom();
+    if(dragCtx && dragCtx.moved) await saveChart();
+    setTimeout(()=>{ dragCtx = null; }, 0);
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+canvas.addEventListener('mousedown', e=>{
+  if(e.target !== canvas || e.button !== 0) return;          // only the empty board starts a selection box
+  e.preventDefault();
+  const cRect = canvas.getBoundingClientRect();
+  const pt = ev => ({x:(ev.clientX - cRect.left) / zoom, y:(ev.clientY - cRect.top) / zoom});
+  const start = pt(e), additive = isAdditive(e);
+  const base = additive ? {cards:new Set(selected.cards), buckets:new Set(selected.buckets)} : {cards:new Set(), buckets:new Set()};
+  const box = document.createElement('div');
+  box.className = 'marquee'; canvas.appendChild(box);
+  let moved = false;
+  function onMove(ev){
+    const p = pt(ev);
+    const x1 = Math.min(start.x, p.x), y1 = Math.min(start.y, p.y), x2 = Math.max(start.x, p.x), y2 = Math.max(start.y, p.y);
+    if(x2 - x1 > 3 || y2 - y1 > 3) moved = true;
+    box.style.left = x1 + 'px'; box.style.top = y1 + 'px'; box.style.width = (x2 - x1) + 'px'; box.style.height = (y2 - y1) + 'px';
+    const cards = new Set(base.cards), bks = new Set(base.buckets);
+    canvas.querySelectorAll('.card').forEach(el=>{
+      const l = el.offsetLeft, t = el.offsetTop, r = l + el.offsetWidth, b = t + el.offsetHeight;
+      if(l < x2 && r > x1 && t < y2 && b > y1) cards.add(el.dataset.id);
+    });
+    buckets.forEach(b=>{ if(b.x >= x1 && b.y - 20 >= y1 && b.x + b.w <= x2 && b.y + b.h <= y2) bks.add(b.id); });
+    selected = {cards, buckets:bks};
+    applySelection();
+  }
+  function onUp(){
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    box.remove();
+    if(!moved && !additive) clearSelection();
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+});
+
+$('selClear').addEventListener('click', clearSelection);
+document.addEventListener('keydown', e=>{
+  if(e.key !== 'Escape' || $('viewChart').hidden || !selectionSize()) return;
+  if(document.querySelector('.modal-overlay.open')) return;
+  clearSelection();
+});
+
 /* ============================================================
    CARD DRAG
    ============================================================ */
 function startCardDrag(e, contact, el){
+  if(selected.cards.has(contact.id) && selectionSize() > 1){ startGroupDrag(e); return; }
+  if(!selected.cards.has(contact.id)) clearSelection();
   e.preventDefault();
   const startX = e.clientX, startY = e.clientY;
   const origX = contact.x, origY = contact.y;
@@ -1485,6 +1672,8 @@ function startCardDrag(e, contact, el){
    ZONE DRAG / RESIZE
    ============================================================ */
 function startBucketDrag(e, bucket){
+  if(selected.buckets.has(bucket.id) && selectionSize() > 1){ startGroupDrag(e); return; }
+  if(!selected.buckets.has(bucket.id)) clearSelection();
   e.preventDefault();
   const startX = e.clientX, startY = e.clientY;
   const origX = bucket.x, origY = bucket.y;
