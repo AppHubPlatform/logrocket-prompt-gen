@@ -22,6 +22,7 @@ const SUMMARY_FIELDS = [
   "sfAccountId",
   "domain",
   "contacts",
+  "buckets",
   "schemaVersion",
   "version",
   "createdBy",

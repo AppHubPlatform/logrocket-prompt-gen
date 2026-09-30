@@ -683,7 +683,7 @@ function money(n){ return '$' + (Number(n)||0).toLocaleString('en-US'); }
 
 /* ============================================================
    STORAGE — accounts live in the team's shared store (/api/accounts).
-   The list holds summaries (no zones/arrows); a chart loads its full
+   The list holds summaries (no arrows); a chart loads its full
    account when opened. Saves carry `version`; a 409 means a teammate
    saved first and we must reload before saving again.
    ============================================================ */
