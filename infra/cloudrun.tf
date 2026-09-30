@@ -31,6 +31,13 @@ resource "google_cloud_run_v2_service" "app" {
         value = google_firestore_database.mission_control.name
       }
 
+      # Lets Mission Control store contact phone numbers. Off by default in the
+      # API, which strips phone from every save unless this is exactly "true".
+      env {
+        name  = "MISSION_CONTROL_STORE_PHONE"
+        value = "true"
+      }
+
       env {
         name = "ROG_TOKEN"
         value_source {
