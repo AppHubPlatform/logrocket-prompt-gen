@@ -2,7 +2,8 @@
 
 Two **Cloud Run** services in project `logrocket-enablement` (region
 `us-east1`), both behind Cloudflare (DNS-only) with Google-managed TLS and
-deployed via **GitHub Actions + Workload Identity Federation**:
+auto-deployed on push to `main` via **GitHub Actions + Workload Identity
+Federation** (see [Deploys](#deploys)):
 
 | Service                | Domain                    | Access                          |
 | ---------------------- | ------------------------- | ------------------------------- |
@@ -230,16 +231,28 @@ Actions -> **Variables**, add (all non-secret; WIF means no JSON keys):
 
 ## Deploys
 
-Both workflows are **manual** (`workflow_dispatch`): Actions tab -> "Run
-workflow", or `gh workflow run <file>`. Each authenticates via WIF, builds the
-container, pushes it to Artifact Registry, and deploys a new Cloud Run
-revision. Terraform ignores image drift (`lifecycle.ignore_changes`), so CI and
-Terraform don't fight over the image.
+Both workflows deploy **automatically on push to `main`**, and can also be run
+on demand (Actions tab -> "Run workflow", or `gh workflow run <file>`). Each
+authenticates via WIF, builds the container, pushes it to Artifact Registry,
+and deploys a new Cloud Run revision. Terraform ignores image drift
+(`lifecycle.ignore_changes`), so CI and Terraform don't fight over the image.
 
 | Workflow                                                                       | Service                |
 | ------------------------------------------------------------------------------ | ---------------------- |
 | [../.github/workflows/deploy.yml](../.github/workflows/deploy.yml)               | `logrocket-prompt-gen` |
 | [../.github/workflows/deploy-explore.yml](../.github/workflows/deploy-explore.yml) | `logrocket-explore`    |
+
+Every push to `main` deploys **both** services, with no `paths` filter. That is
+a deliberate choice: the prompt-gen build stage does `COPY . .` before
+`vite build`, so its real input is the whole repo minus `.dockerignore`, and any
+path list would be an approximation that silently stops deploying the day
+someone adds a file it doesn't cover. A change that never deploys and never
+warns you is a far worse failure than a redundant build, and a redundant build
+here is only a couple of CI minutes plus a byte-identical Cloud Run revision
+with an atomic traffic shift.
+
+So an `infra/`-only or docs-only commit will still rebuild and redeploy both
+services. That is expected and harmless.
 
 Note that `workflow_dispatch` only exposes workflows that exist on the **default
 branch**, so a new deploy workflow is not runnable until it merges to `main`.

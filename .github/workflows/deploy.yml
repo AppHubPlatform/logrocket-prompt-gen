@@ -1,8 +1,13 @@
 name: Deploy to Cloud Run
 
 on:
-  # Manual-only: deploys are triggered on demand (Actions tab → "Run workflow",
-  # or `gh workflow run deploy.yml`), not automatically on every push to main.
+  # Deliberately not scoped with a paths filter. The build stage does
+  # `COPY . .` before `vite build`, so this image's real input is the whole
+  # repo minus .dockerignore -- any path list would be an approximation that
+  # silently stops deploying the day someone adds a file it doesn't cover.
+  # A redundant deploy is cheap: an identical image and an atomic revision.
+  push:
+    branches: [main]
   workflow_dispatch:
 
 # Required for keyless auth to GCP via Workload Identity Federation.

@@ -1,8 +1,10 @@
 name: Deploy explore.logrocket.com
 
 on:
-  # Manual-only, matching deploy.yml: deploys are triggered on demand
-  # (Actions tab → "Run workflow", or `gh workflow run deploy-explore.yml`).
+  # No paths filter, matching deploy.yml: predictable beats efficient here.
+  # See the note there.
+  push:
+    branches: [main]
   workflow_dispatch:
 
 # Required for keyless auth to GCP via Workload Identity Federation.
