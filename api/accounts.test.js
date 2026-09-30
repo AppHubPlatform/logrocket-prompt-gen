@@ -157,7 +157,7 @@ describe("accounts API (Firestore emulator)", { skip: !EMULATOR && "FIRESTORE_EM
     assert.equal(res.status, 409);
   });
 
-  test("list returns summaries without layout, plus config", async () => {
+  test("list returns summaries without arrows, plus config", async () => {
     await call(urls.prod, "POST", "", { body: acme });
     await call(urls.prod, "POST", "", { body: { ...acme, domain: undefined, name: "Globex" } });
     const res = await call(urls.prod, "GET");
@@ -165,7 +165,7 @@ describe("accounts API (Firestore emulator)", { skip: !EMULATOR && "FIRESTORE_EM
     assert.deepEqual(res.body.config, { storePhone: false });
     assert.deepEqual(res.body.accounts.map((a) => a.id).sort(), ["acme.com", "name-globex"]);
     const a = res.body.accounts.find((x) => x.id === "acme.com");
-    assert.equal(a.buckets, undefined);
+    assert.equal(a.buckets[0].label, "Execs", "the list's action item reads zones");
     assert.equal(a.connections, undefined);
     assert.equal(a.contacts[0].title, "CTO");
   });
