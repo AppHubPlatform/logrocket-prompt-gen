@@ -232,8 +232,15 @@
   .target-count svg{width:36px; height:27px;}
   .target-count b{font-family:'Permanent Marker',cursive; font-weight:400; font-size:20px; color:var(--flag);}
 
-  .canvas-wrap{flex:1; overflow:auto; position:relative;}
-  .canvas{position:relative; width:2200px; height:1300px;}
+  .canvas-area{flex:1; min-height:0; position:relative; display:flex;}
+  .canvas-wrap{flex:1; min-width:0; overflow:auto; position:relative;}
+  .canvas-sizer{position:relative;}
+  .canvas{position:absolute; left:0; top:0; width:2200px; height:1300px; transform-origin:0 0;}
+  .zoom-ctl{position:absolute; right:26px; bottom:18px; z-index:8; display:flex; align-items:center; gap:6px; padding:6px 8px;
+    background:rgba(255,255,255,.92); border:2.2px solid var(--ink); border-radius:12px 16px 12px 16px; box-shadow:2px 4px 0 rgba(0,0,0,.12);}
+  .zoom-ctl .btn{padding:2px 10px; font-size:17px; min-width:34px;}
+  .zoom-ctl .pct{min-width:58px; font-size:14px;}
+  .zoom-ctl .fit{font-size:14px; padding:3px 10px;}
   .canvas.drag-over{background:rgba(20,22,26,.025);}
 
   svg#connSvg{position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:visible; z-index:2;}
@@ -287,6 +294,7 @@
   .card-contact{margin-top:7px; padding-top:5px; border-top:1.6px dashed #b9bdc3; font-size:12.5px; color:var(--ink-soft);}
   .card-contact div{display:flex; align-items:center; gap:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.45;}
   .card-contact svg{width:13px; height:13px; flex-shrink:0;}
+  .card-contact .rog-note{white-space:normal; overflow:visible; text-overflow:clip; display:block; color:var(--purple); font-weight:700; line-height:1.3; margin-bottom:3px;}
 
   .export-wrap{position:relative;}
   .export-menu{position:absolute; right:0; top:calc(100% + 8px); z-index:60; min-width:170px; padding:6px; background:#fff; border:2.4px solid var(--ink);
@@ -567,8 +575,8 @@
           <div class="export-wrap">
             <button class="btn solid" id="exportBtn" aria-haspopup="true">&#8681; Export &#9662;</button>
             <div class="export-menu" id="exportMenu" hidden>
-              <button data-fmt="png">PNG image<small>sharp, best for slides</small></button>
-              <button data-fmt="jpeg">JPEG image<small>smaller file, best for email</small></button>
+              <button data-fmt="png">PNG image<small>the view as displayed, sharp</small></button>
+              <button data-fmt="jpeg">JPEG image<small>the view as displayed, smaller</small></button>
             </div>
           </div>
         </div>
@@ -580,7 +588,9 @@
           </div>
           <div class="actions-list" id="actionsList"></div>
         </div>
+        <div class="canvas-area">
         <div class="canvas-wrap" id="canvasWrap">
+          <div class="canvas-sizer" id="canvasSizer">
           <div class="canvas" id="canvas">
             <svg id="connSvg">
               <defs>
@@ -590,6 +600,14 @@
               </defs>
             </svg>
           </div>
+          </div>
+        </div>
+        <div class="zoom-ctl" role="group" aria-label="Zoom">
+          <button class="btn" id="zoomOut" title="Zoom out (or Ctrl/Cmd + scroll)">&minus;</button>
+          <button class="btn pct" id="zoomPct" title="Reset to 100%">100%</button>
+          <button class="btn" id="zoomIn" title="Zoom in (or Ctrl/Cmd + scroll)">+</button>
+          <button class="btn fit" id="zoomFit" title="Fit the whole chart in view">Fit</button>
+        </div>
         </div>
       </div>
     </section>
@@ -607,10 +625,6 @@
     <input type="text" id="editTitle">
     <label class="lbl">Email</label>
     <input type="text" id="editEmail">
-    <div id="editPhoneWrap">
-      <label class="lbl">Phone</label>
-      <input type="text" id="editPhone" placeholder="e.g. +1 415 555 0134">
-    </div>
     <label class="target-toggle"><input type="checkbox" id="editTarget"><span data-icon="group" style="color:var(--flag)"></span><span>Red flag: we haven't engaged this person</span></label>
     <div class="modal-actions">
       <button class="link-btn" id="editDeleteBtn">Remove card</button>
@@ -661,7 +675,6 @@ const GROUP = `<svg width="56" height="42" viewBox="0 0 56 42" fill="none" aria-
   </g>
 </svg>`;
 const MAIL = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 4.500l6 4.500 6-4.500" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
-const PHONE = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.500 1.800h2.400l1 3-1.500 1.100a8 8 0 0 0 3.700 3.700l1.100-1.500 3 1v2.400a1.500 1.500 0 0 1-1.600 1.500A11.500 11.500 0 0 1 2 3.400 1.500 1.500 0 0 1 3.500 1.800z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
 const CHECK = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12.500 L9.500 18 L20.500 5" stroke="#6a2ee0" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 document.querySelectorAll('[data-icon]').forEach(el=>{
@@ -688,7 +701,6 @@ function money(n){ return '$' + (Number(n)||0).toLocaleString('en-US'); }
    saved first and we must reload before saving again.
    ============================================================ */
 let store = {accounts:[]};
-let storePhone = false;
 let saveError = '';
 const SAVE_DELAY = 600;
 const saveTimers = new Map();
@@ -723,8 +735,6 @@ async function loadStore(){
   try{
     const data = await api('GET', '');
     store = {accounts:data.accounts};
-    storePhone = !!(data.config && data.config.storePhone);
-    $('editPhoneWrap').hidden = !storePhone;
     if(saveError.startsWith(LOAD_ERROR)) setSaveError('');
   }catch(e){
     setSaveError(LOAD_ERROR + e.message);
@@ -1066,6 +1076,7 @@ async function openChart(id, h){
   contacts = acct.contacts; buckets = acct.buckets; connections = acct.connections;
   $('chartTitle').textContent = acct.name;
   $('chartMeta').innerHTML = `${escapeHtml(acct.rep)} &middot; <b>${money(acct.arr)}</b>`;
+  zoom = recallZoom(acct.id);
   $('canvasWrap').scrollTo(0,0);
   if(typeof setRogStatus === 'function') setRogStatus('');
   renderAll();
@@ -1081,10 +1092,86 @@ $('conflictReload').addEventListener('click', ()=>{
 });
 $('brandLink').addEventListener('click', e=>{ e.preventDefault(); navigate('#/list'); });
 
+
+/* ============================================================
+   ZOOM  (the canvas is scaled with CSS; all stored coordinates stay in
+   chart units, so saved data and other people's views are unaffected)
+   ============================================================ */
+const ZOOM_STEPS = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1, 1.25, 1.5, 2];
+const ZOOM_MIN = 0.25, ZOOM_MAX = 2;
+let zoom = 1;
+
+function canvasExtent(){
+  let w = 2200, h = 1300;                       // grows with the chart so big deals never run off the board
+  contacts.forEach(c=>{ if(c.placed){ w = Math.max(w, c.x + 550); h = Math.max(h, c.y + 500); } });
+  buckets.forEach(b=>{ w = Math.max(w, b.x + b.w + 300); h = Math.max(h, b.y + b.h + 300); });
+  return {w, h};
+}
+
+function applyZoom(){
+  const {w, h} = canvasExtent();
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  canvas.style.transform = 'scale(' + zoom + ')';
+  const sz = $('canvasSizer');
+  sz.style.width = Math.round(w * zoom) + 'px'; sz.style.height = Math.round(h * zoom) + 'px';
+  $('zoomPct').textContent = Math.round(zoom * 100) + '%';
+}
+
+function rememberZoom(){
+  if(!current) return;
+  try{ localStorage.setItem('mc-zoom:' + current.id, String(zoom)); }catch(e){}
+}
+function recallZoom(id){
+  try{ const v = parseFloat(localStorage.getItem('mc-zoom:' + id)); if(v >= ZOOM_MIN && v <= ZOOM_MAX) return v; }catch(e){}
+  return 1;
+}
+
+// Zoom around a point in the visible area (defaults to its centre) so the view doesn't jump.
+function setZoom(z, ax, ay){
+  z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+  if(Math.abs(z - zoom) < 0.001) return;
+  const wrap = $('canvasWrap');
+  if(ax == null) ax = wrap.clientWidth / 2;
+  if(ay == null) ay = wrap.clientHeight / 2;
+  const px = (wrap.scrollLeft + ax) / zoom, py = (wrap.scrollTop + ay) / zoom;
+  zoom = z;
+  applyZoom();
+  wrap.scrollLeft = px * zoom - ax; wrap.scrollTop = py * zoom - ay;
+  rememberZoom();
+}
+function stepZoom(dir){
+  const next = dir > 0 ? ZOOM_STEPS.find(v=>v > zoom + 0.001) : [...ZOOM_STEPS].reverse().find(v=>v < zoom - 0.001);
+  if(next) setZoom(next);
+}
+function fitZoom(){
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  contacts.forEach(c=>{ if(c.placed){ x1 = Math.min(x1, c.x); y1 = Math.min(y1, c.y); x2 = Math.max(x2, c.x + 260); y2 = Math.max(y2, c.y + 150); } });
+  buckets.forEach(b=>{ x1 = Math.min(x1, b.x); y1 = Math.min(y1, b.y - 24); x2 = Math.max(x2, b.x + b.w); y2 = Math.max(y2, b.y + b.h); });
+  if(x1 === Infinity){ setZoom(1); return; }
+  const wrap = $('canvasWrap'), M = 40;
+  const z = Math.min(1, (wrap.clientWidth - M*2) / (x2 - x1), (wrap.clientHeight - M*2) / (y2 - y1));
+  zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+  applyZoom();
+  wrap.scrollLeft = Math.max(0, x1 * zoom - M); wrap.scrollTop = Math.max(0, y1 * zoom - M);
+  rememberZoom();
+}
+$('zoomIn').addEventListener('click', ()=> stepZoom(1));
+$('zoomOut').addEventListener('click', ()=> stepZoom(-1));
+$('zoomPct').addEventListener('click', ()=> setZoom(1));
+$('zoomFit').addEventListener('click', fitZoom);
+$('canvasWrap').addEventListener('wheel', e=>{
+  if(!(e.ctrlKey || e.metaKey)) return;         // plain scrolling still pans; Ctrl/Cmd + scroll (or trackpad pinch) zooms
+  e.preventDefault();
+  const r = $('canvasWrap').getBoundingClientRect();
+  const d = Math.max(-60, Math.min(60, e.deltaY));
+  setZoom(zoom * Math.exp(-d * 0.01), e.clientX - r.left, e.clientY - r.top);
+}, {passive:false});
+
 /* ============================================================
    RENDER
    ============================================================ */
 function renderAll(){
+  applyZoom();
   renderTray();
   renderBuckets();
   renderCards();
@@ -1098,7 +1185,6 @@ function updateTargetCount(){
 }
 
 /* ---- Action items strip: everyone with a red flag, most senior first ---- */
-function telHref(v){ return 'tel:' + String(v).replace(/[^\d+]/g,''); }
 function renderActions(){
   if(!current) return;
   const flagged = contacts.filter(c=>c.target)
@@ -1123,7 +1209,6 @@ function renderActions(){
     const verb = execRank(c.title) !== null ? 'Get' : 'Engage';
     const bits = [];
     bits.push(escapeHtml(c.name));
-    if(c.phone) bits.push(`<a href="${escapeHtml(telHref(c.phone))}" data-stop>${escapeHtml(c.phone)}</a>`);
     if(c.email) bits.push(`<a href="mailto:${escapeHtml(c.email)}" data-stop>${escapeHtml(c.email)}</a>`);
     if(!c.placed) bits.push('<span class="off">not on board yet</span>');
     return `<div class="ai" data-id="${escapeHtml(c.id)}">
@@ -1152,6 +1237,12 @@ $('actionsToggle').addEventListener('click', ()=>{
   $('actionsToggle').textContent = box.classList.contains('collapsed') ? 'Show' : 'Hide';
 });
 
+// "✦ Rog: Champion · engaged". Engagement follows the live red flag, so clearing the flag updates it.
+function rogLine(c){
+  if(!c || !c.rog) return '';
+  return '\u2726 Rog' + (c.rogNote ? ': ' + c.rogNote : '') + ' \u00b7 ' + (c.target ? 'not engaged yet' : 'engaged');
+}
+
 function renderTray(){
   tray.innerHTML = '';
   const unplaced = contacts.filter(c=>!c.placed);
@@ -1172,7 +1263,7 @@ function renderTray(){
     chip.dataset.id = c.id;
     chip.innerHTML = `<div class="chip-name">${escapeHtml(c.name)}</div>
       <div class="chip-title">${escapeHtml(c.title||'')}</div>
-      <div class="chip-hint">${c.rog ? '&#10022; Rog' + (c.rogNote ? ': ' + escapeHtml(c.rogNote) : '') + ' &middot; ' + (c.rogEngaged ? 'engaged' : 'not engaged yet') : 'stick me on the board &rarr;'}</div>`;
+      <div class="chip-hint">${c.rog ? escapeHtml(rogLine(c)) : 'stick me on the board &rarr;'}</div>`;
     chip.addEventListener('dragstart', e=>{
       e.dataTransfer.setData('text/plain', c.id);
       e.dataTransfer.effectAllowed = 'move';
@@ -1232,8 +1323,8 @@ function openSwatchMenu(bucket, anchor){
   const canvasRect = canvas.getBoundingClientRect();
   const menu = document.createElement('div');
   menu.className = 'swatch-menu';
-  menu.style.left = (rect.left - canvasRect.left) + 'px';
-  menu.style.top = (rect.bottom - canvasRect.top + 8) + 'px';
+  menu.style.left = ((rect.left - canvasRect.left) / zoom) + 'px';
+  menu.style.top = ((rect.bottom - canvasRect.top) / zoom + 8) + 'px';
   COLORS.forEach(col=>{
     const dot = document.createElement('div');
     dot.style.background = col;
@@ -1269,7 +1360,7 @@ function renderCards(){
           <div class="card-title">${escapeHtml(c.title||'')}</div>
         </div>
       </div>
-      ${(c.email || c.phone) ? `<div class="card-contact">${c.email ? `<div title="${escapeHtml(c.email)}">${MAIL}<span>${escapeHtml(c.email)}</span></div>` : ''}${c.phone ? `<div title="${escapeHtml(c.phone)}">${PHONE}<span>${escapeHtml(c.phone)}</span></div>` : ''}</div>` : ''}
+      ${(c.email || c.rog) ? `<div class="card-contact">${c.rog ? `<div class="rog-note"><span>${escapeHtml(rogLine(c))}</span></div>` : ''}${c.email ? `<div title="${escapeHtml(c.email)}">${MAIL}<span>${escapeHtml(c.email)}</span></div>` : ''}</div>` : ''}
       <div class="handle" title="Drag onto another card to draw an arrow"></div>
     `;
     el.querySelector('.targetBtn').addEventListener('click', async (e)=>{
@@ -1372,7 +1463,7 @@ function startCardDrag(e, contact, el){
   el.classList.add('dragging');
 
   function onMove(ev){
-    const dx = ev.clientX - startX, dy = ev.clientY - startY;
+    const dx = (ev.clientX - startX) / zoom, dy = (ev.clientY - startY) / zoom;
     if(Math.abs(dx)>3 || Math.abs(dy)>3) dragCtx.moved = true;
     contact.x = origX + dx; contact.y = origY + dy;
     el.style.left = contact.x+'px'; el.style.top = contact.y+'px';
@@ -1382,6 +1473,7 @@ function startCardDrag(e, contact, el){
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
     el.classList.remove('dragging');
+    applyZoom();
     await saveChart();
     setTimeout(()=>{ dragCtx=null; }, 0);
   }
@@ -1398,12 +1490,13 @@ function startBucketDrag(e, bucket){
   const origX = bucket.x, origY = bucket.y;
   const el = canvas.querySelector('.bucket[data-id="'+bucket.id+'"]');
   function onMove(ev){
-    bucket.x = origX + ev.clientX - startX; bucket.y = origY + ev.clientY - startY;
+    bucket.x = origX + (ev.clientX - startX) / zoom; bucket.y = origY + (ev.clientY - startY) / zoom;
     el.style.left = bucket.x+'px'; el.style.top = bucket.y+'px';
   }
   async function onUp(){
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
+    applyZoom();
     await saveChart();
   }
   document.addEventListener('mousemove', onMove);
@@ -1416,12 +1509,13 @@ function startBucketResize(e, bucket){
   const origW = bucket.w, origH = bucket.h;
   const el = canvas.querySelector('.bucket[data-id="'+bucket.id+'"]');
   function onMove(ev){
-    bucket.w = Math.max(180, origW + ev.clientX - startX); bucket.h = Math.max(100, origH + ev.clientY - startY);
+    bucket.w = Math.max(180, origW + (ev.clientX - startX) / zoom); bucket.h = Math.max(100, origH + (ev.clientY - startY) / zoom);
     el.style.width = bucket.w+'px'; el.style.height = bucket.h+'px';
   }
   async function onUp(){
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
+    applyZoom();
     await saveChart();
   }
   document.addEventListener('mousemove', onMove);
@@ -1446,7 +1540,7 @@ function startConnectionDrag(e, fromId){
     const fromEl = cardEl(fromId);
     const x1 = fromEl.offsetLeft + fromEl.offsetWidth/2, y1 = fromEl.offsetTop + fromEl.offsetHeight;
     temp.setAttribute('x1', x1); temp.setAttribute('y1', y1);
-    temp.setAttribute('x2', ev.clientX - cRect.left); temp.setAttribute('y2', ev.clientY - cRect.top);
+    temp.setAttribute('x2', (ev.clientX - cRect.left) / zoom); temp.setAttribute('y2', (ev.clientY - cRect.top) / zoom);
   }
   async function onUp(ev){
     document.removeEventListener('mousemove', onMove);
@@ -1479,8 +1573,8 @@ canvas.addEventListener('drop', async e=>{
   const contact = contacts.find(c=>c.id===id);
   if(!contact) return;
   const cRect = canvas.getBoundingClientRect();
-  contact.x = e.clientX - cRect.left - 125;
-  contact.y = e.clientY - cRect.top - 40;
+  contact.x = (e.clientX - cRect.left) / zoom - 125;
+  contact.y = (e.clientY - cRect.top) / zoom - 40;
   contact.placed = true;
   const b = buckets.find(b=> contact.x > b.x && contact.x < b.x+b.w && contact.y > b.y && contact.y < b.y+b.h);
   contact.bucketId = b ? b.id : null;
@@ -1499,7 +1593,7 @@ $('addBucketBtn').addEventListener('click', async ()=>{
 });
 
 $('addContactBtn').addEventListener('click', async ()=>{
-  const c = {id:uid(), name:'New contact', title:'', email:'', phone:'', target:true, placed:false, x:0, y:0, bucketId:null};
+  const c = {id:uid(), name:'New contact', title:'', email:'', target:true, placed:false, x:0, y:0, bucketId:null};
   contacts.push(c);
   await saveChart();
   renderTray();
@@ -1516,7 +1610,7 @@ $('addContactBtn').addEventListener('click', async ()=>{
 const ROG_WINDOW = 'last 6 months';   // enterprise deal cycles run long
 
 function rogQuestion(account){
-  return `For the customer account "${account}", list the people involved in the current open deal cycle, based on Gong calls, meetings and email from the ${ROG_WINDOW}. Include buyers, champions, economic buyers, technical evaluators and executives. Customer-side only: exclude LogRocket employees. For each person give: name, job title, email if known, ${storePhone ? 'direct phone number if known, ' : ''}their role in the deal (a few words), and "engaged": true if they personally attended a call or meeting or exchanged email with us in that window, false if they were only mentioned by others or identified but never engaged. Only include real people found in the data. Do not guess or invent names or titles; leave title empty if unknown. Return at most 15 people, most senior first. Respond with ONLY a JSON array like [{"name":"","title":"","email":"","phone":"","role":"","engaged":true}] and no other text.`;
+  return `For the customer account "${account}", list the people involved in the current open deal cycle, based on Gong calls, meetings and email from the ${ROG_WINDOW}. Include buyers, champions, economic buyers, technical evaluators and executives. Customer-side only: exclude LogRocket employees. For each person give: name, job title, email if known, their role in the deal (a few words), and "engaged": true if they personally attended a call or meeting or exchanged email with us in that window, false if they were only mentioned by others or identified but never engaged. Only include real people found in the data. Do not guess or invent names or titles; leave title empty if unknown. Return at most 15 people, most senior first. Respond with ONLY a JSON array like [{"name":"","title":"","email":"","role":"","engaged":true}] and no other text.`;
 }
 
 function extractJsonArray(text){
@@ -1533,7 +1627,7 @@ async function structureWithClaude(answer){
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
       model:'claude-sonnet-4-6', max_tokens:1500,
-      system:'Extract people from the text. Respond with ONLY a JSON array of {"name","title","email","phone","role","engaged"} (engaged is a boolean: true if the text says they attended a call/meeting or exchanged email, else false). Use only what the text states; never invent names, titles, emails or phone numbers; use "" when unknown. If there are no people, respond with [].',
+      system:'Extract people from the text. Respond with ONLY a JSON array of {"name","title","email","role","engaged"} (engaged is a boolean: true if the text says they attended a call/meeting or exchanged email, else false). Use only what the text states; never invent names, titles or emails; use "" when unknown. If there are no people, respond with [].',
       messages:[{role:'user', content:answer}]
     })
   });
@@ -1589,11 +1683,9 @@ $('rogBtn').addEventListener('click', async ()=>{
       if(have.has(key)){ skipped++; return; }
       have.add(key);
       const email = cleanText(p.email, 120);
-      const phoneRaw = cleanText(p.phone, 30);
-      const phone = phoneRaw.replace(/\D/g,'').length >= 7 ? phoneRaw : '';
       const engaged = p.engaged === true || p.engaged === 'true';
       list.push({
-        id:uid(), name, title:cleanText(p.title, 100), email:/^\S+@\S+\.\S+$/.test(email) ? email : '', phone:storePhone ? phone : '',
+        id:uid(), name, title:cleanText(p.title, 100), email:/^\S+@\S+\.\S+$/.test(email) ? email : '',
         target:!engaged,                       // not engaged yet = red flag
         placed:false, x:0, y:0, bucketId:null,
         rog:true, rogEngaged:engaged, rogNote:cleanText(p.role, 60)
@@ -1667,13 +1759,13 @@ async function exportChart(fmt){
     try{ await Promise.all(['700 17px Kalam','400 14px Kalam','400 30px "Permanent Marker"'].map(f=>document.fonts.load(f))); }catch(e){}
 
     const cards = cardEls.map(el=>({el, x:el.offsetLeft, y:el.offsetTop, w:el.offsetWidth, h:el.offsetHeight, c:contacts.find(k=>k.id===el.dataset.id)}));
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    const grow = (x1,y1,x2,y2)=>{ minX=Math.min(minX,x1); minY=Math.min(minY,y1); maxX=Math.max(maxX,x2); maxY=Math.max(maxY,y2); };
-    cards.forEach(k=>grow(k.x, k.y, k.x+k.w, k.y+k.h+10));
-    buckets.forEach(b=>grow(b.x, b.y-24, b.x+b.w, b.y+b.h));
 
-    const PAD = 50, HEAD = 104, FOOT = 46, S = 2;
-    const W = Math.max(maxX-minX + PAD*2, 900), H = HEAD + (maxY-minY) + PAD*2 + FOOT;
+    // Export exactly what is on screen: the visible part of the board at the current zoom.
+    const wrap = $('canvasWrap'), z = zoom, ext = canvasExtent();
+    const Wc = Math.max(200, Math.round(Math.min(wrap.clientWidth, ext.w * z - wrap.scrollLeft)));
+    const Hc = Math.max(120, Math.round(Math.min(wrap.clientHeight, ext.h * z - wrap.scrollTop)));
+    const HEAD = 104, FOOT = 46, S = 2;
+    const W = Math.max(Wc, 900), H = HEAD + Hc + FOOT, offX = Math.round((W - Wc) / 2);
     const cv = document.createElement('canvas');
     cv.width = Math.round(W*S); cv.height = Math.round(H*S);
     const ctx = cv.getContext('2d');
@@ -1682,8 +1774,8 @@ async function exportChart(fmt){
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
     const INK = '#14161a', SOFT = '#50555e', FLAG = '#d62f2a';
-    const [imgRocket, imgSingle, imgGroup, imgGroupSm, imgMail, imgPhone] = await Promise.all([
-      svgToImage(ROCKET_SVG), svgToImage(SINGLE, INK), svgToImage(GROUP, FLAG), svgToImage(GROUP, FLAG), svgToImage(MAIL, SOFT), svgToImage(PHONE, SOFT)
+    const [imgRocket, imgSingle, imgGroup, imgGroupSm, imgMail] = await Promise.all([
+      svgToImage(ROCKET_SVG), svgToImage(SINGLE, INK), svgToImage(GROUP, FLAG), svgToImage(GROUP, FLAG), svgToImage(MAIL, SOFT)
     ]);
 
     /* ---- header ---- */
@@ -1707,9 +1799,12 @@ async function exportChart(fmt){
     for(let x = 30; x < W - 30; x += 60) ctx.quadraticCurveTo(x + 30, HEAD - 8 + (((x/60)|0)%2 ? 1.6 : -1.6), Math.min(x + 60, W - 30), HEAD - 8);
     ctx.stroke();
 
-    /* ---- chart (shifted so the top-left of the content sits inside the padding) ---- */
+    /* ---- chart: clipped to the visible area, drawn at the on-screen zoom ---- */
     ctx.save();
-    ctx.translate(PAD - minX, HEAD + PAD - minY);
+    ctx.translate(offX, HEAD);
+    ctx.beginPath(); ctx.rect(0, 0, Wc, Hc); ctx.clip();
+    ctx.translate(-wrap.scrollLeft, -wrap.scrollTop);
+    ctx.scale(z, z);
 
     // zones
     buckets.forEach(b=>{
@@ -1748,7 +1843,7 @@ async function exportChart(fmt){
         ctx.strokeStyle = FLAG; ctx.lineWidth = 1.8; ctx.stroke();
       }
       const base = k.el.getBoundingClientRect();
-      const rel = n => { const r = n.getBoundingClientRect(); return {x:r.left - base.left + k.x, y:r.top - base.top + k.y, w:r.width, h:r.height}; };
+      const rel = n => { const r = n.getBoundingClientRect(); return {x:(r.left - base.left) / z + k.x, y:(r.top - base.top) / z + k.y, w:r.width / z, h:r.height / z}; };
 
       const ic = k.el.querySelector('.card-icon svg');
       if(ic){ const r = rel(ic); const im = c.target ? imgGroup : imgSingle; if(im) ctx.drawImage(im, r.x, r.y, r.w, r.h); }
@@ -1765,9 +1860,19 @@ async function exportChart(fmt){
         ctx.strokeStyle = '#b9bdc3'; ctx.lineWidth = 1.4; ctx.setLineDash([5, 4]);
         ctx.beginPath(); ctx.moveTo(first.x, first.y - 5); ctx.lineTo(first.x + first.w, first.y - 5); ctx.stroke(); ctx.setLineDash([]);
         lines.forEach(div=>{
-          const isMail = !!(div.querySelector('svg rect'));
+          if(div.classList.contains('rog-note')){
+            const r = rel(div.querySelector('span')), lh = 12.5 * 1.3;
+            ctx.fillStyle = '#6a2ee0'; ctx.font = '700 12.5px Kalam, cursive';
+            let row = '', y = r.y + lh / 2 + 1;
+            div.textContent.split(/\s+/).forEach(word=>{
+              const tryRow = row ? row + ' ' + word : word;
+              if(row && ctx.measureText(tryRow).width > r.w){ ctx.fillText(row, r.x, y); y += lh; row = word; } else row = tryRow;
+            });
+            if(row) ctx.fillText(row, r.x, y);
+            return;
+          }
           const sv = rel(div.querySelector('svg')), sp = rel(div.querySelector('span'));
-          const im = isMail ? imgMail : imgPhone;
+          const im = imgMail;
           if(im) ctx.drawImage(im, sv.x, sv.y, sv.w, sv.h);
           ctx.fillStyle = SOFT; ctx.font = '12.5px Kalam, cursive';
           ctx.fillText(fitText(ctx, div.querySelector('span').textContent, sp.w), sp.x, sp.y + sp.h/2 + 1);
@@ -1819,7 +1924,6 @@ function openEditModal(id, isNew){
   $('editName').value = c.name || '';
   $('editTitle').value = c.title || '';
   $('editEmail').value = c.email || '';
-  $('editPhone').value = c.phone || '';
   $('editTarget').checked = !!c.target;
   editOverlay.classList.add('open');
   if(isNew){ $('editName').focus(); $('editName').select(); }
@@ -1831,7 +1935,6 @@ $('editSaveBtn').addEventListener('click', async ()=>{
     c.name = $('editName').value.trim() || c.name;
     c.title = $('editTitle').value.trim();
     c.email = $('editEmail').value.trim();
-    c.phone = $('editPhone').value.trim();
     c.target = $('editTarget').checked;
     await saveChart();
     renderAll();
