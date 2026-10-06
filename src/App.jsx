@@ -3650,7 +3650,69 @@ function CompetitorGuide() {
   );
 }
 
+// ─── ABM Landing Pages ──────────────────────────────────────────────────────
+
+// Placeholder. The nav slot and the page shell land first so the tool can be built
+// behind a route that already exists, rather than the route and the tool arriving
+// together in one large change.
+//
+// What this will generate: a publishable landing page for one target account, arguing
+// the business value LogRocket delivers for that specific company. Account-branded nav,
+// a hero, "why now" cards citing real signals, feature sections, proof, and a closing
+// CTA carrying the AE's own contact details.
+function AbmLandingPages() {
+  const planned = [
+    ["Account branding", "The target's name and logo alongside LogRocket's, so the page reads as written for them rather than adapted."],
+    ["Why now", "Cards drawn from signals about that account, each carrying the source it came from so a claim can be checked."],
+    ["Business value", "The argument for LogRocket in that company's terms: the flows they run, the stack they use, the outcomes they are measured on."],
+    ["Proof", "Customer evidence chosen for relevance to the account's industry rather than a fixed list."],
+    ["The ask", "A closing call to action with the AE's own name and contact details."],
+  ];
+  return (
+    <div style={{ ...S.card, borderColor: "#d9cff5", backgroundColor: "#FBFAFF" }}>
+      <div style={S.sectionTitle}>ABM Landing Pages</div>
+      <div style={S.sectionSub}>
+        A publishable landing page for one target account, built around the business case
+        for LogRocket at that specific company.
+      </div>
+      <div style={{
+        fontSize: "13px", color: ACCENT_DARK, backgroundColor: ACCENT_SOFT,
+        border: `1px solid ${BORDER}`, borderRadius: "10px", padding: "12px 14px",
+        marginBottom: "20px", fontWeight: 600,
+      }}>
+        Not built yet. This slot is reserved so the tool can be added behind a route that
+        already works.
+      </div>
+      <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "10px", fontWeight: 600 }}>
+        What it will produce
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        {planned.map(([title, detail]) => (
+          <div key={title} style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+            <span style={{
+              flexShrink: 0, marginTop: "6px", width: "7px", height: "7px",
+              borderRadius: "50%", backgroundColor: ACCENT,
+            }} />
+            <div>
+              <div style={{ fontSize: "14px", fontWeight: 600, color: "#171320" }}>{title}</div>
+              <div style={{ fontSize: "13px", color: "#6b7280", lineHeight: 1.55 }}>{detail}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── App shell ──────────────────────────────────────────────────────────────
+
+// One entry per page, so adding a tool is a line here rather than another branch in
+// three separate ternaries that have to agree with each other.
+const PAGES = [
+  { key: "prompts", label: "AI Prompt Generator", glyph: "✦", render: () => <PromptGenerator /> },
+  { key: "competitor", label: "Competitor Guide", glyph: "◆", render: () => <CompetitorGuide /> },
+  { key: "abm", label: "ABM Landing Pages", glyph: "▣", render: () => <AbmLandingPages /> },
+];
 
 export default function App() {
   const [page, setPage] = useState("prompts");
@@ -3693,14 +3755,17 @@ export default function App() {
         </button>
         <LogoMark />
         <span style={S.headerDivider} />
-        <span style={S.headerSubName}>{page === "prompts" ? "AI Prompt Generator" : "Competitor Guide"}</span>
+        <span style={S.headerSubName}>{(PAGES.find(p => p.key === page) || PAGES[0]).label}</span>
         {userEmail && <span style={S.headerSub}>{userEmail}</span>}
         {menuOpen && (
           <>
             <div style={S.navBackdrop} onClick={() => setMenuOpen(false)} />
             <nav style={S.navMenu}>
-              <button style={S.navItem(page === "prompts")} onClick={() => go("prompts")}>✦ AI Prompt Generator</button>
-              <button style={S.navItem(page === "competitor")} onClick={() => go("competitor")}>◆ Competitor Guide</button>
+              {PAGES.map(p => (
+                <button key={p.key} style={S.navItem(page === p.key)} onClick={() => go(p.key)}>
+                  {p.glyph} {p.label}
+                </button>
+              ))}
             </nav>
           </>
         )}
@@ -3708,7 +3773,7 @@ export default function App() {
 
       {/* Main */}
       <main style={S.main}>
-        {page === "prompts" ? <PromptGenerator /> : <CompetitorGuide />}
+        {(PAGES.find(p => p.key === page) || PAGES[0]).render()}
       </main>
     </div>
   );
