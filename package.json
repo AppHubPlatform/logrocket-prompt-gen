@@ -11,7 +11,7 @@
     "start": "node server.js",
     "emulator": "gcloud emulators firestore start --host-port=127.0.0.1:8181",
     "dev:shared": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8181 vite",
-    "test": "node --test api/",
+    "test": "node --test api/*.test.js",
     "test:emulator": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8181 GOOGLE_CLOUD_PROJECT=demo-mission-control node --test api/"
   },
   "dependencies": {
