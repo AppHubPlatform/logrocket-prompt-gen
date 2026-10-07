@@ -121,11 +121,22 @@ export function publish(page, { user, now }) {
   return touch({ ...page, status: "published", live }, user, now);
 }
 
-// Takes the page down without discarding the approval, so it can go back up without a
-// second review. The caller deletes the object; this only records it.
+// Whether a prospect can still open this page. Not the same question as where it sits in
+// review: editing a live page sends it back to pending while the approved version keeps
+// serving, so a page can be live and pending at once.
+export function isLive(page) {
+  return page.live != null;
+}
+
+// Takes the page down. Keyed off the snapshot rather than the status, because the page
+// that most needs taking down is the one someone has just edited, and that one is no
+// longer "published" even though it is still being served. Keeping the approval means a
+// page pulled and restored needs no second review; an edited one is already back at
+// pending and will.
 export function unpublish(page, { user, now }) {
-  if (page.status !== "published") throw new TransitionError("This page is not live");
-  return touch({ ...page, status: "approved", live: null }, user, now);
+  if (!isLive(page)) throw new TransitionError("This page is not live");
+  const status = page.status === "published" ? "approved" : page.status;
+  return touch({ ...page, status, live: null }, user, now);
 }
 
 // Any edit to what the reader would see costs the approval. Everything else, like which
@@ -148,7 +159,10 @@ export function applyEdit(page, patch, { user, now }) {
 // What the public service needs, and nothing more. Internal fields never cross over:
 // who drafted it, which opportunity it came from, and the review note are all absent.
 export function toPublicPage(page) {
-  if (page.status !== "published" || !page.live) return null;
+  // Driven by the snapshot alone. Asking for the status here would hide a page that is
+  // genuinely still being served, which is the opposite of what the public side needs
+  // to know.
+  if (!page.live) return null;
   const { content, heroChoice, assets } = page.live;
   return {
     slug: page.slug,

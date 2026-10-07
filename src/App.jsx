@@ -3661,45 +3661,253 @@ function CompetitorGuide() {
 // a hero, "why now" cards citing real signals, feature sections, proof, and a closing
 // CTA carrying the AE's own contact details.
 function AbmLandingPages() {
-  const planned = [
-    ["Account branding", "The target's name and logo alongside LogRocket's, so the page reads as written for them rather than adapted."],
-    ["Why now", "Cards drawn from signals about that account, each carrying the source it came from so a claim can be checked."],
-    ["Business value", "The argument for LogRocket in that company's terms: the flows they run, the stack they use, the outcomes they are measured on."],
-    ["Proof", "Customer evidence chosen for relevance to the account's industry rather than a fixed list."],
-    ["The ask", "A closing call to action with the AE's own name and contact details."],
-  ];
+  const [form, setForm] = useState({ account: "", opportunityId: "", persona: "", initiativeFocus: "" });
+  const [pages, setPages] = useState([]);
+  const [page, setPage] = useState(null);
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const [canApprove, setCanApprove] = useState(false);
+  const [shotUrl, setShotUrl] = useState("");
+
+  const refresh = async () => {
+    const r = await fetch("/api/abm");
+    if (r.ok) setPages((await r.json()).pages);
+  };
+  const pageId = page?.id;
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const r = await fetch("/api/abm");
+      if (alive && r.ok) setPages((await r.json()).pages);
+    })();
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => {
+    if (!pageId) return undefined;
+    let alive = true;
+    (async () => {
+      const r = await fetch(`/api/abm/${pageId}/can-approve`);
+      if (alive && r.ok) setCanApprove(!!(await r.json()).canApprove);
+    })();
+    return () => { alive = false; };
+  }, [pageId]);
+
+  const fail = async (r) => {
+    const d = await r.json().catch(() => ({}));
+    throw new Error(d.errors ? d.errors.join(" ") : (d.error || `Request failed (${r.status})`));
+  };
+
+  const generate = async () => {
+    setError(""); setBusy("Running the skill in Rog. This takes about a minute and a half.");
+    try {
+      const r = await fetch("/api/abm", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!r.ok) await fail(r);
+      const created = await r.json();
+      setPage(created); await refresh();
+    } catch (e) { setError(e.message); } finally { setBusy(""); }
+  };
+
+  const act = async (path, body, label) => {
+    setError(""); setBusy(label || "Working…");
+    try {
+      const r = await fetch(`/api/abm/${page.id}${path}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (!r.ok) await fail(r);
+      setPage(await r.json()); await refresh();
+    } catch (e) { setError(e.message); } finally { setBusy(""); }
+  };
+
+  const upload = async (kind, file) => {
+    if (!file) return;
+    setError(""); setBusy(`Checking the ${kind}…`);
+    try {
+      const qs = kind === "screenshot" ? `?sourceUrl=${encodeURIComponent(shotUrl)}` : "";
+      const r = await fetch(`/api/abm/${page.id}/assets/${kind}${qs}`, {
+        method: "POST", headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!r.ok) await fail(r);
+      const got = await fetch(`/api/abm/${page.id}`); setPage(await got.json());
+    } catch (e) { setError(e.message); } finally { setBusy(""); }
+  };
+
+  const patch = async (body) => {
+    setError("");
+    const r = await fetch(`/api/abm/${page.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (r.ok) { setPage(await r.json()); refresh(); } else setError((await r.json()).error);
+  };
+
+  const STATUS = {
+    draft: ["Draft", "#6b7280", "#F3F4F6"],
+    pending: ["Waiting for approval", "#A16A07", "#FAEACB"],
+    approved: ["Approved", "#128A67", "#D9F5EA"],
+    published: ["Live", "#4A2FA0", "#F0ECFB"],
+  };
+  const chip = (status) => {
+    const [label, fg, bg] = STATUS[status] || STATUS.draft;
+    return <span style={{ fontSize: "12px", fontWeight: 600, color: fg, backgroundColor: bg,
+      padding: "3px 10px", borderRadius: "999px" }}>{label}</span>;
+  };
+
+  const field = (key, label, placeholder) => (
+    <div style={{ marginBottom: "12px" }}>
+      <div style={{ fontSize: "12px", fontWeight: 600, color: "#374151", marginBottom: "5px" }}>{label}</div>
+      <input style={S.input} value={form[key]} placeholder={placeholder}
+        onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))} />
+    </div>
+  );
+
   return (
-    <div style={{ ...S.card, borderColor: "#d9cff5", backgroundColor: "#FBFAFF" }}>
-      <div style={S.sectionTitle}>ABM Landing Pages</div>
-      <div style={S.sectionSub}>
-        A publishable landing page for one target account, built around the business case
-        for LogRocket at that specific company.
+    <div>
+      <div style={{ ...S.card, borderColor: "#d9cff5", backgroundColor: "#FBFAFF" }}>
+        <div style={S.sectionTitle}>ABM Landing Pages</div>
+        <div style={S.sectionSub}>
+          Runs Greg's abm-landing-page skill against the account's real opportunity, then
+          builds a page a prospect can open. Brooke or Greg approves it before it goes live.
+        </div>
+
+        {!page && (
+          <>
+            {field("account", "Account", "IPSY")}
+            {field("opportunityId", "Opportunity ID (optional)", "006VN00000Ubm62YAB")}
+            {field("persona", "Target persona (optional)", "VP of Product")}
+            {field("initiativeFocus", "Initiative focus (optional)", "platform relaunch")}
+            <button style={S.btnPrimary(!form.account.trim() || !!busy)}
+              disabled={!form.account.trim() || !!busy} onClick={generate}>
+              {busy ? "Generating…" : "✦ Generate page content"}
+            </button>
+          </>
+        )}
+
+        {busy && <div style={{ marginTop: "12px", fontSize: "13px", color: "#4A2FA0" }}>{busy}</div>}
+        {error && <div style={{ marginTop: "12px", fontSize: "13px", color: "#b42318",
+          backgroundColor: "#FEF3F2", border: "1px solid #FECDCA", borderRadius: "8px", padding: "10px 12px" }}>
+          {error}</div>}
       </div>
-      <div style={{
-        fontSize: "13px", color: ACCENT_DARK, backgroundColor: ACCENT_SOFT,
-        border: `1px solid ${BORDER}`, borderRadius: "10px", padding: "12px 14px",
-        marginBottom: "20px", fontWeight: 600,
-      }}>
-        Not built yet. This slot is reserved so the tool can be added behind a route that
-        already works.
-      </div>
-      <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "10px", fontWeight: 600 }}>
-        What it will produce
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-        {planned.map(([title, detail]) => (
-          <div key={title} style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
-            <span style={{
-              flexShrink: 0, marginTop: "6px", width: "7px", height: "7px",
-              borderRadius: "50%", backgroundColor: ACCENT,
-            }} />
-            <div>
-              <div style={{ fontSize: "14px", fontWeight: 600, color: "#171320" }}>{title}</div>
-              <div style={{ fontSize: "13px", color: "#6b7280", lineHeight: 1.55 }}>{detail}</div>
+
+      {page && (
+        <div style={S.card}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "4px" }}>
+            <div style={S.sectionTitle}>{page.account}</div>
+            {chip(page.status)}
+          </div>
+          <div style={S.sectionSub}>
+            {page.status === "published"
+              ? "Live. Editing anything the reader sees sends it back for approval, and the live page keeps serving the approved version until it is republished."
+              : "Editing anything the reader sees costs the approval."}
+          </div>
+          {page.reviewNote && (
+            <div style={{ fontSize: "13px", color: "#A16A07", backgroundColor: "#FAEACB",
+              borderRadius: "8px", padding: "10px 12px", marginBottom: "14px" }}>
+              Sent back: {page.reviewNote}
+            </div>
+          )}
+
+          <div style={{ fontSize: "12px", fontWeight: 600, color: "#374151", margin: "4px 0 8px" }}>
+            Hero line — pick the angle
+          </div>
+          {page.content.heroOptions.map((h, i) => (
+            <label key={i} style={{ display: "flex", gap: "9px", alignItems: "flex-start",
+              padding: "9px 11px", marginBottom: "6px", borderRadius: "8px", cursor: "pointer",
+              border: page.heroChoice === i ? "1.5px solid #6C4BD8" : "1px solid #EBE6DF",
+              backgroundColor: page.heroChoice === i ? "#F0ECFB" : "white" }}>
+              <input type="radio" checked={page.heroChoice === i} onChange={() => patch({ heroChoice: i })}
+                style={{ accentColor: ACCENT, marginTop: "2px" }} />
+              <span style={{ fontSize: "13.5px", color: "#171320" }}>{h}</span>
+            </label>
+          ))}
+
+          <div style={{ fontSize: "12px", fontWeight: 600, color: "#374151", margin: "16px 0 8px" }}>
+            Attachments — both required before you can submit
+          </div>
+          <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 240px" }}>
+              <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "5px" }}>
+                Logo — transparent PNG {page.assets?.logo && "✓"}
+              </div>
+              <input type="file" accept="image/png" style={{ fontSize: "12px" }}
+                onChange={e => upload("logo", e.target.files[0])} />
+            </div>
+            <div style={{ flex: "1 1 240px" }}>
+              <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "5px" }}>
+                Screenshot {page.assets?.screenshot && "✓"}
+              </div>
+              <input style={{ ...S.input, marginBottom: "6px" }} placeholder="URL it was taken from"
+                value={shotUrl} onChange={e => setShotUrl(e.target.value)} />
+              <input type="file" accept="image/png,image/jpeg" style={{ fontSize: "12px" }}
+                onChange={e => upload("screenshot", e.target.files[0])} />
             </div>
           </div>
-        ))}
-      </div>
+
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "20px" }}>
+            <a href={`/api/abm/${page.id}/preview`} target="_blank" rel="noreferrer"
+              style={{ ...S.btnGhost, textDecoration: "none", display: "inline-block" }}>
+              ↗ Preview the page
+            </a>
+            {page.status === "draft" && (
+              <button style={S.btnPrimary(!!busy)} disabled={!!busy}
+                onClick={() => act("/submit", null, "Submitting…")}>Submit for approval</button>
+            )}
+            {page.status === "pending" && canApprove && (
+              <>
+                <button style={S.btnPrimary(!!busy)} disabled={!!busy}
+                  onClick={() => act("/approve", null, "Approving…")}>Approve</button>
+                <button style={S.btnGhost} onClick={() => {
+                  const note = window.prompt("What needs changing?");
+                  if (note) act("/request-changes", { note }, "Sending back…");
+                }}>Send back</button>
+              </>
+            )}
+            {page.status === "pending" && !canApprove && (
+              <span style={{ fontSize: "13px", color: "#6b7280", alignSelf: "center" }}>
+                Waiting on Brooke or Greg.
+              </span>
+            )}
+            {page.status === "approved" && (
+              <button style={S.btnPrimary(!!busy)} disabled={!!busy}
+                onClick={() => act("/publish", null, "Publishing…")}>Publish</button>
+            )}
+            {page.status === "published" && (
+              <button style={S.btnGhost} onClick={() => act("/unpublish", null, "Taking it down…")}>
+                Unpublish
+              </button>
+            )}
+            <button style={S.btnGhost} onClick={() => { setPage(null); setError(""); }}>New page</button>
+          </div>
+
+          {page.status === "published" && (
+            <div style={{ marginTop: "16px", fontSize: "13px", color: "#4A2FA0",
+              backgroundColor: "#F0ECFB", borderRadius: "8px", padding: "10px 12px" }}>
+              Live at <code>explore.logrocket.com/abm/{page.slug}</code> once the explore route ships.
+              Preview above is the same HTML.
+            </div>
+          )}
+        </div>
+      )}
+
+      {pages.length > 0 && (
+        <div style={S.card}>
+          <div style={{ fontSize: "12px", fontWeight: 600, color: "#374151", marginBottom: "10px" }}>
+            Pages ({pages.length})
+          </div>
+          {pages.map(p => (
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: "10px",
+              padding: "8px 0", borderTop: "1px solid #F3F0EB" }}>
+              <span style={{ fontSize: "13.5px", fontWeight: 600, flex: 1 }}>{p.account}</span>
+              {chip(p.status)}
+              <button style={{ ...S.btnGhost, padding: "5px 10px", fontSize: "12px" }}
+                onClick={async () => setPage(await (await fetch(`/api/abm/${p.id}`)).json())}>Open</button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

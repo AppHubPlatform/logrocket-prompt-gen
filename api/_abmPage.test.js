@@ -9,6 +9,7 @@ import {
   applyEdit,
   approve,
   isApprover,
+  isLive,
   newSlug,
   publish,
   requestChanges,
@@ -65,6 +66,16 @@ describe("who can approve", () => {
     assert.equal(isApprover("ae@logrocket.com"), false);
     assert.equal(isApprover(""), false);
     assert.equal(isApprover(null), false);
+  });
+
+  test("one approver is enough, including on their own page", () => {
+    // Deliberate: with two approvers, requiring the other one would mean every page
+    // Brooke writes waits on Greg and vice versa.
+    const mine = page({ createdBy: "brooke@logrocket.com" });
+    const submitted = submitForApproval(mine, { user: "brooke@logrocket.com", now: 2 });
+    const approved = approve(submitted, { user: "brooke@logrocket.com", now: 3 });
+    assert.equal(approved.status, "approved");
+    assert.equal(approved.approvedBy, "brooke@logrocket.com");
   });
 
   test("an AE cannot approve, and is told who can", () => {
@@ -178,6 +189,28 @@ describe("taking a page down", () => {
     assert.equal(p.live, null);
     assert.equal(p.approvedBy, "gregallen@logrocket.com");
     assert.equal(publish(p, BOSS).status, "published");
+  });
+
+  test("a page edited while live can still be taken down", () => {
+    // The one most likely to need the kill switch: someone spotted a problem and edited
+    // it, which sends it back to pending while the approved version keeps serving. Keying
+    // the switch off the status would make it unreachable exactly here.
+    let p = publish(approve(submitForApproval(page(), AE), BOSS), BOSS);
+    p = applyEdit(p, { heroChoice: 2 }, AE);
+    assert.equal(p.status, "pending");
+    assert.ok(isLive(p), "still being served");
+    p = unpublish(p, BOSS);
+    assert.equal(isLive(p), false);
+    assert.equal(p.status, "pending", "stays in review, since the edit still needs approval");
+  });
+
+  test("the public side goes by what is being served, not the review status", () => {
+    let p = publish(approve(submitForApproval(page(), AE), BOSS), BOSS);
+    p = applyEdit(p, { heroChoice: 2 }, AE);
+    const pub = toPublicPage(p);
+    assert.ok(pub, "a page still in the bucket must not read as absent");
+    assert.equal(pub.hero, "Hero one", "serves the approved snapshot, not the edit");
+    assert.equal(toPublicPage(unpublish(p, BOSS)), null);
   });
 
   test("a page that was never live cannot be taken down", () => {
