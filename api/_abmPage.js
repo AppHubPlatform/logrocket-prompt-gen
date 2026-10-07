@@ -1,0 +1,162 @@
+// The lifecycle of an ABM landing page, kept separate from storage and HTTP so the rules
+// can be read and tested on their own.
+//
+// A rep drafts a page, submits it, Brooke or Greg approves it, and only then can it go
+// live at a URL a prospect opens. Any edit after approval sends it back for approval,
+// because a page that can change after sign-off makes the sign-off meaningless.
+//
+// What is live is a snapshot, not the working copy. Editing a published page does not
+// alter what the prospect sees: the bucket keeps serving the last approved version until
+// someone republishes or takes it down. Without that split, fixing a typo would either
+// silently change a customer-facing page or force it offline, and neither is what anyone
+// means by "let me fix a typo".
+
+import { z } from "zod";
+import { AbmContent } from "./_abmSkill.js";
+
+export const SCHEMA_VERSION = 1;
+
+// Approval is deliberately a short, named list rather than a role, because there are two
+// people and getting it wrong means an unreviewed page reaches a customer.
+export const APPROVERS = ["brooke@logrocket.com", "gregallen@logrocket.com"];
+
+export const STATUSES = ["draft", "pending", "approved", "published"];
+
+export const AssetRef = z.object({
+  object: z.string().min(1),          // path in the bucket
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  bytes: z.number().int().positive(),
+  sourceUrl: z.string().optional(),   // screenshots carry the page they came from
+});
+
+export const AbmPage = z.object({
+  schemaVersion: z.literal(SCHEMA_VERSION).default(SCHEMA_VERSION),
+  slug: z.string().regex(/^[a-z0-9]{16,}$/, "Slug must be long and unguessable"),
+  account: z.string().min(1),
+  opportunityId: z.string().optional(),
+  persona: z.string().optional(),
+  initiativeFocus: z.string().optional(),
+  status: z.enum(STATUSES),
+  content: AbmContent,
+  heroChoice: z.number().int().min(0).max(2).default(0),
+  assets: z.object({ logo: AssetRef, screenshot: AssetRef }),
+  draftMarkdown: z.string().optional(),
+  // The snapshot currently served from the bucket. Null whenever nothing is live.
+  live: z.object({
+    content: AbmContent,
+    heroChoice: z.number().int().min(0).max(2),
+    assets: z.object({ logo: AssetRef, screenshot: AssetRef }),
+    approvedBy: z.string(),
+    approvedAt: z.number(),
+    publishedBy: z.string(),
+    publishedAt: z.number(),
+  }).nullable().default(null),
+  approvedBy: z.string().nullable().default(null),
+  approvedAt: z.number().nullable().default(null),
+  createdBy: z.string().min(1),
+  createdAt: z.number(),
+  updatedBy: z.string().min(1),
+  updatedAt: z.number(),
+});
+
+export class TransitionError extends Error {
+  constructor(message, status = 409) {
+    super(message);
+    this.status = status;
+  }
+}
+
+export function isApprover(email) {
+  return APPROVERS.includes(String(email || "").trim().toLowerCase());
+}
+
+// 16 hex characters. Long enough that the URL is the access control, since these pages
+// are served to anyone holding the link.
+export function newSlug(randomBytes) {
+  return Buffer.from(randomBytes(8)).toString("hex");
+}
+
+const touch = (page, user, now) => ({ ...page, updatedBy: user, updatedAt: now });
+
+export function submitForApproval(page, { user, now }) {
+  if (page.status === "pending") throw new TransitionError("This page is already waiting for approval");
+  return touch({ ...page, status: "pending" }, user, now);
+}
+
+export function approve(page, { user, now }) {
+  if (!isApprover(user)) {
+    throw new TransitionError(`Only ${APPROVERS.join(" or ")} can approve a page`, 403);
+  }
+  if (page.status !== "pending") {
+    throw new TransitionError(`A page must be submitted before it can be approved; this one is ${page.status}`);
+  }
+  return touch({ ...page, status: "approved", approvedBy: user, approvedAt: now }, user, now);
+}
+
+// Sends an approved page back to the rep with a reason, rather than silently leaving it
+// pending with no sign of why nothing happened.
+export function requestChanges(page, { user, now, note }) {
+  if (!isApprover(user)) {
+    throw new TransitionError(`Only ${APPROVERS.join(" or ")} can review a page`, 403);
+  }
+  if (page.status !== "pending") throw new TransitionError("Only a submitted page can be sent back");
+  if (!String(note || "").trim()) throw new TransitionError("Say what needs changing", 400);
+  return touch({ ...page, status: "draft", reviewNote: String(note).trim() }, user, now);
+}
+
+export function publish(page, { user, now }) {
+  if (page.status !== "approved") {
+    throw new TransitionError(`Only an approved page can be published; this one is ${page.status}`);
+  }
+  const live = {
+    content: page.content,
+    heroChoice: page.heroChoice,
+    assets: page.assets,
+    approvedBy: page.approvedBy,
+    approvedAt: page.approvedAt,
+    publishedBy: user,
+    publishedAt: now,
+  };
+  return touch({ ...page, status: "published", live }, user, now);
+}
+
+// Takes the page down without discarding the approval, so it can go back up without a
+// second review. The caller deletes the object; this only records it.
+export function unpublish(page, { user, now }) {
+  if (page.status !== "published") throw new TransitionError("This page is not live");
+  return touch({ ...page, status: "approved", live: null }, user, now);
+}
+
+// Any edit to what the reader would see costs the approval. Everything else, like which
+// opportunity it is filed against, does not.
+const APPROVAL_RELEVANT = ["content", "heroChoice", "assets", "account"];
+
+export function applyEdit(page, patch, { user, now }) {
+  const next = { ...page, ...patch };
+  const changed = APPROVAL_RELEVANT.some(
+    key => JSON.stringify(next[key]) !== JSON.stringify(page[key]),
+  );
+  if (!changed) return touch(next, user, now);
+
+  // The live snapshot is left exactly as it is. The prospect keeps seeing the approved
+  // page until someone approves and publishes the new one, or takes it down.
+  const status = page.status === "draft" ? "draft" : "pending";
+  return touch({ ...next, status, approvedBy: null, approvedAt: null }, user, now);
+}
+
+// What the public service needs, and nothing more. Internal fields never cross over:
+// who drafted it, which opportunity it came from, and the review note are all absent.
+export function toPublicPage(page) {
+  if (page.status !== "published" || !page.live) return null;
+  const { content, heroChoice, assets } = page.live;
+  return {
+    slug: page.slug,
+    account: page.account,
+    hero: content.heroOptions[heroChoice] ?? content.heroOptions[0],
+    issueExamples: content.issueExamples,
+    whyNow: content.whyNow,
+    productFit: content.productFit,
+    assets,
+  };
+}
