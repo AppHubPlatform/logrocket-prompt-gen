@@ -183,12 +183,12 @@ export function createAbmRouter({
       approvedBy: "", approvedAt: 0, publishedBy: "", publishedAt: 0,
     } });
     if (!pub) throw new HttpError(409, "Nothing to preview yet");
+    // Only pass an image that exists. Spreading a missing one produced an object with no
+    // bytes, which is truthy, so the renderer tried to encode undefined.
+    const shot = await store.getAsset(req.params.id, "screenshot");
     res.type("html").send(renderAbmPage(pub, {
       logo: await store.getAsset(req.params.id, "logo"),
-      screenshot: {
-        ...(await store.getAsset(req.params.id, "screenshot")),
-        sourceUrl: page.assets?.screenshot?.sourceUrl,
-      },
+      screenshot: shot ? { ...shot, sourceUrl: page.assets?.screenshot?.sourceUrl } : null,
     }));
   });
 

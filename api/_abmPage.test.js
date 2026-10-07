@@ -91,6 +91,45 @@ describe("who can approve", () => {
   });
 });
 
+describe("a page part-way through", () => {
+  // Both bugs reported from real use came from here: the schema described a finished
+  // page but was applied to pages at every stage, so an edit before the second upload
+  // was rejected and the hero radio quietly did nothing.
+  test("validates with no attachments yet", () => {
+    const p = page({ assets: null });
+    assert.equal(p.assets, null);
+  });
+
+  test("validates with only the logo uploaded", () => {
+    const p = page({ assets: { logo: asset() } });
+    assert.ok(p.assets.logo);
+  });
+
+  test("the hero line can be changed before either file is uploaded", () => {
+    const p = applyEdit(page({ assets: null }), { heroChoice: 2 }, AE);
+    assert.equal(p.heroChoice, 2);
+    assert.equal(AbmPage.parse(p).heroChoice, 2);
+  });
+
+  test("the hero line can be changed with only the logo uploaded", () => {
+    const p = applyEdit(page({ assets: { logo: asset() } }), { heroChoice: 1 }, AE);
+    assert.equal(AbmPage.parse(p).heroChoice, 1);
+  });
+
+  test("but nothing reaches a prospect without both images", () => {
+    // The live snapshot stays strict, so the guarantee moves there rather than
+    // disappearing.
+    const half = page({ status: "approved", assets: { logo: asset() } });
+    assert.throws(() => AbmPage.parse({
+      ...half,
+      live: {
+        content: CONTENT, heroChoice: 0, assets: { logo: asset() },
+        approvedBy: "x", approvedAt: 1, publishedBy: "x", publishedAt: 1,
+      },
+    }), (e) => e.name === "ZodError");
+  });
+});
+
 describe("the route to being live", () => {
   test("draft, submit, approve, publish", () => {
     let p = page();

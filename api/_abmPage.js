@@ -40,12 +40,20 @@ export const AbmPage = z.object({
   status: z.enum(STATUSES),
   content: AbmContent,
   heroChoice: z.number().int().min(0).max(2).default(0),
-  assets: z.object({ logo: AssetRef, screenshot: AssetRef }),
+  // Both are required before a page can be submitted, which `submit` enforces, but a
+  // page in progress legitimately has one or neither. Demanding both here meant every
+  // edit before the second upload failed validation, so changing the hero line silently
+  // did nothing until both files were in.
+  assets: z.object({
+    logo: AssetRef.nullish(),
+    screenshot: AssetRef.nullish(),
+  }).nullish(),
   draftMarkdown: z.string().optional(),
   // The snapshot currently served from the bucket. Null whenever nothing is live.
   live: z.object({
     content: AbmContent,
     heroChoice: z.number().int().min(0).max(2),
+    // Strict, unlike the working copy: nothing is served without both images.
     assets: z.object({ logo: AssetRef, screenshot: AssetRef }),
     approvedBy: z.string(),
     approvedAt: z.number(),
