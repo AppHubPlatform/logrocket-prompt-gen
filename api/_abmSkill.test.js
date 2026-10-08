@@ -5,6 +5,7 @@ import {
   AbmContent,
   askRog,
   buildSkillRequest,
+  fillPlaceholders,
   generateAbmContent,
   structureAbmContent,
 } from "./_abmSkill.js";
@@ -256,5 +257,101 @@ describe("generateAbmContent", () => {
     assert.equal(out.content.heroOptions.length, 3);
     assert.ok(seen[0].includes("rog.logrocket.com"));
     assert.ok(seen[1].includes("api.anthropic.com"));
+  });
+});
+
+describe("fillPlaceholders", () => {
+  const withBrackets = () => {
+    const c = structuredClone(VALID);
+    c.productFit.features[0].examples = [
+      { label: "Illustrative alert", text: "[Journey name] — [number] customers hit an error on [step]" },
+    ];
+    return c;
+  };
+  const reply = (values) => async () => ({
+    ok: true,
+    json: async () => ({ content: [{ type: "tool_use", name: "emit_filled",
+      input: { items: values.map((text, index) => ({ index, text })) } }] }),
+  });
+
+  test("fills placeholders and keeps the wording around them", async () => {
+    const out = await fillPlaceholders(withBrackets(), DRAFT, {
+      apiKey: "k",
+      fetchImpl: reply(["Account opening — 412 customers hit an error on ID verification"]),
+    });
+    assert.equal(out.productFit.features[0].examples[0].text,
+      "Account opening — 412 customers hit an error on ID verification");
+  });
+
+  test("throws away a fill that rewords the text outside the brackets", async () => {
+    const out = await fillPlaceholders(withBrackets(), DRAFT, {
+      apiKey: "k",
+      fetchImpl: reply(["412 users had problems while opening an account"]),
+    });
+    assert.match(out.productFit.features[0].examples[0].text, /\[Journey name\]/);
+  });
+
+  test("throws away a fill that still has a bracket in it", async () => {
+    const out = await fillPlaceholders(withBrackets(), DRAFT, {
+      apiKey: "k",
+      fetchImpl: reply(["Account opening — [number] customers hit an error on ID verification"]),
+    });
+    assert.match(out.productFit.features[0].examples[0].text, /\[Journey name\]/);
+  });
+
+  test("makes no call when there is nothing to fill", async () => {
+    let called = false;
+    await fillPlaceholders(structuredClone(VALID), DRAFT, { apiKey: "k", fetchImpl: async () => { called = true; } });
+    assert.equal(called, false);
+  });
+
+  test("leaves the input untouched", async () => {
+    const original = withBrackets();
+    const before = JSON.stringify(original);
+    await fillPlaceholders(original, DRAFT, { apiKey: "k", fetchImpl: reply(["Account opening — 412 customers hit an error on ID verification"]) });
+    assert.equal(JSON.stringify(original), before);
+  });
+});
+
+describe("fillPlaceholders with tables", () => {
+  const withTable = () => {
+    const c = structuredClone(VALID);
+    c.productFit.features[1].mockup = {
+      columns: ["Journey", "Sessions", "Drop-off"],
+      rows: [["[Freemium enrollment]", "[volume]", "[rate]"]],
+    };
+    return c;
+  };
+  const tableReply = (table) => async () => ({ ok: true, json: async () => ({
+    content: [{ type: "tool_use", name: "emit_filled", input: { items: [{ index: 0, table }] } }] }) });
+
+  test("fills a whole table and keeps its headers", async () => {
+    const out = await fillPlaceholders(withTable(), DRAFT, { apiKey: "k",
+      fetchImpl: tableReply({ columns: ["Journey", "Sessions", "Drop-off"], rows: [["Freemium enrollment", "3,412", "38.7%"]] }) });
+    assert.deepEqual(out.productFit.features[1].mockup.rows[0], ["Freemium enrollment", "3,412", "38.7%"]);
+  });
+
+  test("refuses a table that changes a header or its shape", async () => {
+    const out = await fillPlaceholders(withTable(), DRAFT, { apiKey: "k", attempts: 1,
+      fetchImpl: tableReply({ columns: ["Flow", "Sessions", "Drop-off"], rows: [["Freemium enrollment", "3,412", "38.7%"]] }) });
+    assert.equal(out.productFit.features[1].mockup.rows[0][1], "[volume]");
+  });
+
+  test("retries what is still bracketed after the first pass", async () => {
+    let calls = 0;
+    const out = await fillPlaceholders(withTable(), DRAFT, { apiKey: "k", fetchImpl: async () => {
+      calls += 1;
+      const table = calls === 1
+        ? { columns: ["Journey", "Sessions", "Drop-off"], rows: [["[Freemium enrollment]", "[volume]", "[rate]"]] }
+        : { columns: ["Journey", "Sessions", "Drop-off"], rows: [["Freemium enrollment", "3,412", "38.7%"]] };
+      return { ok: true, json: async () => ({ content: [{ type: "tool_use", name: "emit_filled", input: { items: [{ index: 0, table }] } }] }) };
+    } });
+    assert.equal(calls, 2);
+    assert.equal(out.productFit.features[1].mockup.rows[0][2], "38.7%");
+  });
+
+  test("a failed call never fails the page", async () => {
+    const out = await fillPlaceholders(withTable(), DRAFT, { apiKey: "k", fetchImpl: async () => ({ ok: false, status: 500 }) });
+    assert.equal(out.productFit.features[1].mockup.rows[0][1], "[volume]");
   });
 });

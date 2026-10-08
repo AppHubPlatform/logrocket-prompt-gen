@@ -142,7 +142,7 @@ export function industryKey(industry) {
   const s = String(industry || "").toLowerCase();
   if (/health|patient|medical|pharma/.test(s)) return "healthcare";
   if (/financ|bank|insur|fintech|payment|lend/.test(s)) return "financial";
-  if (/retail|commerce|shop|consumer|marketplace|travel|hospitality/.test(s)) return "retail";
+  if (/retail|commerce|shop|consumer|marketplace|travel|hospitality|checkout|\bcart\b|beauty|apparel|fashion|storefront/.test(s)) return "retail";
   if (/saas|software|tech|platform|b2b|media|gaming|education/.test(s)) return "saas";
   return null;
 }

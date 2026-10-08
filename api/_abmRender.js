@@ -165,13 +165,6 @@ td{padding:9px 8px;border-top:1px solid var(--line)}
 
 /* Replay mockup: the rep's screenshot framed as a session being watched. */
 .rp{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
-.rp-bar{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--paper)}
-.rp-dots{display:flex;gap:4px}
-.rp-dots i{width:8px;height:8px;border-radius:50%;background:var(--paper-3);display:block}
-.rp-url{flex:1;min-width:0;font-size:10.5px;color:var(--ink-soft);background:#fff;border:1px solid var(--line);
-  border-radius:6px;padding:4px 9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rp-tab{font-size:10px;font-weight:600;color:var(--violet-600);background:var(--paper-3);border-radius:6px;
-  padding:3px 8px;white-space:nowrap}
 .rp-site{position:relative;max-height:320px;overflow:hidden}
 .rp-site img{display:block;width:100%;height:auto}
 .rp-cursor{position:absolute;left:44%;top:46%;width:18px;height:18px;border-radius:50%;
@@ -182,6 +175,7 @@ td{padding:9px 8px;border-top:1px solid var(--line)}
 .rp-foot{display:flex;gap:8px;align-items:center;padding:9px 11px;border-top:1px solid var(--line);
   font-size:10.5px;color:var(--ink-faint);font-family:"IBM Plex Mono",monospace}
 .rp-foot .pill{background:var(--coral-bg);color:var(--coral);border-radius:999px;padding:2px 8px;font-weight:700}
+.rp-foot .tag{background:var(--paper-3);color:var(--violet-600);border-radius:6px;padding:2px 8px;font-weight:700}
 
 .closing{background:radial-gradient(120% 160% at 85% 0%,var(--deep-3),var(--deep) 70%);color:var(--on-dark);
   border-radius:28px;padding:52px;display:grid;grid-template-columns:1.2fr .8fr;gap:40px;align-items:center}
@@ -356,19 +350,39 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
       </div>`).join("");
 
   // The screenshot belongs to the first feature block, framed as a session being watched.
+  // The rep's screenshot, cropped below the browser's own toolbar, framed as a session
+  // being replayed. No browser chrome of our own around it either: the point is their
+  // site, and a second fake address bar just repeats the problem the crop removed.
+  // margin-top in percent is measured against width, and the image spans the full width,
+  // so cropTop / width * 100% lifts exactly the cropped rows out of view.
+  const lift = screenshot?.cropTop && screenshot?.width ? (screenshot.cropTop / screenshot.width) * 100 : 0;
   const replay = shotImg ? `
         <div class="rp">
-          <div class="rp-bar">
-            <span class="rp-dots"><i></i><i></i><i></i></span>
-            <span class="rp-url">${esc(shotUrl || account)}</span>
-            <span class="rp-tab">Session replay</span>
-          </div>
-          <div class="rp-site"><img src="${shotImg}" alt="${acct}"/><span class="rp-cursor"></span></div>
-          <div class="rp-foot"><span class="pill">Rage click</span><span>Illustrative &middot; ${acct}</span></div>
+          <div class="rp-site"><img src="${shotImg}" alt="${acct}" style="margin-top:-${lift.toFixed(3)}%"/><span class="rp-cursor"></span></div>
+          <div class="rp-foot"><span class="tag">Session replay</span><span class="pill">Rage click</span>
+            <span>Illustrative &middot; ${esc(shotUrl.replace(/^https?:\/\//, "").replace(/\?.*$/, "") || account)}</span></div>
         </div>` : "";
 
+  // Session Replay leads, carrying the rep's screenshot, as on the IPSY page. If the skill
+  // wrote a replay block its copy is used; otherwise the row is ours, kept general so it
+  // claims nothing about the account. Every other block follows in the skill's order.
+  const isReplay = (f) => /replay|session/i.test(f.label);
+  const skillReplay = productFit.features.find(isReplay);
+  const replayRow = replay ? {
+    label: "Session Replay",
+    headline: skillReplay?.headline || `See exactly what ${account}'s customers experienced.`,
+    description: skillReplay?.description || "Every visit is captured automatically, so product, UX and engineering watch the same moment a customer had instead of piecing it together from tickets, logs and screenshots.",
+    examples: skillReplay?.examples || [],
+    mockup: null,
+    art: replay,
+  } : null;
+  const rows = [
+    ...(replayRow ? [replayRow] : []),
+    ...productFit.features.filter(f => !(replayRow && isReplay(f))),
+  ];
+
   const usedShots = new Set();
-  const features = productFit.features.map((f, n) => {
+  const features = rows.map((f, n) => {
     const bubbles = (f.examples || []).map(e => `
           <div class="bubble"><div class="q">${esc(e.label)}</div><div class="a">${esc(e.text)}</div></div>`).join("");
     const table = f.mockup ? `
@@ -376,16 +390,18 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
             <thead><tr>${f.mockup.columns.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead>
             <tbody>${f.mockup.rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody>
           </table>` : "";
-    // First block gets the replay if there is one; the rest show their own examples.
-    // Every row but the replay one shows LogRocket itself: the screenshot for that
-    // capability, with the row's illustrative prompts or table under it.
-    const shot = (n === 0 && replay) ? "" : dataUri(productShotFor(f.label, f.headline, usedShots));
-    const shotTag = shot ? `<img class="art-shot" src="${shot}" alt="${esc(f.label)}"/>` : "";
-    const body = table || bubbles;
-    const art = (n === 0 && replay)
-      ? replay
-      : (shotTag || body) ? `<div class="art-card">${shotTag}${body}</div>` : "";
-    const inline = (n === 0 && replay && bubbles) ? bubbles : "";
+    let art;
+    if (f.art) {
+      art = f.art;
+    } else {
+      // The LogRocket screen for this capability, with its prompts or table under it.
+      const shot = dataUri(productShotFor(f.label, f.headline, usedShots));
+      const shotTag = shot ? `<img class="art-shot" src="${shot}" alt="${esc(f.label)}"/>` : "";
+      const body = table || bubbles;
+      art = (shotTag || body) ? `<div class="art-card">${shotTag}${body}</div>` : "";
+    }
+    // A row whose art is the replay keeps its prompts beside the copy instead.
+    const inline = f.art && bubbles ? bubbles : "";
     return `
       <div class="feature-row reveal${n % 2 ? " rev" : ""}">
         <div class="cop">
@@ -412,14 +428,19 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
     ? `<span class="${cls}" style="background-image:url('${aeImg}')" aria-hidden="true"></span>`
     : `<span class="${cls}">${esc(initials)}</span>`;
 
-  const ind = INDUSTRIES[industryKey(industry)] || null;
+  // The industry the rep picked, or failing that the one the skill's own text points at:
+  // a thesis about "consumer banking" is a financial services page. Pages made before the
+  // field existed have none set, and lost their case studies entirely as a result.
+  const indKey = industryKey(industry)
+    || industryKey(`${whyNow.headline} ${whyNow.thesis} ${whyNow.initiatives.map(i => i.title).join(" ")}`);
+  const ind = INDUSTRIES[indKey] || null;
   const industrySection = ind ? `
 <section class="section" id="industry"><div class="wrap">
   <div class="ind-head reveal">
     <span class="eyebrow" style="color:var(--violet-600)">Industry expertise</span>
     <h2 style="font-size:clamp(25px,3.3vw,37px);margin-top:10px">${esc(ind.heading)}</h2>
   </div>
-  ${dataUri(industryShot(industryKey(industry))) ? `<div class="ind-shot reveal"><img src="${dataUri(industryShot(industryKey(industry)))}" alt="${esc(ind.label)}"/></div>` : ""}
+  ${dataUri(industryShot(indKey)) ? `<div class="ind-shot reveal"><img src="${dataUri(industryShot(indKey))}" alt="${esc(ind.label)}"/></div>` : ""}
   <ul class="ind-bullets reveal">${ind.bullets.map(b => `<li>${esc(b)}</li>`).join("")}</ul>
 </div></section>` : "";
 
@@ -437,7 +458,10 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
 
   // Two case studies for the account's industry, then the evergreen resources. Without an
   // industry, the evergreen ones stand alone rather than guessing at a vertical.
-  const resCards = [...(ind ? ind.studies.map(c => ({ ...c, cta: "Read the case study" })) : []), ...RESOURCES]
+  // Two case studies always lead, as on the IPSY page. With no industry to go on, the
+  // retail pair stands in: broadly recognisable, and better than a section of two cards.
+  const studies = (ind || INDUSTRIES.retail).studies;
+  const resCards = [...studies.map(c => ({ ...c, cta: "Read the case study" })), ...RESOURCES]
     .map(r => `
       <div class="res-card">
         <div class="tag">${esc(r.tag)}</div><h3>${esc(r.title)}</h3><p>${esc(r.desc)}</p>

@@ -8,13 +8,13 @@ import crypto from "node:crypto";
 import express from "express";
 import { z } from "zod";
 
-import { generateAbmContent } from "./_abmSkill.js";
-import { validateAePhoto, validateLogo, validateScreenshot } from "./_abmAssets.js";
+import { fillPlaceholders, generateAbmContent } from "./_abmSkill.js";
+import { detectBrowserChrome, validateAePhoto, validateLogo, validateScreenshot } from "./_abmAssets.js";
 import { renderAbmPage } from "./_abmRender.js";
 import { createMemoryStore, newId } from "./_abmStore.js";
 import { iapUserEmail } from "./_iapUser.js";
 import {
-  AbmPage, APPROVERS, applyEdit, approve, isApprover, newSlug,
+  AbmPage, APPROVERS, applyEdit, approve, assertCanDelete, isApprover, newSlug,
   publish, requestChanges, submitForApproval, toPublicPage, unpublish,
 } from "./_abmPage.js";
 
@@ -122,6 +122,8 @@ export function createAbmRouter({
       const ref = {
         object, width: result.meta.width, height: result.meta.height, bytes: result.meta.bytes,
         ...(result.meta.sourceUrl ? { sourceUrl: result.meta.sourceUrl } : {}),
+        // Whole-window captures carry the rep's tab bar and bookmarks; take them off.
+        ...(kind === "screenshot" ? { cropTop: detectBrowserChrome(buf) } : {}),
       };
       const assets = { ...(page.assets || {}), [kind]: ref };
       // Replacing an image is a change the reader sees, so it goes through applyEdit and
@@ -144,6 +146,41 @@ export function createAbmRouter({
     const assets = { ...(page.assets || {}), [kind]: null };
     const next = applyEdit(page, { assets }, { user, now: Date.now() });
     res.json(await save(req.params.id, next));
+  });
+
+  router.delete("/:id", async (req, res) => {
+    const user = requireUser(req);
+    const page = await load(req.params.id);
+    assertCanDelete(page, { user });
+    await store.remove(req.params.id);   // the page and every image uploaded to it
+    res.status(204).end();
+  });
+
+  // Fills the bracketed placeholders on a page generated before the fill pass existed,
+  // using the Rog draft it was made from. Cheaper than regenerating, and the rest of the
+  // page is untouched. Changes what the reader sees, so it costs the approval.
+  router.post("/:id/fill-examples", async (req, res) => {
+    const user = requireUser(req);
+    const page = await load(req.params.id);
+    if (!page.draftMarkdown) throw new HttpError(409, "This page has no Rog draft to work from");
+    const content = await fillPlaceholders(page.content, page.draftMarkdown, { apiKey: anthropicKey });
+    res.json(await save(req.params.id, applyEdit(page, { content }, { user, now: Date.now() })));
+  });
+
+  // Undo the automatic crop, or put it back. Changes what the reader sees, so it costs
+  // the approval like any other edit.
+  router.post("/:id/assets/screenshot/crop", async (req, res) => {
+    const user = requireUser(req);
+    const page = await load(req.params.id);
+    const ref = page.assets?.screenshot;
+    if (!ref) throw new HttpError(400, "No screenshot to crop");
+    let cropTop = 0;
+    if (req.body?.auto) {
+      const stored = await store.getAsset(req.params.id, "screenshot");
+      cropTop = stored ? detectBrowserChrome(stored.bytes) : 0;
+    }
+    const assets = { ...page.assets, screenshot: { ...ref, cropTop } };
+    res.json(await save(req.params.id, applyEdit(page, { assets }, { user, now: Date.now() })));
   });
 
   router.get("/:id/assets/:kind", async (req, res) => {
@@ -206,7 +243,12 @@ export function createAbmRouter({
     const shot = await store.getAsset(req.params.id, "screenshot");
     res.type("html").send(renderAbmPage(pub, {
       logo: await store.getAsset(req.params.id, "logo"),
-      screenshot: shot ? { ...shot, sourceUrl: page.assets?.screenshot?.sourceUrl } : null,
+      screenshot: shot ? {
+        ...shot,
+        sourceUrl: page.assets?.screenshot?.sourceUrl,
+        cropTop: page.assets?.screenshot?.cropTop || 0,
+        width: page.assets?.screenshot?.width,
+      } : null,
       preparedBy: page.createdBy,
       industry: pub.industry ?? page.industry,
     }));

@@ -8,6 +8,7 @@ import {
   TransitionError,
   applyEdit,
   approve,
+  assertCanDelete,
   isApprover,
   isLive,
   newSlug,
@@ -295,5 +296,32 @@ describe("slugs", () => {
 
   test("a guessable slug is refused by the schema", () => {
     assert.throws(() => page({ slug: "ipsy" }), /unguessable/);
+  });
+});
+
+describe("deleting a page", () => {
+  test("the rep who made a draft can delete it", () => {
+    assert.doesNotThrow(() => assertCanDelete(page(), AE));
+  });
+
+  test("an approver can delete someone else's draft", () => {
+    assert.doesNotThrow(() => assertCanDelete(page(), BOSS));
+  });
+
+  test("another rep cannot", () => {
+    assert.throws(() => assertCanDelete(page(), { user: "other@logrocket.com" }), /Only the person who created/);
+  });
+
+  test("a live page has to be unpublished first, even by an approver", () => {
+    const live = publish(approve(submitForApproval(page(), AE), BOSS), BOSS);
+    assert.throws(() => assertCanDelete(live, BOSS), /Unpublish it before deleting/);
+    assert.doesNotThrow(() => assertCanDelete(unpublish(live, BOSS), BOSS));
+  });
+
+  test("so does a live page that has since been edited back to pending", () => {
+    const live = publish(approve(submitForApproval(page(), AE), BOSS), BOSS);
+    const edited = applyEdit(live, { heroChoice: 2 }, AE);
+    assert.equal(edited.status, "pending");
+    assert.throws(() => assertCanDelete(edited, AE), /Unpublish it before deleting/);
   });
 });

@@ -28,6 +28,9 @@ export const AssetRef = z.object({
   height: z.number().int().positive(),
   bytes: z.number().int().positive(),
   sourceUrl: z.string().optional(),   // screenshots carry the page they came from
+  // Pixels at the top that are the browser rather than the site. The original is kept
+  // and cropped at render time, so the crop can be undone.
+  cropTop: z.number().int().min(0).optional(),
 });
 
 export const AbmPage = z.object({
@@ -167,6 +170,20 @@ export function applyEdit(page, patch, { user, now }) {
   // page until someone approves and publishes the new one, or takes it down.
   const status = page.status === "draft" ? "draft" : "pending";
   return touch({ ...next, status, approvedBy: null, approvedAt: null }, user, now);
+}
+
+// A rep can throw away a page they started and do not want to finish. Deleting cannot be
+// undone, so two limits. A page that is live has to be unpublished first: deleting it in
+// one step would break a link a prospect may already have, with no warning. And only the
+// person who made it, or an approver, can delete it.
+export function assertCanDelete(page, { user }) {
+  if (isLive(page)) {
+    throw new TransitionError("This page is live. Unpublish it before deleting it.");
+  }
+  const mine = String(page.createdBy || "").toLowerCase() === String(user || "").toLowerCase();
+  if (!mine && !isApprover(user)) {
+    throw new TransitionError("Only the person who created this page, Brooke or Greg can delete it", 403);
+  }
 }
 
 // What the public service needs, and nothing more. Internal fields never cross over:

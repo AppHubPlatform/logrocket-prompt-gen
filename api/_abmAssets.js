@@ -85,6 +85,82 @@ function unfilter(raw, width, height, bpp) {
   return out;
 }
 
+// Decodes an 8-bit, non-interlaced PNG to raw pixels. Returns null for anything else,
+// so callers can treat "cannot tell" as its own answer rather than guessing.
+export function decodePng(buf) {
+  const { width, height, bitDepth, colorType, interlaced } = readPngHeader(buf);
+  if (interlaced || bitDepth !== 8 || !(colorType in CHANNELS) || colorType === 3) return null;
+  const idat = [];
+  for (const { type, data } of chunks(buf)) if (type === "IDAT") idat.push(data);
+  if (!idat.length) return null;
+  let raw;
+  try { raw = zlib.inflateSync(Buffer.concat(idat)); } catch { return null; }
+  const bpp = CHANNELS[colorType];
+  if (raw.length < (width * bpp + 1) * height) return null;
+  return { width, height, bpp, pixels: unfilter(raw, width, height, bpp) };
+}
+
+// How many pixels at the top of a screenshot are the browser rather than the website.
+//
+// Reps capture the whole window, so screenshots arrive with the tab strip, the address
+// bar and the bookmarks bar on top. That is worse than untidy: the bookmarks bar shows
+// the rep's own bookmarks, internal tools by name, to a prospect.
+//
+// Browser toolbars are a band of flat neutral grey. The first row that stops matching
+// that grey, and keeps not matching it, is where the page begins. A site whose own
+// header is flat white or black does not qualify, because toolbars are never pure
+// white or pure black; that is what keeps this from cropping off a site's own
+// navigation. Anything that is not a confident match returns 0, and the rep can undo a
+// crop either way.
+export function detectBrowserChrome(buf) {
+  if (!isPng(buf)) return 0;
+  const img = decodePng(buf);
+  if (!img) return 0;
+  const { width, height, bpp, pixels } = img;
+  const at = (x, y) => { const i = (y * width + x) * bpp; return [pixels[i], pixels[i + 1], pixels[i + 2]]; };
+
+  // Toolbar colour: the most common colour along a row near the very top.
+  const counts = new Map();
+  const y0 = Math.min(4, height - 1);
+  for (let x = 0; x < width; x += 2) {
+    const c = at(x, y0).map(v => v >> 3 << 3).join(",");
+    counts.set(c, (counts.get(c) || 0) + 1);
+  }
+  const ref = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0].split(",").map(Number);
+  const [r, g, b] = ref;
+  const neutral = Math.abs(r - g) < 14 && Math.abs(g - b) < 14;
+  const lum = (r + g + b) / 3;
+  if (!neutral || lum < 20 || lum > 248) return 0;
+
+  // A toolbar is a family of greys rather than one colour: the address-bar pill and the
+  // separators are a shade or two off the bar itself. Matching one exact grey stopped the
+  // walk inside the address bar. So any neutral grey near the toolbar's brightness counts,
+  // and pure black or pure white never does, which is where most pages start.
+  const near = (c) => {
+    const l = (c[0] + c[1] + c[2]) / 3;
+    return Math.abs(c[0] - c[1]) < 12 && Math.abs(c[1] - c[2]) < 12
+      && l >= 20 && l <= 248 && Math.abs(l - lum) <= 40;
+  };
+  const rowMatch = (y) => {
+    let n = 0, total = 0;
+    for (let x = 0; x < width; x += 4) { total++; if (near(at(x, y))) n++; }
+    return n / total;
+  };
+
+  // Walk down while rows are mostly toolbar. Separator lines and the address-bar pill
+  // break the band for a row or two, so only a sustained run of non-toolbar rows counts
+  // as the page starting.
+  const limit = Math.min(Math.floor(height * 0.3), 420);
+  let miss = 0, cut = 0;
+  for (let y = 0; y < limit; y++) {
+    if (rowMatch(y) >= 0.45) { miss = 0; continue; }
+    if (miss === 0) cut = y;
+    if (++miss >= 6) break;
+  }
+  if (miss < 6) return 0;               // never left the toolbar colour: not confident
+  return cut >= 40 ? cut : 0;           // too thin to be browser chrome
+}
+
 // What share of pixels are not fully opaque. Returns null when the question cannot be
 // answered from the file alone, so the caller can say "unknown" rather than guess.
 export function transparentPixelRatio(buf) {

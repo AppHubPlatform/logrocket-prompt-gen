@@ -3745,6 +3745,39 @@ function AbmLandingPages() {
     } catch (e) { setError(e.message); } finally { setBusy(""); }
   };
 
+  const removePage = async () => {
+    // Can't be undone, so say exactly what goes.
+    if (!window.confirm(`Delete the ${page.account} page? This removes the draft and its uploaded images, and cannot be undone.`)) return;
+    setError(""); setBusy("Deleting…");
+    try {
+      const r = await fetch(`/api/abm/${page.id}`, { method: "DELETE" });
+      if (!r.ok) await fail(r);
+      setPage(null); await refresh();
+    } catch (e) { setError(e.message); } finally { setBusy(""); }
+  };
+
+  const crop = async (auto) => {
+    setError(""); setBusy(auto ? "Looking for the browser bar…" : "Restoring the full screenshot…");
+    try {
+      const r = await fetch(`/api/abm/${page.id}/assets/screenshot/crop`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ auto }),
+      });
+      if (!r.ok) await fail(r);
+      const next = await r.json();
+      if (auto && !next.assets?.screenshot?.cropTop) setError("No browser bar found at the top of this screenshot.");
+      setPage(next); await refresh();
+    } catch (e) { setError(e.message); } finally { setBusy(""); }
+  };
+
+  const fillExamples = async () => {
+    setError(""); setBusy("Filling the illustrative examples from what Rog knows about the account…");
+    try {
+      const r = await fetch(`/api/abm/${page.id}/fill-examples`, { method: "POST" });
+      if (!r.ok) await fail(r);
+      setPage(await r.json()); await refresh();
+    } catch (e) { setError(e.message); } finally { setBusy(""); }
+  };
+
   const patch = async (body) => {
     setError("");
     const r = await fetch(`/api/abm/${page.id}`, {
@@ -3829,6 +3862,24 @@ function AbmLandingPages() {
             </div>
           )}
 
+          <div style={{ display: "flex", gap: "10px", alignItems: "flex-end", flexWrap: "wrap", marginBottom: "14px" }}>
+            <div style={{ flex: "1 1 220px" }}>
+              <div style={{ fontSize: "12px", fontWeight: 600, color: "#374151", marginBottom: "5px" }}>
+                Industry — chooses the industry section and case studies
+              </div>
+              <select style={S.select} value={page.industry || ""}
+                onChange={e => patch({ industry: e.target.value })}>
+                <option value="">Work it out from the page</option>
+                {GUIDE_INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+              </select>
+            </div>
+            {JSON.stringify(page.content.productFit).match(/\[[^\]\n]{1,60}\]/) && (
+              <button style={S.btnGhost} disabled={!!busy} onClick={fillExamples}>
+                Fill illustrative examples
+              </button>
+            )}
+          </div>
+
           <div style={{ fontSize: "12px", fontWeight: 600, color: "#374151", margin: "4px 0 8px" }}>
             Hero line — pick the angle
           </div>
@@ -3864,10 +3915,21 @@ function AbmLandingPages() {
                     // cannot tell you the file you meant to replace is still the old one.
                     <div style={{ border: "1px solid #EBE6DF", borderRadius: "8px", padding: "8px",
                       backgroundColor: "white", marginBottom: "6px" }}>
-                      <img src={`/api/abm/${page.id}/assets/${kind}?v=${page.updatedAt}`} alt=""
-                        style={{ display: "block", width: "100%", maxHeight: "110px",
-                          objectFit: "contain", background: kind === "logo" ? "#1A1330" : "white",
-                          borderRadius: "5px" }} />
+                      <div style={{ overflow: "hidden", maxHeight: "110px", borderRadius: "5px",
+                        background: kind === "logo" ? "#1A1330" : "white" }}>
+                        <img src={`/api/abm/${page.id}/assets/${kind}?v=${page.updatedAt}`} alt=""
+                          style={{ display: "block", width: "100%",
+                            ...(kind === "logo" ? { maxHeight: "110px", objectFit: "contain" } : {}),
+                            // Same arithmetic as the published page, so this is what ships.
+                            marginTop: ref.cropTop ? `-${(ref.cropTop / ref.width) * 100}%` : 0 }} />
+                      </div>
+                      {kind === "screenshot" && (
+                        <div style={{ fontSize: "11px", color: ref.cropTop ? "#128A67" : "#6b7280", marginTop: "6px" }}>
+                          {ref.cropTop
+                            ? <>Browser bar removed ({ref.cropTop}px). <a href="#" onClick={e => { e.preventDefault(); crop(false); }}>Undo</a></>
+                            : <>Shown as uploaded. <a href="#" onClick={e => { e.preventDefault(); crop(true); }}>Remove browser bar</a></>}
+                        </div>
+                      )}
                       <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "6px" }}>
                         {ref.width}×{ref.height} · {Math.round(ref.bytes / 1000)}KB
                         {ref.sourceUrl ? ` · ${ref.sourceUrl}` : ""}
@@ -3919,6 +3981,14 @@ function AbmLandingPages() {
               </button>
             )}
             <button style={S.btnGhost} onClick={() => { setPage(null); setError(""); }}>New page</button>
+            {page.live ? (
+              <span style={{ fontSize: "12px", color: "#9ca3af", alignSelf: "center" }}>
+                Unpublish before deleting
+              </span>
+            ) : (
+              <button style={{ ...S.btnGhost, color: "#b42318", borderColor: "#FECDCA" }}
+                disabled={!!busy} onClick={removePage}>Delete</button>
+            )}
           </div>
 
           {page.status === "published" && (

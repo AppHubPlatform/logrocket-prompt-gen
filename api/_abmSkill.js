@@ -66,6 +66,11 @@ export function buildSkillRequest({ account, opportunityId, persona, initiativeF
   lines.push(
     ``,
     `Treat each label above as one value, including any spaces in it.`,
+    `In the illustrative examples (prompts, answers, streams, alerts, feedback themes and data`,
+    `mockups), do not leave bracketed placeholders like [metric] or [X]%. Fill each one with a`,
+    `concrete value in this account's own terms, drawn from what you know about them: their real`,
+    `funnel steps, pages, products, segments and teams, with plausible illustrative numbers. These`,
+    `stay illustrative demonstrations and must never be presented as measured results.`,
     `Return only the four blocks the skill specifies, with no preamble or commentary.`,
   );
   return lines.join("\n");
@@ -229,13 +234,163 @@ export async function structureAbmContent(markdown, {
   return AbmContent.parse(call.input);
 }
 
+// Where the reader would still see "[metric]" after the skill has run.
+const BRACKET = /\[[^\]\n]{1,60}\]/;
+const BRACKETS = /\[[^\]\n]{1,60}\]/g;
+
+// Everything outside the brackets has to survive word for word, in order. It was written
+// to the skill's evidence standard; only the placeholders are ours to fill.
+function keepsWording(before, after) {
+  if (typeof after !== "string" || BRACKET.test(after)) return false;
+  let at = 0;
+  for (const part of before.split(BRACKETS)) {
+    const piece = part.trim();
+    if (!piece) continue;
+    const i = after.indexOf(piece, at);
+    if (i < 0) return false;
+    at = i + piece.length;
+  }
+  return true;
+}
+
+// Work items, each with enough around it to be filled sensibly. Tables go whole, with
+// their headers: a lone "[volume]" cell has no row or column to say what it measures, and
+// sent that way the model simply handed them back unchanged.
+function collect(content) {
+  const items = [];
+  content.productFit.features.forEach((f, fi) => {
+    (f.examples || []).forEach((e, ei) => {
+      if (BRACKET.test(e.text)) items.push({ kind: "text", fi, ei, where: `${f.label}: ${e.label}`, value: e.text });
+    });
+    if (f.mockup && [...f.mockup.columns, ...f.mockup.rows.flat()].some(c => BRACKET.test(c))) {
+      items.push({ kind: "table", fi, where: `${f.label}: ${f.headline}`, value: f.mockup });
+    }
+  });
+  return items;
+}
+
+function apply(content, item, filled) {
+  if (item.kind === "text") {
+    if (keepsWording(item.value, filled)) {
+      content.productFit.features[item.fi].examples[item.ei].text = filled;
+      return true;
+    }
+    return false;
+  }
+  // A table must come back the same shape, with every cell that had no placeholder
+  // unchanged, and with no placeholder left anywhere.
+  const t = item.value;
+  if (!filled || !Array.isArray(filled.columns) || !Array.isArray(filled.rows)) return false;
+  if (filled.columns.length !== t.columns.length || filled.rows.length !== t.rows.length) return false;
+  if (filled.rows.some((r, i) => !Array.isArray(r) || r.length !== t.rows[i].length)) return false;
+  const pairs = [
+    ...t.columns.map((c, i) => [c, filled.columns[i]]),
+    ...t.rows.flatMap((r, i) => r.map((c, j) => [c, filled.rows[i][j]])),
+  ];
+  if (!pairs.every(([a, b]) => BRACKET.test(a) ? keepsWording(a, b) : a === b)) return false;
+  content.productFit.features[item.fi].mockup = { columns: filled.columns.map(String), rows: filled.rows.map(r => r.map(String)) };
+  return true;
+}
+
+const FILL_TOOL = {
+  name: "emit_filled",
+  description: "Return every item with its placeholders replaced by concrete values.",
+  input_schema: {
+    type: "object",
+    required: ["items"],
+    properties: {
+      items: {
+        type: "array",
+        items: {
+          type: "object",
+          required: ["index"],
+          properties: {
+            index: { type: "integer" },
+            text: { type: "string" },
+            table: {
+              type: "object",
+              properties: {
+                columns: { type: "array", items: { type: "string" } },
+                rows: { type: "array", items: { type: "array", items: { type: "string" } } },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+async function fillOnce(items, draft, { apiKey, fetchImpl, model }) {
+  const payload = items.map((it, index) => ({ index, where: it.where, [it.kind]: it.value }));
+  const res = await fetchImpl("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+    body: JSON.stringify({
+      model,
+      max_tokens: 4000,
+      system: `You fill placeholders in illustrative product examples on a landing page written for one company.
+
+Each item is a sentence ("text") or a small table ("table"). Square brackets mark placeholders: [metric], [number], [step], [Journey name], [link to sessions] and so on. Replace EVERY bracketed placeholder with a specific value in this company's own terms, drawn from the draft below: their real products, pages, funnel steps, customer segments, apps and teams. Use realistic, specific illustrative numbers (412, 38.7%, iOS 4.2.1), never round guesses. Write a link placeholder as plain link text, such as "View sessions".
+
+Your output must contain no square brackets at all. Keep every word outside the brackets exactly as written and in the same order. Tables keep the same columns and rows; only cells with placeholders change. Return one entry per item, with its index.
+
+Draft:
+${draft}`,
+      tools: [FILL_TOOL],
+      tool_choice: { type: "tool", name: FILL_TOOL.name },
+      messages: [{ role: "user", content: JSON.stringify(payload) }],
+    }),
+  });
+  if (!res.ok) throw new Error(`Fill pass failed: HTTP ${res.status}`);
+  const data = await res.json();
+  const call = (data.content || []).find(c => c.type === "tool_use" && c.name === FILL_TOOL.name);
+  const byIndex = new Map((call?.input?.items || []).map(r => [r.index, r]));
+  return items.map((it, i) => {
+    const r = byIndex.get(i);
+    return r ? (it.kind === "text" ? r.text : r.table) : undefined;
+  });
+}
+
+// Fills any placeholders the skill left, using its own draft as the account context. A
+// value that rewords the text outside its brackets, or still has a bracket in it, is
+// discarded and the original kept: an unfilled example is better than a reworded one.
+// Whatever is still bracketed after the first pass gets one retry.
+export async function fillPlaceholders(content, draft, {
+  apiKey = process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY,
+  fetchImpl = fetch,
+  model = STRUCTURE_MODEL,
+  attempts = 2,
+} = {}) {
+  const next = structuredClone(content);
+  if (!apiKey) return next;
+  for (let a = 0; a < attempts; a++) {
+    const items = collect(next);
+    if (!items.length) break;
+    let filled;
+    try {
+      filled = await fillOnce(items, draft, { apiKey, fetchImpl, model });
+    } catch {
+      break;   // a failed fill leaves the placeholders; it must never fail the page
+    }
+    items.forEach((it, i) => apply(next, it, filled[i]));
+  }
+  return next;
+}
+
+export const hasPlaceholders = (content) => collect(content).length > 0;
+
 // The whole job: run the skill, structure the answer, hand back both. The draft is kept
 // alongside the structured form so a page can be checked against what the skill actually
 // said, and re-structured later without paying for another Rog run.
 export async function generateAbmContent(input, deps = {}) {
   const question = buildSkillRequest(input);
   const draft = await askRog(question, { token: deps.rogToken, fetchImpl: deps.fetchImpl });
-  const content = await structureAbmContent(draft, {
+  const structured = await structureAbmContent(draft, {
+    apiKey: deps.anthropicKey,
+    fetchImpl: deps.fetchImpl,
+  });
+  const content = await fillPlaceholders(structured, draft, {
     apiKey: deps.anthropicKey,
     fetchImpl: deps.fetchImpl,
   });
