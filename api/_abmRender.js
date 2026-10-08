@@ -19,12 +19,9 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => (
   { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
 ));
 
-const dataUri = (a) => a && a.bytes ? `data:${a.contentType};base64,${a.bytes.toString("base64")}` : "";
+import { TRUSTED_LOGOS, STATS, QUOTES, INDUSTRIES, RESOURCES, industryKey } from "./_abmChrome.js";
 
-// LogRocket customers for the strip. Wordmarks as text so the page carries no third-party
-// image assets and nothing has to be fetched at render time.
-const TRUSTED = ["NVIDIA", "Airbnb", "Reddit", "Rappi", "ThredUp", "Dutchie", "Tecovas",
-  "ShipStation", "Cushman & Wakefield", "7-Eleven", "Speedway", "Appfire"];
+const dataUri = (a) => a && a.bytes ? `data:${a.contentType};base64,${a.bytes.toString("base64")}` : "";
 
 const ICONS = [
   `<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>`,
@@ -125,8 +122,6 @@ nav .btn{padding:9px 18px;font-size:13px}
 .marquee:hover .marquee-track{animation-play-state:paused}
 @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 @media(prefers-reduced-motion:reduce){.marquee-track{animation:none}}
-.logo-tile{padding:0 30px;flex-shrink:0;font-family:Sora,sans-serif;font-weight:700;font-size:16px;
-  color:rgba(244,241,252,.72);white-space:nowrap}
 
 .section{padding:84px 0}
 .section-head{margin-bottom:40px}
@@ -197,6 +192,46 @@ td{padding:9px 8px;border-top:1px solid var(--line)}
   display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;font-family:Sora,sans-serif;flex-shrink:0}
 .contact .name{font-size:13.5px;font-weight:600}
 .contact .role{font-size:11.5px;color:rgba(244,241,252,.55)}
+
+.logo-tile{padding:0 30px;flex-shrink:0;opacity:.72;transition:opacity .18s;display:flex;align-items:center}
+.logo-tile:hover{opacity:1}
+.logo-tile svg{height:26px;width:auto;display:block}
+.ind-head{text-align:center;max-width:760px;margin:0 auto 30px}
+.ind-bullets{list-style:none;margin:0 auto;padding:0;max-width:720px;display:flex;flex-direction:column;gap:12px}
+.ind-bullets li{font-size:15px;color:var(--ink-soft);line-height:1.6;display:flex;gap:10px}
+.ind-bullets li::before{content:"✓";color:var(--mint);font-weight:700;flex-shrink:0}
+.stats-band{background:linear-gradient(120deg,var(--deep) 0%,var(--deep-2) 100%);color:var(--on-dark)}
+.stats-band .cap{color:var(--lav-300)}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:30px}
+.stat{border-left:1px solid rgba(255,255,255,.14);padding-left:20px}
+.stat .num{font-family:"IBM Plex Mono",monospace;font-size:clamp(30px,4vw,42px);font-weight:600}
+.stat .lbl{font-size:13.5px;color:rgba(244,241,252,.62);margin-top:6px}
+.proof{position:relative;background:var(--paper-2);border:1px solid var(--paper-3);border-radius:20px;padding:40px 44px 56px;overflow:hidden}
+.pc-slides{display:grid}
+.pc-slide{grid-area:1/1;display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:40px;align-items:center;
+  opacity:0;visibility:hidden;transition:opacity .7s,visibility 0s linear .7s}
+.pc-slide.on{opacity:1;visibility:visible;transition:opacity .7s,visibility 0s}
+.pc-slide .q{font-size:21px;line-height:1.5;font-weight:500;margin:0}
+.pc-slide .q::before{content:"\\201C";display:block;font-family:Sora,sans-serif;font-size:54px;line-height:.7;height:28px;color:var(--violet-400)}
+.pc-slide .who{display:flex;align-items:center;justify-content:center;border-left:1px solid var(--line);padding-left:40px;min-height:110px}
+.pc-logo{max-width:180px;max-height:72px;width:auto;object-fit:contain}
+.pc-word{font-family:Sora,sans-serif;font-weight:800;font-size:22px;text-transform:uppercase;text-align:center}
+.pc-dots{position:absolute;bottom:22px;left:44px;display:flex;gap:8px}
+.pc-dots button{width:8px;height:8px;border-radius:50%;border:1px solid var(--line);background:var(--paper-3);padding:0;cursor:pointer;transition:width .2s}
+.pc-dots button.on{background:var(--violet-500);border-color:var(--violet-500);width:22px;border-radius:999px}
+.res-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.res-card{border:1px solid var(--line);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:10px;background:#fff}
+.res-card .tag{font-size:11px;font-weight:600;color:var(--violet-600);text-transform:uppercase;letter-spacing:.04em}
+.res-card h3{font-size:16px}
+.res-card p{font-size:13.5px;color:var(--ink-soft);margin:0;line-height:1.55}
+.res-card .go{margin-top:auto;font-size:13.5px;font-weight:600;color:#fff;background:var(--violet-600);
+  padding:10px 16px;border-radius:999px;align-self:flex-start;text-decoration:none}
+.avatar{background-size:cover;background-position:center}
+.hero-meta .ae{display:inline-flex;align-items:center;gap:8px}
+.hero-meta .avatar{width:22px;height:22px;font-size:9px}
+@media(max-width:920px){.stats-grid{grid-template-columns:1fr}.res-grid{grid-template-columns:repeat(2,1fr)}
+  .pc-slide{grid-template-columns:1fr}.pc-slide .who{border-left:none;border-top:1px solid var(--line);padding:18px 0 0;justify-content:flex-start}}
+@media(max-width:600px){.res-grid{grid-template-columns:1fr}}
 footer.site{padding:34px 0;text-align:center;font-size:12px;color:var(--ink-faint)}
 @media(max-width:920px){.hero-inner,.feature-row,.feature-row.rev,.closing{grid-template-columns:1fr}
   .feature-row .art,.feature-row.rev .art{order:2}.feature-row .cop,.feature-row.rev .cop{order:1}
@@ -215,18 +250,42 @@ const SCRIPT = `
   } else {
     document.querySelectorAll('.reveal,.mini').forEach(function(el){ el.classList.add('in'); });
   }
-  // Drifting points behind the hero. Cheap, and it stops the page feeling like a poster.
+  // Stats count up once, when they scroll into view.
+  function count(el){
+    var to = +el.dataset.target, suf = el.dataset.suffix || "", t0 = null;
+    if (reduced) { el.textContent = to.toLocaleString() + suf; return; }
+    (function step(ts){ if (!t0) t0 = ts; var p = Math.min((ts - t0) / 1400, 1);
+      el.textContent = Math.round(to * (1 - Math.pow(1 - p, 3))).toLocaleString() + suf;
+      if (p < 1) requestAnimationFrame(step); })(performance.now());
+  }
+  if ('IntersectionObserver' in window) {
+    var io2 = new IntersectionObserver(function(es){ es.forEach(function(e){
+      if (e.isIntersecting) { count(e.target); io2.unobserve(e.target); } }); }, { threshold: .5 });
+    document.querySelectorAll('.stat .num').forEach(function(n){ io2.observe(n); });
+  } else document.querySelectorAll('.stat .num').forEach(count);
+  // Proof quotes rotate, and stop rotating once someone picks one.
+  var slides = document.querySelectorAll('.pc-slide'), dots = document.querySelectorAll('.pc-dots button'), cur = 0, timer;
+  function show(i){ slides[cur].classList.remove('on'); dots[cur].classList.remove('on');
+    cur = i; slides[cur].classList.add('on'); dots[cur].classList.add('on'); }
+  if (slides.length > 1) {
+    dots.forEach(function(d, i){ d.addEventListener('click', function(){ clearInterval(timer); show(i); }); });
+    if (!reduced) timer = setInterval(function(){ show((cur + 1) % slides.length); }, 6000);
+  }
+  // Drifting points behind the hero. Named stars, not dots: these are all var in one
+  // function, and sharing a name with the carousel buttons let this array silently
+  // replace them, so the first rotation threw and the quotes vanished. No backticks in
+  // here either, since this whole script sits inside a template literal. Cheap, and it stops the page feeling like a poster.
   var c = document.getElementById('sky');
   if (c && !reduced) {
-    var x = c.getContext('2d'), dots = [], w, h;
+    var x = c.getContext('2d'), stars = [], w, h;
     function size(){ w = c.width = c.offsetWidth; h = c.height = c.offsetHeight; }
     size(); window.addEventListener('resize', size);
-    for (var i = 0; i < 48; i++) dots.push({
+    for (var i = 0; i < 48; i++) stars.push({
       x: Math.random(), y: Math.random(), r: Math.random() * 1.6 + .4, s: Math.random() * .00006 + .00002
     });
     (function frame(){
       x.clearRect(0, 0, w, h);
-      dots.forEach(function(d){
+      stars.forEach(function(d){
         d.y -= d.s; if (d.y < -0.02) d.y = 1.02;
         x.beginPath(); x.arc(d.x * w, d.y * h, d.r, 0, 6.3);
         x.fillStyle = 'rgba(201,184,250,' + (0.12 + d.r * 0.18) + ')'; x.fill();
@@ -259,7 +318,7 @@ function miniCharts() {
     </div>`;
 }
 
-export function renderAbmPage(pub, { logo, screenshot, preparedBy } = {}) {
+export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, industry } = {}) {
   const { account, hero, issueExamples, whyNow, productFit } = pub;
   const acct = esc(account);
   const logoImg = dataUri(logo);
@@ -329,7 +388,44 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy } = {}) {
 
   const ae = String(preparedBy || "").split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, c => c.toUpperCase());
   const initials = (ae || "LR").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-  const tiles = [...TRUSTED, ...TRUSTED].map(t => `<div class="logo-tile">${esc(t)}</div>`).join("");
+  // Doubled so the marquee can loop seamlessly by translating exactly half its width.
+  const tiles = [...TRUSTED_LOGOS, ...TRUSTED_LOGOS]
+    .map(l => `<div class="logo-tile" title="${esc(l.name)}">${l.svg}</div>`).join("");
+
+  const aeImg = dataUri(aePhoto);
+  const avatar = (cls = "avatar") => aeImg
+    ? `<span class="${cls}" style="background-image:url('${aeImg}')" aria-hidden="true"></span>`
+    : `<span class="${cls}">${esc(initials)}</span>`;
+
+  const ind = INDUSTRIES[industryKey(industry)] || null;
+  const industrySection = ind ? `
+<section class="section" id="industry"><div class="wrap">
+  <div class="ind-head reveal">
+    <span class="eyebrow" style="color:var(--violet-600)">Industry expertise</span>
+    <h2 style="font-size:clamp(25px,3.3vw,37px);margin-top:10px">${esc(ind.heading)}</h2>
+  </div>
+  <ul class="ind-bullets reveal">${ind.bullets.map(b => `<li>${esc(b)}</li>`).join("")}</ul>
+</div></section>` : "";
+
+  const stats = STATS.map(st => `
+      <div class="stat"><div class="num" data-target="${st.target}" data-suffix="${esc(st.suffix)}">0${esc(st.suffix)}</div>
+        <div class="lbl">${esc(st.label)}</div></div>`).join("");
+
+  const slides = QUOTES.map((q, n) => `
+      <div class="pc-slide${n === 0 ? " on" : ""}">
+        <p class="q">${esc(q.quote)}</p>
+        <div class="who">${q.logo ? `<img class="pc-logo" src="${q.logo}" alt="${esc(q.name)}"/>`
+                                  : `<span class="pc-word">${esc(q.name)}</span>`}</div>
+      </div>`).join("");
+
+  // Two case studies for the account's industry, then the evergreen resources. Without an
+  // industry, the evergreen ones stand alone rather than guessing at a vertical.
+  const resCards = [...(ind ? ind.studies.map(c => ({ ...c, cta: "Read the case study" })) : []), ...RESOURCES]
+    .map(r => `
+      <div class="res-card">
+        <div class="tag">${esc(r.tag)}</div><h3>${esc(r.title)}</h3><p>${esc(r.desc)}</p>
+        <a class="go" href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.cta)} &rarr;</a>
+      </div>`).join("");
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -361,7 +457,7 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy } = {}) {
         <a class="btn btn-solid" href="#next">Book a working session</a>
         <a class="btn btn-outline" href="#why-now">See what&rsquo;s at stake</a>
       </div>
-      ${ae ? `<div class="hero-meta"><span>Prepared by <strong>${esc(ae)}</strong></span></div>` : ""}
+      ${ae ? `<div class="hero-meta"><span class="ae">${avatar("avatar")}Prepared by <strong>${esc(ae)}</strong></span></div>` : ""}
     </div>
     <div class="hero-col2">
       <div class="lockup">
@@ -403,6 +499,28 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy } = {}) {
   ${features}
 </div></section>
 
+${industrySection}
+
+<section class="section stats-band"><div class="wrap">
+  <div class="cap eyebrow reveal">What teams like yours typically see</div>
+  <div class="stats-grid reveal">${stats}</div>
+</div></section>
+
+<section class="section" id="proof"><div class="wrap">
+  <div class="proof reveal">
+    <div class="pc-slides">${slides}</div>
+    <div class="pc-dots">${QUOTES.map((_, n) => `<button aria-label="Quote ${n + 1}"${n === 0 ? ' class="on"' : ""}></button>`).join("")}</div>
+  </div>
+</div></section>
+
+<section class="section" id="resources" style="background:var(--paper-2)"><div class="wrap">
+  <div class="section-head reveal">
+    <span class="eyebrow" style="color:var(--violet-600)">Resources</span>
+    <h2>Worth a look before the next session</h2>
+  </div>
+  <div class="res-grid reveal">${resCards}</div>
+</div></section>
+
 <section class="section" id="next"><div class="wrap">
   <div class="closing reveal">
     <div>
@@ -413,7 +531,7 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy } = {}) {
     </div>
     <div class="contact-card">
       <div class="contact">
-        <span class="avatar">${esc(initials)}</span>
+        ${avatar()}
         <span><span class="name">${esc(ae || "Your LogRocket team")}</span>
         <span class="role" style="display:block">LogRocket</span></span>
       </div>

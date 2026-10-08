@@ -3661,7 +3661,7 @@ function CompetitorGuide() {
 // a hero, "why now" cards citing real signals, feature sections, proof, and a closing
 // CTA carrying the AE's own contact details.
 function AbmLandingPages() {
-  const [form, setForm] = useState({ account: "", opportunityId: "", persona: "", initiativeFocus: "" });
+  const [form, setForm] = useState({ account: "", opportunityId: "", persona: "", initiativeFocus: "", industry: "" });
   const [pages, setPages] = useState([]);
   const [page, setPage] = useState(null);
   const [busy, setBusy] = useState("");
@@ -3788,6 +3788,16 @@ function AbmLandingPages() {
             {field("opportunityId", "Opportunity ID (optional)", "006VN00000Ubm62YAB")}
             {field("persona", "Target persona (optional)", "VP of Product")}
             {field("initiativeFocus", "Initiative focus (optional)", "platform relaunch")}
+            <div style={{ marginBottom: "12px" }}>
+              <div style={{ fontSize: "12px", fontWeight: 600, color: "#374151", marginBottom: "5px" }}>
+                Industry — chooses the industry section and its case studies
+              </div>
+              <select style={S.select} value={form.industry}
+                onChange={e => setForm(f => ({ ...f, industry: e.target.value }))}>
+                <option value="">Select industry…</option>
+                {GUIDE_INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+              </select>
+            </div>
             <button style={S.btnPrimary(!form.account.trim() || !!busy)}
               disabled={!form.account.trim() || !!busy} onClick={generate}>
               {busy ? "Generating…" : "✦ Generate page content"}
@@ -3834,12 +3844,13 @@ function AbmLandingPages() {
           ))}
 
           <div style={{ fontSize: "12px", fontWeight: 600, color: "#374151", margin: "16px 0 8px" }}>
-            Attachments — both required before you can submit
+            Attachments — logo and screenshot required before you can submit
           </div>
           <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
             {[
               { kind: "logo", label: "Logo — transparent PNG", accept: "image/png" },
               { kind: "screenshot", label: "Screenshot of a key workflow", accept: "image/png,image/jpeg" },
+              { kind: "aePhoto", label: "Your photo (optional — initials otherwise)", accept: "image/png,image/jpeg" },
             ].map(({ kind, label, accept }) => {
               const ref = page.assets?.[kind];
               return (

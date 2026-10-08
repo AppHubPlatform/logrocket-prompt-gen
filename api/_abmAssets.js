@@ -198,3 +198,18 @@ export function validateScreenshot(buf, { sourceUrl } = {}) {
 
   return { ok: errors.length === 0, errors, meta: { format, ...size, bytes: buf.length, sourceUrl: url } };
 }
+
+// The rep's own photo, shown beside their name in the hero and on the closing card. Any
+// ordinary photo will do; it only has to be an image and big enough not to blur at the
+// size it is drawn.
+export function validateAePhoto(buf) {
+  if (!Buffer.isBuffer(buf) || !buf.length) return { ok: false, errors: ["No photo was uploaded"] };
+  let size, format;
+  if (isPng(buf)) { format = "png"; size = readPngHeader(buf); }
+  else if (buf[0] === 0xff && buf[1] === 0xd8) { format = "jpeg"; size = readJpegSize(buf); }
+  else return { ok: false, errors: ["The photo must be a PNG or JPEG."] };
+  const errors = [];
+  if (buf.length > 2_000_000) errors.push("Keep the photo under 2MB.");
+  if (size.width < 96 || size.height < 96) errors.push("The photo needs to be at least 96px square.");
+  return { ok: errors.length === 0, errors, meta: { format, ...size, bytes: buf.length } };
+}

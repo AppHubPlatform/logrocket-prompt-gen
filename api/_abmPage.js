@@ -37,6 +37,8 @@ export const AbmPage = z.object({
   opportunityId: z.string().optional(),
   persona: z.string().optional(),
   initiativeFocus: z.string().optional(),
+  // Chooses the industry section and its two case studies.
+  industry: z.string().optional(),
   status: z.enum(STATUSES),
   content: AbmContent,
   heroChoice: z.number().int().min(0).max(2).default(0),
@@ -47,6 +49,7 @@ export const AbmPage = z.object({
   assets: z.object({
     logo: AssetRef.nullish(),
     screenshot: AssetRef.nullish(),
+    aePhoto: AssetRef.nullish(),
   }).nullish(),
   draftMarkdown: z.string().optional(),
   // The snapshot currently served from the bucket. Null whenever nothing is live.
@@ -54,7 +57,8 @@ export const AbmPage = z.object({
     content: AbmContent,
     heroChoice: z.number().int().min(0).max(2),
     // Strict, unlike the working copy: nothing is served without both images.
-    assets: z.object({ logo: AssetRef, screenshot: AssetRef }),
+    assets: z.object({ logo: AssetRef, screenshot: AssetRef, aePhoto: AssetRef.nullish() }),
+    industry: z.string().optional(),
     approvedBy: z.string(),
     approvedAt: z.number(),
     publishedBy: z.string(),
@@ -121,6 +125,7 @@ export function publish(page, { user, now }) {
     content: page.content,
     heroChoice: page.heroChoice,
     assets: page.assets,
+    industry: page.industry,
     approvedBy: page.approvedBy,
     approvedAt: page.approvedAt,
     publishedBy: user,
@@ -149,7 +154,7 @@ export function unpublish(page, { user, now }) {
 
 // Any edit to what the reader would see costs the approval. Everything else, like which
 // opportunity it is filed against, does not.
-const APPROVAL_RELEVANT = ["content", "heroChoice", "assets", "account"];
+const APPROVAL_RELEVANT = ["content", "heroChoice", "assets", "account", "industry"];
 
 export function applyEdit(page, patch, { user, now }) {
   const next = { ...page, ...patch };
@@ -171,10 +176,11 @@ export function toPublicPage(page) {
   // genuinely still being served, which is the opposite of what the public side needs
   // to know.
   if (!page.live) return null;
-  const { content, heroChoice, assets } = page.live;
+  const { content, heroChoice, assets, industry } = page.live;
   return {
     slug: page.slug,
     account: page.account,
+    industry,
     hero: content.heroOptions[heroChoice] ?? content.heroOptions[0],
     issueExamples: content.issueExamples,
     whyNow: content.whyNow,

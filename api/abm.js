@@ -9,7 +9,7 @@ import express from "express";
 import { z } from "zod";
 
 import { generateAbmContent } from "./_abmSkill.js";
-import { validateLogo, validateScreenshot } from "./_abmAssets.js";
+import { validateAePhoto, validateLogo, validateScreenshot } from "./_abmAssets.js";
 import { renderAbmPage } from "./_abmRender.js";
 import { createMemoryStore, newId } from "./_abmStore.js";
 import { iapUserEmail } from "./_iapUser.js";
@@ -27,7 +27,10 @@ const CreateInput = z.object({
   opportunityId: z.string().optional(),
   persona: z.string().optional(),
   initiativeFocus: z.string().optional(),
+  industry: z.string().optional(),
 });
+
+const ASSET_KINDS = ["logo", "screenshot", "aePhoto"];
 
 export function createAbmRouter({
   store = createMemoryStore(),
@@ -86,6 +89,7 @@ export function createAbmRouter({
       opportunityId: input.opportunityId,
       persona: input.persona,
       initiativeFocus: input.initiativeFocus,
+      industry: input.industry,
       status: "draft",
       content,
       heroChoice: 0,
@@ -106,11 +110,11 @@ export function createAbmRouter({
       const user = requireUser(req);
       const page = await load(req.params.id);
       const kind = req.params.kind;
-      if (kind !== "logo" && kind !== "screenshot") throw new HttpError(400, "Unknown asset");
+      if (!ASSET_KINDS.includes(kind)) throw new HttpError(400, "Unknown asset");
 
       const buf = req.body;
-      const result = kind === "logo"
-        ? validateLogo(buf)
+      const result = kind === "logo" ? validateLogo(buf)
+        : kind === "aePhoto" ? validateAePhoto(buf)
         : validateScreenshot(buf, { sourceUrl: req.query.sourceUrl });
       if (!result.ok) return res.status(400).json({ errors: result.errors });
 
@@ -135,7 +139,7 @@ export function createAbmRouter({
     const user = requireUser(req);
     const page = await load(req.params.id);
     const kind = req.params.kind;
-    if (kind !== "logo" && kind !== "screenshot") throw new HttpError(400, "Unknown asset");
+    if (!ASSET_KINDS.includes(kind)) throw new HttpError(400, "Unknown asset");
     await store.putAsset(req.params.id, kind, null, null);
     const assets = { ...(page.assets || {}), [kind]: null };
     const next = applyEdit(page, { assets }, { user, now: Date.now() });
@@ -155,6 +159,7 @@ export function createAbmRouter({
     opportunityId: z.string().optional(),
     persona: z.string().optional(),
     initiativeFocus: z.string().optional(),
+    industry: z.string().optional(),
   });
 
   router.patch("/:id", async (req, res) => {
@@ -192,7 +197,7 @@ export function createAbmRouter({
   router.get("/:id/preview", async (req, res) => {
     const page = await load(req.params.id);
     const pub = toPublicPage(page) || toPublicPage({ ...page, status: "published", live: {
-      content: page.content, heroChoice: page.heroChoice, assets: page.assets,
+      content: page.content, heroChoice: page.heroChoice, assets: page.assets, industry: page.industry,
       approvedBy: "", approvedAt: 0, publishedBy: "", publishedAt: 0,
     } });
     if (!pub) throw new HttpError(409, "Nothing to preview yet");
@@ -203,6 +208,8 @@ export function createAbmRouter({
       logo: await store.getAsset(req.params.id, "logo"),
       screenshot: shot ? { ...shot, sourceUrl: page.assets?.screenshot?.sourceUrl } : null,
       preparedBy: page.createdBy,
+      aePhoto: await store.getAsset(req.params.id, "aePhoto"),
+      industry: pub.industry ?? page.industry,
     }));
   });
 
