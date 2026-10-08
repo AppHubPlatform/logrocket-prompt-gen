@@ -3736,6 +3736,15 @@ function AbmLandingPages() {
     } catch (e) { setError(e.message); } finally { setBusy(""); }
   };
 
+  const remove = async (kind) => {
+    setError(""); setBusy(`Removing the ${kind}…`);
+    try {
+      const r = await fetch(`/api/abm/${page.id}/assets/${kind}`, { method: "DELETE" });
+      if (!r.ok) await fail(r);
+      setPage(await r.json()); await refresh();
+    } catch (e) { setError(e.message); } finally { setBusy(""); }
+  };
+
   const patch = async (body) => {
     setError("");
     const r = await fetch(`/api/abm/${page.id}`, {
@@ -3828,22 +3837,42 @@ function AbmLandingPages() {
             Attachments — both required before you can submit
           </div>
           <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
-            <div style={{ flex: "1 1 240px" }}>
-              <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "5px" }}>
-                Logo — transparent PNG {page.assets?.logo && "✓"}
-              </div>
-              <input type="file" accept="image/png" style={{ fontSize: "12px" }}
-                onChange={e => upload("logo", e.target.files[0])} />
-            </div>
-            <div style={{ flex: "1 1 240px" }}>
-              <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "5px" }}>
-                Screenshot {page.assets?.screenshot && "✓"}
-              </div>
-              <input style={{ ...S.input, marginBottom: "6px" }} placeholder="URL it was taken from"
-                value={shotUrl} onChange={e => setShotUrl(e.target.value)} />
-              <input type="file" accept="image/png,image/jpeg" style={{ fontSize: "12px" }}
-                onChange={e => upload("screenshot", e.target.files[0])} />
-            </div>
+            {[
+              { kind: "logo", label: "Logo — transparent PNG", accept: "image/png" },
+              { kind: "screenshot", label: "Screenshot of a key workflow", accept: "image/png,image/jpeg" },
+            ].map(({ kind, label, accept }) => {
+              const ref = page.assets?.[kind];
+              return (
+                <div key={kind} style={{ flex: "1 1 260px" }}>
+                  <div style={{ fontSize: "12px", color: "#6b7280", marginBottom: "6px" }}>{label}</div>
+                  {kind === "screenshot" && (
+                    <input style={{ ...S.input, marginBottom: "6px" }} placeholder="URL it was taken from (required)"
+                      value={shotUrl} onChange={e => setShotUrl(e.target.value)} />
+                  )}
+                  {ref ? (
+                    // Showing what is actually on the page, rather than a tick. A tick
+                    // cannot tell you the file you meant to replace is still the old one.
+                    <div style={{ border: "1px solid #EBE6DF", borderRadius: "8px", padding: "8px",
+                      backgroundColor: "white", marginBottom: "6px" }}>
+                      <img src={`/api/abm/${page.id}/assets/${kind}?v=${page.updatedAt}`} alt=""
+                        style={{ display: "block", width: "100%", maxHeight: "110px",
+                          objectFit: "contain", background: kind === "logo" ? "#1A1330" : "white",
+                          borderRadius: "5px" }} />
+                      <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "6px" }}>
+                        {ref.width}×{ref.height} · {Math.round(ref.bytes / 1000)}KB
+                        {ref.sourceUrl ? ` · ${ref.sourceUrl}` : ""}
+                      </div>
+                      <button style={{ ...S.btnGhost, padding: "4px 9px", fontSize: "11px", marginTop: "6px" }}
+                        onClick={() => remove(kind)}>Remove</button>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: "12px", color: "#9ca3af", marginBottom: "6px" }}>Nothing attached yet</div>
+                  )}
+                  <input type="file" accept={accept} style={{ fontSize: "12px" }}
+                    onChange={e => { upload(kind, e.target.files[0]); e.target.value = ""; }} />
+                </div>
+              );
+            })}
           </div>
 
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "20px" }}>

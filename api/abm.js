@@ -129,6 +129,19 @@ export function createAbmRouter({
       res.json({ asset: ref, status: next.status });
     });
 
+  // Lets a rep clear an image rather than only overwrite it, so a wrong file can be taken
+  // off a page instead of lingering until something else replaces it.
+  router.delete("/:id/assets/:kind", async (req, res) => {
+    const user = requireUser(req);
+    const page = await load(req.params.id);
+    const kind = req.params.kind;
+    if (kind !== "logo" && kind !== "screenshot") throw new HttpError(400, "Unknown asset");
+    await store.putAsset(req.params.id, kind, null, null);
+    const assets = { ...(page.assets || {}), [kind]: null };
+    const next = applyEdit(page, { assets }, { user, now: Date.now() });
+    res.json(await save(req.params.id, next));
+  });
+
   router.get("/:id/assets/:kind", async (req, res) => {
     const asset = await store.getAsset(req.params.id, req.params.kind);
     if (!asset) throw new HttpError(404, "No such image");

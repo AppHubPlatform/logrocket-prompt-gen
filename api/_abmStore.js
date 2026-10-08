@@ -68,7 +68,9 @@ export function createMemoryStore({ file = null } = {}) {
 
     async putAsset(pageId, kind, bytes, contentType) {
       const object = `pages/${pageId}/${kind}`;
-      assets.set(`${pageId}/${kind}`, { bytes, contentType });
+      // Null bytes clears it, which is how an image is removed rather than replaced.
+      if (bytes == null) assets.delete(`${pageId}/${kind}`);
+      else assets.set(`${pageId}/${kind}`, { bytes, contentType });
       flush();
       return object;
     },
