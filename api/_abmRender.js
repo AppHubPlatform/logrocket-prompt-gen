@@ -20,6 +20,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => (
 ));
 
 import { TRUSTED_LOGOS, STATS, QUOTES, INDUSTRIES, RESOURCES, industryKey } from "./_abmChrome.js";
+import { aeNameFor, aePhotoFor, industryShot, productShotFor, quoteLogoFor } from "./_abmLibrary.js";
 
 const dataUri = (a) => a && a.bytes ? `data:${a.contentType};base64,${a.bytes.toString("base64")}` : "";
 
@@ -197,6 +198,9 @@ td{padding:9px 8px;border-top:1px solid var(--line)}
 .logo-tile:hover{opacity:1}
 .logo-tile svg{height:26px;width:auto;display:block}
 .ind-head{text-align:center;max-width:760px;margin:0 auto 30px}
+.ind-shot{max-width:660px;margin:0 auto 32px;background:#F5F2FA;border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)}
+.ind-shot img{width:100%;height:auto;display:block;border-radius:6px}
+.art-shot{display:block;width:100%;height:auto;max-height:260px;object-fit:cover;object-position:top;border-radius:10px;border:1px solid var(--line);margin-bottom:12px}
 .ind-bullets{list-style:none;margin:0 auto;padding:0;max-width:720px;display:flex;flex-direction:column;gap:12px}
 .ind-bullets li{font-size:15px;color:var(--ink-soft);line-height:1.6;display:flex;gap:10px}
 .ind-bullets li::before{content:"✓";color:var(--mint);font-weight:700;flex-shrink:0}
@@ -363,16 +367,24 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
           <div class="rp-foot"><span class="pill">Rage click</span><span>Illustrative &middot; ${acct}</span></div>
         </div>` : "";
 
+  const usedShots = new Set();
   const features = productFit.features.map((f, n) => {
     const bubbles = (f.examples || []).map(e => `
           <div class="bubble"><div class="q">${esc(e.label)}</div><div class="a">${esc(e.text)}</div></div>`).join("");
     const table = f.mockup ? `
-          <div class="art-card"><table>
+          <table>
             <thead><tr>${f.mockup.columns.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead>
             <tbody>${f.mockup.rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody>
-          </table></div>` : "";
+          </table>` : "";
     // First block gets the replay if there is one; the rest show their own examples.
-    const art = (n === 0 && replay) ? replay : (table || (bubbles ? `<div class="art-card">${bubbles}</div>` : ""));
+    // Every row but the replay one shows LogRocket itself: the screenshot for that
+    // capability, with the row's illustrative prompts or table under it.
+    const shot = (n === 0 && replay) ? "" : dataUri(productShotFor(f.label, f.headline, usedShots));
+    const shotTag = shot ? `<img class="art-shot" src="${shot}" alt="${esc(f.label)}"/>` : "";
+    const body = table || bubbles;
+    const art = (n === 0 && replay)
+      ? replay
+      : (shotTag || body) ? `<div class="art-card">${shotTag}${body}</div>` : "";
     const inline = (n === 0 && replay && bubbles) ? bubbles : "";
     return `
       <div class="feature-row reveal${n % 2 ? " rev" : ""}">
@@ -386,13 +398,16 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
       </div>`;
   }).join("");
 
-  const ae = String(preparedBy || "").split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  const ae = aeNameFor(preparedBy)
+    || String(preparedBy || "").split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, c => c.toUpperCase());
   const initials = (ae || "LR").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
   // Doubled so the marquee can loop seamlessly by translating exactly half its width.
   const tiles = [...TRUSTED_LOGOS, ...TRUSTED_LOGOS]
     .map(l => `<div class="logo-tile" title="${esc(l.name)}">${l.svg}</div>`).join("");
 
-  const aeImg = dataUri(aePhoto);
+  // Looked up from the shared headshot folder by the creator's address, so no rep has to
+  // upload their own photo. An explicitly passed one still wins.
+  const aeImg = dataUri(aePhoto || aePhotoFor(preparedBy));
   const avatar = (cls = "avatar") => aeImg
     ? `<span class="${cls}" style="background-image:url('${aeImg}')" aria-hidden="true"></span>`
     : `<span class="${cls}">${esc(initials)}</span>`;
@@ -404,6 +419,7 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
     <span class="eyebrow" style="color:var(--violet-600)">Industry expertise</span>
     <h2 style="font-size:clamp(25px,3.3vw,37px);margin-top:10px">${esc(ind.heading)}</h2>
   </div>
+  ${dataUri(industryShot(industryKey(industry))) ? `<div class="ind-shot reveal"><img src="${dataUri(industryShot(industryKey(industry)))}" alt="${esc(ind.label)}"/></div>` : ""}
   <ul class="ind-bullets reveal">${ind.bullets.map(b => `<li>${esc(b)}</li>`).join("")}</ul>
 </div></section>` : "";
 
@@ -414,8 +430,9 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
   const slides = QUOTES.map((q, n) => `
       <div class="pc-slide${n === 0 ? " on" : ""}">
         <p class="q">${esc(q.quote)}</p>
-        <div class="who">${q.logo ? `<img class="pc-logo" src="${q.logo}" alt="${esc(q.name)}"/>`
-                                  : `<span class="pc-word">${esc(q.name)}</span>`}</div>
+        <div class="who">${(q.logo || dataUri(quoteLogoFor(q.name)))
+          ? `<img class="pc-logo" src="${q.logo || dataUri(quoteLogoFor(q.name))}" alt="${esc(q.name)}"/>`
+          : `<span class="pc-word">${esc(q.name)}</span>`}</div>
       </div>`).join("");
 
   // Two case studies for the account's industry, then the evergreen resources. Without an

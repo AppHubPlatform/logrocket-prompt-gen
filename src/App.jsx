@@ -3850,7 +3850,6 @@ function AbmLandingPages() {
             {[
               { kind: "logo", label: "Logo — transparent PNG", accept: "image/png" },
               { kind: "screenshot", label: "Screenshot of a key workflow", accept: "image/png,image/jpeg" },
-              { kind: "aePhoto", label: "Your photo (optional — initials otherwise)", accept: "image/png,image/jpeg" },
             ].map(({ kind, label, accept }) => {
               const ref = page.assets?.[kind];
               return (

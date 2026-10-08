@@ -208,7 +208,6 @@ export function createAbmRouter({
       logo: await store.getAsset(req.params.id, "logo"),
       screenshot: shot ? { ...shot, sourceUrl: page.assets?.screenshot?.sourceUrl } : null,
       preparedBy: page.createdBy,
-      aePhoto: await store.getAsset(req.params.id, "aePhoto"),
       industry: pub.industry ?? page.industry,
     }));
   });
