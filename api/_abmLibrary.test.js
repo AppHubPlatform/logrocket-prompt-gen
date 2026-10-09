@@ -73,3 +73,31 @@ describe("product screenshots", () => {
     assert.equal(productShotFor("Session Replay"), null);
   });
 });
+
+describe("industry sections for education, hospitality and enterprise", async () => {
+  const { INDUSTRIES, industryKey } = await import("./_abmChrome.js");
+  const { industryShot } = await import("./_abmLibrary.js");
+
+  test("the app's picker options reach the right section", () => {
+    assert.equal(industryKey("Education"), "edtech");
+    assert.equal(industryKey("Travel & Hospitality"), "hospitality");
+    assert.equal(industryKey("Enterprise"), "digital-enterprises");
+    assert.equal(industryKey("Fintech"), "financial");
+    assert.equal(industryKey("E-commerce"), "retail");
+    assert.equal(industryKey("SaaS / Software"), "saas");
+  });
+
+  test("ordinary words in the skill's copy do not misfile a page", () => {
+    assert.equal(industryKey("Of course, machine learning helps the bank's enrollment flow"), "financial");
+    assert.equal(industryKey("We deliver a better booking-free checkout"), "retail");
+  });
+
+  test("each has copy, its image, and two real case studies", () => {
+    for (const k of ["edtech", "hospitality", "digital-enterprises"]) {
+      assert.equal(INDUSTRIES[k].bullets.length, 3);
+      assert.equal(INDUSTRIES[k].studies.length, 2);
+      for (const c of INDUSTRIES[k].studies) assert.match(c.url, /^https:\/\/logrocket\.com\/customers\//);
+      assert.ok(industryShot(k), k);
+    }
+  });
+});

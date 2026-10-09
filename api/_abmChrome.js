@@ -104,6 +104,45 @@ export const INDUSTRIES = {
       { tag: "Case study · Financial Services", title: "Tower Loan", desc: "How Tower Loan streamlined loan applications and improved fraud detection with session-level insight.", url: "https://logrocket.com/customers/towerloan" },
     ],
   },
+  edtech: {
+    label: "Education",
+    heading: "Supporting Today's Education Leaders",
+    bullets: [
+      "LogRocket supports education teams with visibility into every step of the learner journey, from enrollment and applications to coursework and assessments.",
+      "See where students, parents and educators get stuck in sign-up, payment and onboarding flows, and fix it before deadlines turn friction into drop-off.",
+      "Privacy controls mask student and family data in the browser, so teams get full context without exposing sensitive records.",
+    ],
+    studies: [
+      { tag: "Case study · Software", title: "Genially", desc: "How Genially gets complete context into user behavior during onboarding to improve the customer experience.", url: "https://logrocket.com/customers/genially" },
+      { tag: "Case study · Software", title: "Prefect", desc: "How Prefect used LogRocket to understand customer pain points and double its user activation score.", url: "https://logrocket.com/customers/prefect" },
+    ],
+  },
+  hospitality: {
+    label: "Hospitality & Food Service",
+    heading: "Supporting Today's Hospitality & Food Service Leaders",
+    bullets: [
+      "LogRocket supports restaurant, delivery and hospitality brands with visibility into the ordering, booking and loyalty flows guests rely on.",
+      "Catch failed orders, payment errors and menu or cart friction during peak hours, tied to the sessions and locations they affect.",
+      "Give support and engineering the same replay of a guest's experience, so issues are resolved in minutes rather than after a string of complaints.",
+    ],
+    studies: [
+      { tag: "Case study · Retail & eCommerce", title: "Rappi", desc: "How the on-demand delivery leader made LogRocket its single source of truth for performance issues affecting users.", url: "https://logrocket.com/customers/rappi" },
+      { tag: "Case study · Retail & eCommerce", title: "7-Eleven", desc: "How 7-Eleven optimized conversion in self-checkout by catching friction other tools couldn't see.", url: "https://logrocket.com/customers/7Eleven" },
+    ],
+  },
+  "digital-enterprises": {
+    label: "Digital Enterprises",
+    heading: "Supporting Today's Digital Enterprise Leaders",
+    bullets: [
+      "LogRocket supports large enterprises with a single view of digital experience across many products, brands and teams.",
+      "Enterprise-grade privacy, access controls and deployment options let global organizations capture what they need and nothing they shouldn't.",
+      "Galileo AI surfaces the highest-impact friction across millions of sessions, so teams prioritize the fixes that move the business.",
+    ],
+    studies: [
+      { tag: "Case study · Real Estate", title: "Cushman & Wakefield", desc: "How a global real estate services firm uses LogRocket to become a digital-first business.", url: "https://logrocket.com/customers/cushmanwakefield" },
+      { tag: "Case study · Automotive", title: "Cox Automotive", desc: "How Cox Automotive uses LogRocket Galileo to uncover hidden friction in its digital auction apps.", url: "https://logrocket.com/customers/coxauto" },
+    ],
+  },
   saas: {
     label: "SaaS",
     heading: "Supporting Today's SaaS Leaders",
@@ -142,7 +181,10 @@ export function industryKey(industry) {
   const s = String(industry || "").toLowerCase();
   if (/health|patient|medical|pharma/.test(s)) return "healthcare";
   if (/financ|bank|insur|fintech|payment|lend/.test(s)) return "financial";
-  if (/retail|commerce|shop|consumer|marketplace|travel|hospitality|checkout|\bcart\b|beauty|apparel|fashion|storefront/.test(s)) return "retail";
-  if (/saas|software|tech|platform|b2b|media|gaming|education/.test(s)) return "saas";
+  if (/educat|edtech|e-learning|online learning|\blearners?\b|school|universit|college|student|tutor|\bcourses\b/.test(s)) return "edtech";
+  if (/hospitality|travel|hotel|restaurant|\bfood|dining|beverage|food delivery|airline|resort|guest/.test(s)) return "hospitality";
+  if (/enterprise|real estate|automotive|telecom|consult|conglomerate|manufactur/.test(s)) return "digital-enterprises";
+  if (/retail|commerce|shop|consumer|marketplace|checkout|\bcart\b|beauty|apparel|fashion|storefront/.test(s)) return "retail";
+  if (/saas|software|tech|platform|b2b|media|gaming/.test(s)) return "saas";
   return null;
 }

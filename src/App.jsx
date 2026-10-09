@@ -1779,6 +1779,8 @@ const COMPETITORS = [
   "Microsoft Clarity", "Other",
 ];
 
+// The ABM picker adds Enterprise, which has its own industry section on the landing page.
+const ABM_INDUSTRIES = () => [...GUIDE_INDUSTRIES.filter(i => i !== "Other"), "Enterprise", "Other"];
 const GUIDE_INDUSTRIES = [
   "E-commerce", "SaaS / Software", "Fintech", "Healthcare", "Media & Entertainment",
   "Travel & Hospitality", "Marketplace", "Education", "Gaming", "Other",
@@ -3836,7 +3838,7 @@ function AbmLandingPages() {
               <select style={S.select} value={form.industry}
                 onChange={e => setForm(f => ({ ...f, industry: e.target.value }))}>
                 <option value="">Select industry…</option>
-                {GUIDE_INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+                {ABM_INDUSTRIES().map(i => <option key={i} value={i}>{i}</option>)}
               </select>
             </div>
             <button style={S.btnPrimary(!form.account.trim() || !!busy)}
@@ -3887,7 +3889,7 @@ function AbmLandingPages() {
               <select style={S.select} value={page.industry || ""}
                 onChange={e => patch({ industry: e.target.value })}>
                 <option value="">Work it out from the page</option>
-                {GUIDE_INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
+                {ABM_INDUSTRIES().map(i => <option key={i} value={i}>{i}</option>)}
               </select>
             </div>
           </div>
