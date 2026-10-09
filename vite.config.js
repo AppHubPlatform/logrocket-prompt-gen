@@ -6,6 +6,8 @@ import { fetchBrandLogos } from './api/_brandLogos.js'
 import { fetchSiteLogos } from './api/_siteLogos.js'
 import express from 'express'
 import { createAccountsRouter } from './api/accounts.js'
+import { createAbmRouter } from './api/abm.js'
+import { createMemoryStore } from './api/_abmStore.js'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
@@ -87,6 +89,32 @@ export default defineConfig(({ mode }) => {
             })
           }
           server.middlewares.use('/api/accounts', app)
+        },
+      },
+      {
+        // ABM landing pages. Backed by the in-memory store in dev so the whole flow can
+        // be driven without the Cloud SDK; production swaps in Firestore and the bucket.
+        // Remember this file is a SECOND COPY of the api routes, not a use of them.
+        name: 'dev-api-abm',
+        configureServer(server) {
+          const app = express()
+          app.use(createAbmRouter({
+            store: createMemoryStore({ file: '.abm-dev-store.json' }),
+            fallbackUser: process.env.ABM_DEV_USER || 'brooke@logrocket.com',
+            rogToken: env.VITE_ROG_TOKEN,
+            anthropicKey: env.VITE_ANTHROPIC_API_KEY,
+            // Read without the VITE_ prefix on purpose, so it never reaches the browser.
+            slackWebhookUrl: loadEnv(mode, process.cwd(), '').ABM_SLACK_WEBHOOK_URL,
+            appUrl: 'http://localhost:5173',
+          }))
+          server.middlewares.use('/api/abm', app)
+          // The public address, served locally the way explore will serve it.
+          server.middlewares.use('/abm', (req, res, next) => {
+            const slug = req.url.replace(/^\//, '').split(/[?#]/)[0]
+            if (!/^[a-z0-9]{16,}$/.test(slug)) return next()
+            req.url = `/live/${slug}`
+            app(req, res, next)
+          })
         },
       },
     ],

@@ -1,0 +1,314 @@
+// HTTP for ABM landing pages: generate, edit, submit, review, publish, take down.
+//
+// The lifecycle rules live in _abmPage.js and the storage behind a narrow interface in
+// _abmStore.js, so this file is only plumbing: identify the user, find the page, call a
+// transition, save what comes back.
+
+import crypto from "node:crypto";
+import express from "express";
+import { z } from "zod";
+
+import { fillPlaceholders, generateAbmContent } from "./_abmSkill.js";
+import { detectBrowserChrome, validateAePhoto, validateLogo, validateScreenshot } from "./_abmAssets.js";
+import { renderAbmPage } from "./_abmRender.js";
+import { notifyApprovers } from "./_abmNotify.js";
+import { optimizeLogo, optimizeScreenshot } from "./_abmImages.js";
+import { createMemoryStore, newId } from "./_abmStore.js";
+import { iapUserEmail } from "./_iapUser.js";
+import {
+  AbmPage, APPROVERS, applyEdit, approve, assertCanDelete, isApprover, newSlug,
+  publish, requestChanges, submitForApproval, toPublicPage, unpublish,
+} from "./_abmPage.js";
+
+class HttpError extends Error {
+  constructor(status, message) { super(message); this.status = status; }
+}
+
+const CreateInput = z.object({
+  account: z.string().min(1, "An account name is required"),
+  opportunityId: z.string().optional(),
+  persona: z.string().optional(),
+  initiativeFocus: z.string().optional(),
+  industry: z.string().optional(),
+});
+
+const ASSET_KINDS = ["logo", "screenshot", "aePhoto"];
+
+export function createAbmRouter({
+  store = createMemoryStore(),
+  fallbackUser = null,
+  rogToken = process.env.ROG_TOKEN || process.env.VITE_ROG_TOKEN,
+  anthropicKey = process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY,
+  generate = generateAbmContent,
+  slackWebhookUrl = process.env.ABM_SLACK_WEBHOOK_URL,
+  appUrl = process.env.ABM_APP_URL || "https://prompts.logrocket.com",
+  notify = notifyApprovers,
+} = {}) {
+  const router = express.Router();
+  router.use(express.json({ limit: "1mb" }));
+
+  function requireUser(req) {
+    const email = iapUserEmail(req) || fallbackUser;
+    if (!email) throw new HttpError(401, "Missing IAP identity");
+    return email;
+  }
+
+  async function load(id) {
+    const page = await store.get(id);
+    if (!page) throw new HttpError(404, "No such page");
+    return page;
+  }
+
+  // Every write goes through here, so this is the one place that can tell a page has just
+  // entered the approval queue, whether by Submit or by an edit to an approved page.
+  const save = async (id, page) => {
+    const before = await store.get(id);
+    const saved = await store.put(id, AbmPage.parse(page));
+    if (page.status === "pending" && before?.status !== "pending") {
+      // Not awaited: the rep should not wait on Slack.
+      notify({ ...page, id }, {
+        webhookUrl: slackWebhookUrl, appUrl, resubmitted: before?.status !== "draft",
+      });
+    }
+    return saved;
+  };
+
+  // Everything a rep needs to see, minus the raw Rog draft, which is long and only
+  // interesting when checking the page against what the skill actually said.
+  const summary = (page) => {
+    const copy = { ...page };
+    delete copy.draftMarkdown;
+    return copy;
+  };
+
+  router.get("/", async (_req, res) => {
+    res.json({ pages: (await store.list()).map(summary), approvers: APPROVERS });
+  });
+
+  router.get("/:id", async (req, res) => {
+    res.json(await load(req.params.id));
+  });
+
+  // Runs the skill. Slow by nature: Rog takes about a minute and the structuring pass
+  // another fifteen seconds, so the client is expected to wait rather than poll.
+  router.post("/", async (req, res) => {
+    const user = requireUser(req);
+    const input = CreateInput.parse(req.body);
+    if (!rogToken) throw new HttpError(503, "No Rog token is configured");
+    if (!anthropicKey) throw new HttpError(503, "No Anthropic key is configured");
+
+    const { draft, content, skill } = await generate(input, { rogToken, anthropicKey });
+    const id = newId();
+    const now = Date.now();
+    const page = {
+      slug: newSlug(crypto.randomBytes),
+      account: input.account,
+      opportunityId: input.opportunityId,
+      persona: input.persona,
+      initiativeFocus: input.initiativeFocus,
+      industry: input.industry,
+      status: "draft",
+      content,
+      heroChoice: 0,
+      draftMarkdown: draft,
+      skill,
+      // Filled by the upload endpoints; a page cannot be submitted without them.
+      assets: null,
+      createdBy: user, createdAt: now, updatedBy: user, updatedAt: now,
+    };
+    await store.put(id, page);
+    res.status(201).json({ ...page, id });
+  });
+
+  // Raw bytes rather than multipart, so there is no new dependency and no base64 round
+  // trip for an image that can run to several megabytes.
+  router.post("/:id/assets/:kind",
+    express.raw({ type: ["image/*", "application/octet-stream"], limit: "6mb" }),
+    async (req, res) => {
+      const user = requireUser(req);
+      const page = await load(req.params.id);
+      const kind = req.params.kind;
+      if (!ASSET_KINDS.includes(kind)) throw new HttpError(400, "Unknown asset");
+
+      const buf = req.body;
+      const result = kind === "logo" ? validateLogo(buf)
+        : kind === "aePhoto" ? validateAePhoto(buf)
+        : validateScreenshot(buf, { sourceUrl: req.query.sourceUrl });
+      if (!result.ok) return res.status(400).json({ errors: result.errors });
+
+      const object = await store.putAsset(req.params.id, kind, buf, req.get("content-type") || "image/png");
+      const ref = {
+        object, width: result.meta.width, height: result.meta.height, bytes: result.meta.bytes,
+        ...(result.meta.sourceUrl ? { sourceUrl: result.meta.sourceUrl } : {}),
+        // Whole-window captures carry the rep's tab bar and bookmarks; take them off.
+        ...(kind === "screenshot" ? { cropTop: detectBrowserChrome(buf) } : {}),
+      };
+      const assets = { ...(page.assets || {}), [kind]: ref };
+      // Replacing an image is a change the reader sees, so it goes through applyEdit and
+      // costs the approval like any other edit.
+      const next = page.assets
+        ? applyEdit(page, { assets }, { user, now: Date.now() })
+        : { ...page, assets, updatedBy: user, updatedAt: Date.now() };
+      await save(req.params.id, next);
+      res.json({ asset: ref, status: next.status });
+    });
+
+  // Lets a rep clear an image rather than only overwrite it, so a wrong file can be taken
+  // off a page instead of lingering until something else replaces it.
+  router.delete("/:id/assets/:kind", async (req, res) => {
+    const user = requireUser(req);
+    const page = await load(req.params.id);
+    const kind = req.params.kind;
+    if (!ASSET_KINDS.includes(kind)) throw new HttpError(400, "Unknown asset");
+    await store.putAsset(req.params.id, kind, null, null);
+    const assets = { ...(page.assets || {}), [kind]: null };
+    const next = applyEdit(page, { assets }, { user, now: Date.now() });
+    res.json(await save(req.params.id, next));
+  });
+
+  router.delete("/:id", async (req, res) => {
+    const user = requireUser(req);
+    const page = await load(req.params.id);
+    assertCanDelete(page, { user });
+    await store.remove(req.params.id);   // the page and every image uploaded to it
+    res.status(204).end();
+  });
+
+  // Fills the bracketed placeholders on a page generated before the fill pass existed,
+  // using the Rog draft it was made from. Cheaper than regenerating, and the rest of the
+  // page is untouched. Changes what the reader sees, so it costs the approval.
+  router.post("/:id/fill-examples", async (req, res) => {
+    const user = requireUser(req);
+    const page = await load(req.params.id);
+    if (!page.draftMarkdown) throw new HttpError(409, "This page has no Rog draft to work from");
+    const content = await fillPlaceholders(page.content, page.draftMarkdown, { apiKey: anthropicKey });
+    res.json(await save(req.params.id, applyEdit(page, { content }, { user, now: Date.now() })));
+  });
+
+  // Undo the automatic crop, or put it back. Changes what the reader sees, so it costs
+  // the approval like any other edit.
+  router.post("/:id/assets/screenshot/crop", async (req, res) => {
+    const user = requireUser(req);
+    const page = await load(req.params.id);
+    const ref = page.assets?.screenshot;
+    if (!ref) throw new HttpError(400, "No screenshot to crop");
+    let cropTop = 0;
+    if (req.body?.auto) {
+      const stored = await store.getAsset(req.params.id, "screenshot");
+      cropTop = stored ? detectBrowserChrome(stored.bytes) : 0;
+    }
+    const assets = { ...page.assets, screenshot: { ...ref, cropTop } };
+    res.json(await save(req.params.id, applyEdit(page, { assets }, { user, now: Date.now() })));
+  });
+
+  router.get("/:id/assets/:kind", async (req, res) => {
+    const asset = await store.getAsset(req.params.id, req.params.kind);
+    if (!asset) throw new HttpError(404, "No such image");
+    res.type(asset.contentType).send(asset.bytes);
+  });
+
+  const EditInput = z.object({
+    content: z.any().optional(),
+    heroChoice: z.number().int().min(0).max(2).optional(),
+    account: z.string().min(1).optional(),
+    opportunityId: z.string().optional(),
+    persona: z.string().optional(),
+    initiativeFocus: z.string().optional(),
+    industry: z.string().optional(),
+    // From the preview's edit mode: where the screenshot sits in its frame.
+    screenshotFocusY: z.number().min(0).max(100).optional(),
+  });
+
+  router.patch("/:id", async (req, res) => {
+    const user = requireUser(req);
+    const page = await load(req.params.id);
+    const { screenshotFocusY, ...patch } = EditInput.parse(req.body);
+    if (screenshotFocusY != null) {
+      if (!page.assets?.screenshot) throw new HttpError(400, "No screenshot to reposition");
+      patch.assets = { ...page.assets, screenshot: { ...page.assets.screenshot, focusY: screenshotFocusY } };
+    }
+    res.json(await save(req.params.id, applyEdit(page, patch, { user, now: Date.now() })));
+  });
+
+  const transition = (fn, extra = () => ({})) => async (req, res) => {
+    const user = requireUser(req);
+    const page = await load(req.params.id);
+    if (fn === submitForApproval && !page.assets?.logo) {
+      throw new HttpError(400, "Upload the account's logo before submitting");
+    }
+    if (fn === submitForApproval && !page.assets?.screenshot) {
+      throw new HttpError(400, "Upload a screenshot before submitting");
+    }
+    const next = fn(page, { user, now: Date.now(), ...extra(req) });
+    res.json(await save(req.params.id, next));
+  };
+
+  router.post("/:id/submit", transition(submitForApproval));
+  router.post("/:id/approve", transition(approve));
+  router.post("/:id/request-changes", transition(requestChanges, req => ({ note: req.body?.note })));
+  router.post("/:id/publish", transition(publish));
+  router.post("/:id/unpublish", transition(unpublish));
+
+  router.get("/:id/can-approve", async (req, res) => {
+    res.json({ canApprove: isApprover(requireUser(req)) });
+  });
+
+  // The rendered page, exactly as it will be written to the bucket. Serving it from here
+  // too is what lets the whole flow be driven locally without the public service.
+  router.get("/:id/preview", async (req, res) => {
+    const page = await load(req.params.id);
+    // The editor works on the working copy even when an older approved version is live.
+    const pub = (!req.query.edit && toPublicPage(page)) || toPublicPage({ ...page, status: "published", live: {
+      content: page.content, heroChoice: page.heroChoice, assets: page.assets, industry: page.industry,
+      approvedBy: "", approvedAt: 0, publishedBy: "", publishedAt: 0,
+    } });
+    if (!pub) throw new HttpError(409, "Nothing to preview yet");
+    // Only pass an image that exists. Both are shrunk for the page, and the screenshot's
+    // browser bar is cut off before it is embedded rather than hidden afterwards.
+    const shot = await store.getAsset(req.params.id, "screenshot");
+    const ref = page.assets?.screenshot;
+    const small = shot ? await optimizeScreenshot(shot, { cropTop: ref?.cropTop || 0 }) : null;
+    res.type("html").send(renderAbmPage(pub, {
+      logo: await optimizeLogo(await store.getAsset(req.params.id, "logo")),
+      screenshot: small ? { ...small, sourceUrl: ref?.sourceUrl, cropTop: 0, focusY: ref?.focusY } : null,
+      preparedBy: page.createdBy,
+      industry: pub.industry ?? page.industry,
+      // ?edit=1 turns the preview into the editor. Always the working copy, never live.
+      edit: req.query.edit ? {
+        id: req.params.id, content: page.content, heroChoice: page.heroChoice,
+        focusY: ref?.focusY ?? null, status: page.status,
+      } : null,
+    }));
+  });
+
+  // What a prospect gets at /abm/<slug>: the approved live snapshot only, never the
+  // working copy, and nothing at all once the page is unpublished. In production the
+  // explore service serves the same HTML from the bucket; this is the local stand-in.
+  router.get("/live/:slug", async (req, res) => {
+    const page = await store.getBySlug(req.params.slug);
+    const pub = page && toPublicPage(page);
+    if (!pub) return res.status(404).type("text").send("This page is not available.");
+    const shot = await store.getAsset(page.id, "screenshot");
+    const ref = page.live.assets.screenshot;
+    const small = shot ? await optimizeScreenshot(shot, { cropTop: ref?.cropTop || 0 }) : null;
+    res.set("X-Robots-Tag", "noindex, nofollow").type("html").send(renderAbmPage(pub, {
+      logo: await optimizeLogo(await store.getAsset(page.id, "logo")),
+      screenshot: small ? { ...small, sourceUrl: ref?.sourceUrl, cropTop: 0, focusY: ref?.focusY } : null,
+      preparedBy: page.createdBy,
+      industry: pub.industry,
+    }));
+  });
+
+  router.use((err, _req, res, next) => {
+    if (res.headersSent) return next(err);
+    if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
+    if (err?.status && err?.message) return res.status(err.status).json({ error: err.message });
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({ error: err.issues[0]?.message || "Invalid input", issues: err.issues });
+    }
+    console.error("abm api error", err);
+    res.status(500).json({ error: err?.message || "Internal error" });
+  });
+
+  return router;
+}

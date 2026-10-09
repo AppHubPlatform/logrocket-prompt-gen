@@ -32,3 +32,8 @@ output "explore_domain_mapping_dns_records" {
   description = "DNS records to create in Cloudflare (DNS-only / grey cloud) for explore.logrocket.com."
   value       = google_cloud_run_domain_mapping.explore.status[0].resource_records
 }
+
+output "abm_bucket" {
+  description = "Bucket published ABM landing pages are rendered into. Private; reached only through the explore service."
+  value       = google_storage_bucket.abm_pages.name
+}
