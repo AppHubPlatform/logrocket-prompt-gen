@@ -68,6 +68,7 @@ nav{position:sticky;top:0;z-index:40;background:rgba(21,11,51,.86);backdrop-filt
 .nav-links{display:flex;gap:20px;margin-left:10px;flex:1}
 .nav-links a{font-size:13.5px;color:rgba(244,241,252,.72);text-decoration:none;padding:6px 0;border-bottom:2px solid transparent}
 .nav-links a:hover{color:var(--on-dark);border-color:var(--violet-400)}
+.nav-links a.on{color:var(--on-dark);border-color:var(--violet-400)}
 nav .btn{padding:9px 18px;font-size:13px}
 
 .hero{position:relative;overflow:hidden;color:var(--on-dark);padding:64px 0 76px;
@@ -237,6 +238,22 @@ footer.site{padding:34px 0;text-align:center;font-size:12px;color:var(--ink-fain
 `;
 
 const SCRIPT = `
+// Highlights the section being read in the top bar: the last linked section whose top has
+// passed just under the bar. Sections without a link (industry, proof, resources) keep the
+// one above them lit, and the closing card lights Next step once the page bottoms out.
+(function(){
+  var links = [].slice.call(document.querySelectorAll('.nav-links a'));
+  var targets = links.map(function (a) { return document.querySelector(a.getAttribute('href')); });
+  function spy() {
+    var line = window.scrollY + 90, on = 0;
+    targets.forEach(function (t, i) { if (t && t.getBoundingClientRect().top + window.scrollY <= line) on = i; });
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) on = links.length - 1;
+    links.forEach(function (a, i) { a.classList.toggle('on', i === on); });
+  }
+  window.addEventListener('scroll', spy, { passive: true });
+  window.addEventListener('resize', spy);
+  spy();
+})();
 (function(){
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // Reveal on scroll, and start the little charts when they come into view.
