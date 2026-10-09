@@ -3855,6 +3855,15 @@ function AbmLandingPages() {
               ? "Live. Editing anything the reader sees sends it back for approval, and the live page keeps serving the approved version until it is republished."
               : "Editing anything the reader sees costs the approval."}
           </div>
+          {/* Which run of Greg's skill made this, so a page that comes out wrong can be
+              traced to a skill edit. Pages made before tracking began have no record. */}
+          <div style={{ fontSize: "11.5px", color: "#9ca3af", margin: "-8px 0 14px" }}>
+            {page.skill
+              ? <>Made with {page.skill.name}{" "}
+                  {page.skill.version != null ? `v${page.skill.version}` : "(version not visible to the app)"}
+                  {" · "}{new Date(page.skill.generatedAt).toLocaleString()}</>
+              : "Made before skill tracking began"}
+          </div>
           {page.reviewNote && (
             <div style={{ fontSize: "13px", color: "#A16A07", backgroundColor: "#FAEACB",
               borderRadius: "8px", padding: "10px 12px", marginBottom: "14px" }}>

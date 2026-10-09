@@ -380,12 +380,42 @@ export async function fillPlaceholders(content, draft, {
 
 export const hasPlaceholders = (content) => collect(content).length > 0;
 
+export const SKILL_NAME = "abm-landing-page";
+
+// Which version of the skill produced a page, so a page that comes out wrong can be traced
+// to a skill edit. Rog serves skills at /api/skills/<name>, but the service token the app
+// holds is refused there (401), and Rog's own agent cannot see versions either: asked
+// three times, it reported that loading a skill returns only its name and instructions.
+// So this tries, records the version when it is allowed to, and records null otherwise;
+// a token granted that scope later starts filling it in with no code change. Never fails
+// the generation either way.
+export async function fetchSkillVersion({ token, fetchImpl = fetch } = {}) {
+  if (!token) return null;
+  try {
+    const res = await fetchImpl(`https://rog.logrocket.com/api/skills/${SKILL_NAME}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    const v = Number(d?.version);
+    if (!Number.isInteger(v)) return null;
+    return { version: v, savedAt: d.savedAt || null, savedBy: d.savedBy || null };
+  } catch {
+    return null;
+  }
+}
+
 // The whole job: run the skill, structure the answer, hand back both. The draft is kept
 // alongside the structured form so a page can be checked against what the skill actually
 // said, and re-structured later without paying for another Rog run.
 export async function generateAbmContent(input, deps = {}) {
   const question = buildSkillRequest(input);
-  const draft = await askRog(question, { token: deps.rogToken, fetchImpl: deps.fetchImpl });
+  const generatedAt = Date.now();
+  // In parallel with the run itself, so recording it costs nothing in time.
+  const [draft, version] = await Promise.all([
+    askRog(question, { token: deps.rogToken, fetchImpl: deps.fetchImpl }),
+    fetchSkillVersion({ token: deps.rogToken, fetchImpl: deps.fetchImpl }),
+  ]);
   const structured = await structureAbmContent(draft, {
     apiKey: deps.anthropicKey,
     fetchImpl: deps.fetchImpl,
@@ -394,5 +424,10 @@ export async function generateAbmContent(input, deps = {}) {
     apiKey: deps.anthropicKey,
     fetchImpl: deps.fetchImpl,
   });
-  return { draft, content };
+  return {
+    draft,
+    content,
+    skill: { name: SKILL_NAME, generatedAt, version: version?.version ?? null,
+      savedAt: version?.savedAt ?? null, savedBy: version?.savedBy ?? null },
+  };
 }

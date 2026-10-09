@@ -55,6 +55,15 @@ export const AbmPage = z.object({
     aePhoto: AssetRef.nullish(),
   }).nullish(),
   draftMarkdown: z.string().optional(),
+  // Which run of the skill made this page. version is null until the app's Rog token is
+  // allowed to read skills; generatedAt still pins it to the skill's save history.
+  skill: z.object({
+    name: z.string(),
+    generatedAt: z.number(),
+    version: z.number().int().nullable(),
+    savedAt: z.string().nullable(),
+    savedBy: z.string().nullable(),
+  }).optional(),
   // The snapshot currently served from the bucket. Null whenever nothing is live.
   live: z.object({
     content: AbmContent,

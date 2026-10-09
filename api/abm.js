@@ -80,7 +80,7 @@ export function createAbmRouter({
     if (!rogToken) throw new HttpError(503, "No Rog token is configured");
     if (!anthropicKey) throw new HttpError(503, "No Anthropic key is configured");
 
-    const { draft, content } = await generate(input, { rogToken, anthropicKey });
+    const { draft, content, skill } = await generate(input, { rogToken, anthropicKey });
     const id = newId();
     const now = Date.now();
     const page = {
@@ -94,6 +94,7 @@ export function createAbmRouter({
       content,
       heroChoice: 0,
       draftMarkdown: draft,
+      skill,
       // Filled by the upload endpoints; a page cannot be submitted without them.
       assets: null,
       createdBy: user, createdAt: now, updatedBy: user, updatedAt: now,

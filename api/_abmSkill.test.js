@@ -234,29 +234,55 @@ describe("structureAbmContent", () => {
 });
 
 describe("generateAbmContent", () => {
+  // A stand-in for Rog: answers the skill run, and answers the skills endpoint with
+  // whatever the test says the token is allowed.
+  const rog = (skillsReply) => async (url, opts) => {
+    const u = String(url);
+    if (u.includes("/api/skills/")) return skillsReply();
+    if (u.includes("rog.logrocket.com")) {
+      const body = JSON.parse(opts.body);
+      // The account name must survive as one value, spaces and all.
+      assert.match(body.question, /^account_name: Quantum Metric$/m);
+      return { ok: true, json: async () => ({ answer: DRAFT }) };
+    }
+    return anthropicReply(VALID);
+  };
+  const input = { account: "Quantum Metric", persona: "VP of Product" };
+
   test("runs the skill then structures it, keeping the draft", async () => {
-    const seen = [];
-    const out = await generateAbmContent(
-      { account: "Quantum Metric", persona: "VP of Product" },
-      {
-        rogToken: "t",
-        anthropicKey: "k",
-        fetchImpl: async (url, opts) => {
-          seen.push(url);
-          if (String(url).includes("rog.logrocket.com")) {
-            const body = JSON.parse(opts.body);
-            // The account name must survive as one value, spaces and all.
-            assert.match(body.question, /^account_name: Quantum Metric$/m);
-            return { ok: true, json: async () => ({ answer: DRAFT }) };
-          }
-          return anthropicReply(VALID);
-        },
-      },
-    );
+    const out = await generateAbmContent(input, {
+      rogToken: "t", anthropicKey: "k", fetchImpl: rog(() => ({ ok: false, status: 401 })),
+    });
     assert.equal(out.draft, DRAFT);
     assert.equal(out.content.heroOptions.length, 3);
-    assert.ok(seen[0].includes("rog.logrocket.com"));
-    assert.ok(seen[1].includes("api.anthropic.com"));
+  });
+
+  test("records the skill and when it ran, with the version unknown while the token is refused", async () => {
+    const before = Date.now();
+    const out = await generateAbmContent(input, {
+      rogToken: "t", anthropicKey: "k", fetchImpl: rog(() => ({ ok: false, status: 401 })),
+    });
+    assert.equal(out.skill.name, "abm-landing-page");
+    assert.equal(out.skill.version, null);
+    assert.ok(out.skill.generatedAt >= before);
+  });
+
+  test("records the version once the token is allowed to read it", async () => {
+    const out = await generateAbmContent(input, {
+      rogToken: "t", anthropicKey: "k",
+      fetchImpl: rog(() => ({ ok: true, json: async () => ({
+        version: 3, savedAt: "2026-09-29T19:42:17.156Z", savedBy: "gregallen@logrocket.com" }) })),
+    });
+    assert.equal(out.skill.version, 3);
+    assert.equal(out.skill.savedBy, "gregallen@logrocket.com");
+  });
+
+  test("a broken skills endpoint never fails the page", async () => {
+    const out = await generateAbmContent(input, {
+      rogToken: "t", anthropicKey: "k", fetchImpl: rog(() => { throw new Error("network down"); }),
+    });
+    assert.equal(out.skill.version, null);
+    assert.equal(out.content.heroOptions.length, 3);
   });
 });
 
