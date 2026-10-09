@@ -23,6 +23,7 @@
     "logrocket-react": "^7.0.1",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "sharp": "^0.34.5",
     "zod": "^4.6.5"
   },
   "devDependencies": {

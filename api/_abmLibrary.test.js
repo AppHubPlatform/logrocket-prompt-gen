@@ -6,7 +6,7 @@ import { aeNameFor, aePhotoFor, industryShot, productShotFor, quoteLogoFor } fro
 
 const PRODUCT = "api/abm-assets/product";
 const which = (a) => a
-  ? fs.readdirSync(PRODUCT).find(f => fs.readFileSync(`${PRODUCT}/${f}`).equals(a.bytes))
+  ? fs.readdirSync(PRODUCT).find(f => fs.readFileSync(`${PRODUCT}/${f}`).equals(a.bytes))?.replace(".webp", ".png")
   : null;
 
 describe("rep headshots", () => {

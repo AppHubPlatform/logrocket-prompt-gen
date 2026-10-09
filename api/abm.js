@@ -11,6 +11,7 @@ import { z } from "zod";
 import { fillPlaceholders, generateAbmContent } from "./_abmSkill.js";
 import { detectBrowserChrome, validateAePhoto, validateLogo, validateScreenshot } from "./_abmAssets.js";
 import { renderAbmPage } from "./_abmRender.js";
+import { optimizeLogo, optimizeScreenshot } from "./_abmImages.js";
 import { createMemoryStore, newId } from "./_abmStore.js";
 import { iapUserEmail } from "./_iapUser.js";
 import {
@@ -239,17 +240,14 @@ export function createAbmRouter({
       approvedBy: "", approvedAt: 0, publishedBy: "", publishedAt: 0,
     } });
     if (!pub) throw new HttpError(409, "Nothing to preview yet");
-    // Only pass an image that exists. Spreading a missing one produced an object with no
-    // bytes, which is truthy, so the renderer tried to encode undefined.
+    // Only pass an image that exists. Both are shrunk for the page, and the screenshot's
+    // browser bar is cut off before it is embedded rather than hidden afterwards.
     const shot = await store.getAsset(req.params.id, "screenshot");
+    const ref = page.assets?.screenshot;
+    const small = shot ? await optimizeScreenshot(shot, { cropTop: ref?.cropTop || 0 }) : null;
     res.type("html").send(renderAbmPage(pub, {
-      logo: await store.getAsset(req.params.id, "logo"),
-      screenshot: shot ? {
-        ...shot,
-        sourceUrl: page.assets?.screenshot?.sourceUrl,
-        cropTop: page.assets?.screenshot?.cropTop || 0,
-        width: page.assets?.screenshot?.width,
-      } : null,
+      logo: await optimizeLogo(await store.getAsset(req.params.id, "logo")),
+      screenshot: small ? { ...small, sourceUrl: ref?.sourceUrl, cropTop: 0 } : null,
       preparedBy: page.createdBy,
       industry: pub.industry ?? page.industry,
     }));

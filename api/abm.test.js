@@ -73,7 +73,7 @@ describe("deleting a page over HTTP", () => {
     await call("POST", `/${p.id}/assets/logo`, fs.readFileSync("public/brand-logos/arhaus.png"), "image/png");
     // A wide plain PNG stands in for the screenshot.
     await call("POST", `/${p.id}/assets/screenshot?sourceUrl=https://acme.test/checkout`,
-      fs.readFileSync("api/abm-assets/product/dashboards.png"), "image/png");
+      fs.readFileSync("public/brand-logos/arhaus.png"), "image/png");
     await call("POST", `/${p.id}/submit`);
     user = "brooke@logrocket.com";
     await call("POST", `/${p.id}/approve`);

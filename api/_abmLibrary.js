@@ -11,7 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "abm-assets");
-const TYPES = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".svg": "image/svg+xml" };
+const TYPES = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".svg": "image/svg+xml", ".webp": "image/webp" };
 
 const cache = new Map();
 function load(rel) {
@@ -57,21 +57,21 @@ export function aeNameFor(email) {
 
 // Keyed the same way INDUSTRIES is in _abmChrome.js.
 export function industryShot(key) {
-  return key ? load(`industry/${key}.png`) : null;
+  return key ? load(`industry/${key}.webp`) : null;
 }
 
 // First match wins, so the specific capabilities sit above the general ones. "Analytics"
 // alone would pull the dashboard shot onto "Surveys & Feedback Analytics", and "Galileo"
 // would pull the chat shot onto "Galileo AI: Heatmaps", so dashboards and Galileo are last.
 const PRODUCT = [
-  [/alert/i, "alerts.png"],
-  [/feedback|survey|voice of|voc/i, "feedback.png"],
-  [/heatmap|click map|scroll/i, "heatmaps.png"],
-  [/release|deploy|recap/i, "release-recaps.png"],
-  [/issue|error|root cause|triage|bug/i, "issues.png"],
-  [/backend|frontend|network|console|context/i, "issues.png"],
-  [/dashboard|analytics|metric|kpi/i, "dashboards.png"],
-  [/galileo|\bai\b|ask|insight|stream/i, "ask-galileo.png"],
+  [/alert/i, "alerts.webp"],
+  [/feedback|survey|voice of|voc/i, "feedback.webp"],
+  [/heatmap|click map|scroll/i, "heatmaps.webp"],
+  [/release|deploy|recap/i, "release-recaps.webp"],
+  [/issue|error|root cause|triage|bug/i, "issues.webp"],
+  [/backend|frontend|network|console|context/i, "issues.webp"],
+  [/dashboard|analytics|metric|kpi/i, "dashboards.webp"],
+  [/galileo|\bai\b|ask|insight|stream/i, "ask-galileo.webp"],
 ];
 
 // The row's label decides first, and its headline only when the label matches nothing.
@@ -96,5 +96,5 @@ export function productShotFor(label, headline = "", used = null) {
 
 // Quote logos the template carried as text, now that the real mark exists.
 export function quoteLogoFor(name) {
-  return flat(name) === "speedwaymotors" ? load("quotes/speedway-motors.jpg") : null;
+  return flat(name) === "speedwaymotors" ? load("quotes/speedway-motors.webp") : null;
 }
