@@ -265,6 +265,24 @@ export function createAbmRouter({
     }));
   });
 
+  // What a prospect gets at /abm/<slug>: the approved live snapshot only, never the
+  // working copy, and nothing at all once the page is unpublished. In production the
+  // explore service serves the same HTML from the bucket; this is the local stand-in.
+  router.get("/live/:slug", async (req, res) => {
+    const page = await store.getBySlug(req.params.slug);
+    const pub = page && toPublicPage(page);
+    if (!pub) return res.status(404).type("text").send("This page is not available.");
+    const shot = await store.getAsset(page.id, "screenshot");
+    const ref = page.live.assets.screenshot;
+    const small = shot ? await optimizeScreenshot(shot, { cropTop: ref?.cropTop || 0 }) : null;
+    res.set("X-Robots-Tag", "noindex, nofollow").type("html").send(renderAbmPage(pub, {
+      logo: await optimizeLogo(await store.getAsset(page.id, "logo")),
+      screenshot: small ? { ...small, sourceUrl: ref?.sourceUrl, cropTop: 0, focusY: ref?.focusY } : null,
+      preparedBy: page.createdBy,
+      industry: pub.industry,
+    }));
+  });
+
   router.use((err, _req, res, next) => {
     if (res.headersSent) return next(err);
     if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });

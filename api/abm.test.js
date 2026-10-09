@@ -141,3 +141,23 @@ describe("editing on the page", () => {
     assert.equal(page.content.whyNow.thesis, "A better thesis");
   });
 });
+
+describe("the public address", () => {
+  test("serves the live snapshot by slug, and nothing before publish or after unpublish", async () => {
+    user = "ae@logrocket.com";
+    const p = await create();
+    const png = fs.readFileSync("public/brand-logos/arhaus.png");
+    await call("POST", `/${p.id}/assets/logo`, png, "image/png");
+    await call("POST", `/${p.id}/assets/screenshot?sourceUrl=https://acme.test/checkout`, png, "image/png");
+    await call("POST", `/${p.id}/submit`);
+    user = "brooke@logrocket.com";
+    await call("POST", `/${p.id}/approve`);
+    assert.equal((await call("GET", `/live/${p.slug}`)).status, 404, "approved is not yet live");
+    await call("POST", `/${p.id}/publish`);
+    const r = await call("GET", `/live/${p.slug}`);
+    assert.equal(r.status, 200);
+    assert.ok((await r.text()).includes("One"));
+    await call("POST", `/${p.id}/unpublish`);
+    assert.equal((await call("GET", `/live/${p.slug}`)).status, 404);
+  });
+});

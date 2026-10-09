@@ -105,6 +105,13 @@ export default defineConfig(({ mode }) => {
             anthropicKey: env.VITE_ANTHROPIC_API_KEY,
           }))
           server.middlewares.use('/api/abm', app)
+          // The public address, served locally the way explore will serve it.
+          server.middlewares.use('/abm', (req, res, next) => {
+            const slug = req.url.replace(/^\//, '').split(/[?#]/)[0]
+            if (!/^[a-z0-9]{16,}$/.test(slug)) return next()
+            req.url = `/live/${slug}`
+            app(req, res, next)
+          })
         },
       },
     ],

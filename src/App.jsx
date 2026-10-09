@@ -4002,11 +4002,12 @@ function AbmLandingPages() {
             )}
           </div>
 
-          {page.status === "published" && (
+          {page.live && (
             <div style={{ marginTop: "16px", fontSize: "13px", color: "#4A2FA0",
               backgroundColor: "#F0ECFB", borderRadius: "8px", padding: "10px 12px" }}>
-              Live at <code>explore.logrocket.com/abm/{page.slug}</code> once the explore route ships.
-              Preview above is the same HTML.
+              Live locally at{" "}
+              <a href={`/abm/${page.slug}`} target="_blank" rel="noreferrer">/abm/{page.slug}</a>.
+              It will be at <code>explore.logrocket.com/abm/{page.slug}</code> once publishing to explore is built.
             </div>
           )}
         </div>
