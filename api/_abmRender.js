@@ -41,6 +41,7 @@ const CSS = `
   --shadow:0 24px 60px -20px rgba(21,11,51,.35);
 }
 *{box-sizing:border-box}
+html{scroll-padding-top:64px}
 body{margin:0;background:var(--paper);color:var(--ink);overflow-x:hidden;
   font:16px/1.6 "Public Sans",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
 h1,h2,h3{font-family:Sora,system-ui,sans-serif;letter-spacing:-.01em;margin:0;text-wrap:balance}
@@ -145,7 +146,7 @@ nav .btn{padding:9px 18px;font-size:13px}
 .ic-helps li::before{content:"";flex-shrink:0;margin-top:6px;width:7px;height:7px;border-radius:50%;background:var(--violet-500)}
 
 .fit{background:var(--paper-2)}
-.feature-row{display:grid;grid-template-columns:1fr 1fr;gap:52px;align-items:start;padding:30px 0}
+.feature-row{display:grid;grid-template-columns:1fr 1fr;gap:52px;align-items:center;padding:30px 0}
 .feature-row.rev .art{order:1}.feature-row.rev .cop{order:2}
 .feature-row .eyebrow{color:var(--violet-600);margin-bottom:10px}
 .feature-row h3{font-size:25px;margin-bottom:12px}
@@ -463,12 +464,12 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
   ${logoImg ? `<span class="nav-chip"><img src="${logoImg}" alt="${acct}"/></span>`
             : `<span class="nav-acct">${acct}</span>`}
   <span class="nav-links">
-    <a href="#why-now">Why now</a><a href="#fit">Product fit</a><a href="#next">Next step</a>
+    <a href="#overview">Overview</a><a href="#why-now">Why now</a><a href="#fit">Product fit</a><a href="#next">Next step</a>
   </span>
   <a class="btn btn-solid" href="#next">Book a working session</a>
 </div></nav>
 
-<header class="hero"><canvas id="sky" aria-hidden="true"></canvas>
+<header class="hero" id="overview"><canvas id="sky" aria-hidden="true"></canvas>
   <div class="wrap hero-inner">
     <div>
       <div class="hero-eyebrow eyebrow"><span class="hero-dot"></span>Prepared for ${acct}</div>
