@@ -66,11 +66,6 @@ export function buildSkillRequest({ account, opportunityId, persona, initiativeF
   lines.push(
     ``,
     `Treat each label above as one value, including any spaces in it.`,
-    `In the illustrative examples (prompts, answers, streams, alerts, feedback themes and data`,
-    `mockups), do not leave bracketed placeholders like [metric] or [X]%. Fill each one with a`,
-    `concrete value in this account's own terms, drawn from what you know about them: their real`,
-    `funnel steps, pages, products, segments and teams, with plausible illustrative numbers. These`,
-    `stay illustrative demonstrations and must never be presented as measured results.`,
     `Return only the four blocks the skill specifies, with no preamble or commentary.`,
   );
   return lines.join("\n");
@@ -416,11 +411,10 @@ export async function generateAbmContent(input, deps = {}) {
     askRog(question, { token: deps.rogToken, fetchImpl: deps.fetchImpl }),
     fetchSkillVersion({ token: deps.rogToken, fetchImpl: deps.fetchImpl }),
   ]);
-  const structured = await structureAbmContent(draft, {
-    apiKey: deps.anthropicKey,
-    fetchImpl: deps.fetchImpl,
-  });
-  const content = await fillPlaceholders(structured, draft, {
+  // The page no longer shows the skill's illustrative examples, so their placeholders are
+  // left as the skill wrote them rather than filled. fillPlaceholders stays available if
+  // the examples come back.
+  const content = await structureAbmContent(draft, {
     apiKey: deps.anthropicKey,
     fetchImpl: deps.fetchImpl,
   });

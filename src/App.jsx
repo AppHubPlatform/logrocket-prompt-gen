@@ -3769,15 +3769,6 @@ function AbmLandingPages() {
     } catch (e) { setError(e.message); } finally { setBusy(""); }
   };
 
-  const fillExamples = async () => {
-    setError(""); setBusy("Filling the illustrative examples from what Rog knows about the account…");
-    try {
-      const r = await fetch(`/api/abm/${page.id}/fill-examples`, { method: "POST" });
-      if (!r.ok) await fail(r);
-      setPage(await r.json()); await refresh();
-    } catch (e) { setError(e.message); } finally { setBusy(""); }
-  };
-
   const patch = async (body) => {
     setError("");
     const r = await fetch(`/api/abm/${page.id}`, {
@@ -3882,11 +3873,6 @@ function AbmLandingPages() {
                 {GUIDE_INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
               </select>
             </div>
-            {JSON.stringify(page.content.productFit).match(/\[[^\]\n]{1,60}\]/) && (
-              <button style={S.btnGhost} disabled={!!busy} onClick={fillExamples}>
-                Fill illustrative examples
-              </button>
-            )}
           </div>
 
           <div style={{ fontSize: "12px", fontWeight: 600, color: "#374151", margin: "4px 0 8px" }}>

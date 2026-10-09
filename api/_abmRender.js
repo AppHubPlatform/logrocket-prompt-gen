@@ -133,10 +133,6 @@ nav .btn{padding:9px 18px;font-size:13px}
   .reveal{opacity:0;transform:translateY(16px);transition:opacity .55s ease,transform .55s ease}
   .reveal.in{opacity:1;transform:none}
 }
-.thesis{background:var(--paper-2);border:1px solid var(--paper-3);border-left:4px solid var(--violet-500);
-  border-radius:14px;padding:20px 26px;max-width:860px;margin-bottom:32px}
-.thesis .tag{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;color:var(--violet-600);font-weight:700}
-.thesis p{font-size:19px;line-height:1.45;font-weight:600;margin:8px 0 0}
 .init-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));gap:16px}
 .init-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px 20px;display:flex;flex-direction:column;gap:12px}
 .init-icon{width:34px;height:34px;border-radius:10px;background:var(--paper-3);display:grid;place-items:center;color:var(--violet-600)}
@@ -155,10 +151,6 @@ nav .btn{padding:9px 18px;font-size:13px}
 .feature-row h3{font-size:25px;margin-bottom:12px}
 .feature-row p{color:var(--ink-soft);font-size:15.5px;line-height:1.65;margin:0 0 16px}
 .art-card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow)}
-.bubble{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px 15px;margin-bottom:10px}
-.bubble .q{font-size:11px;font-family:"IBM Plex Mono",monospace;font-weight:600;color:var(--violet-600);
-  letter-spacing:.06em;text-transform:uppercase}
-.bubble .a{font-size:13.5px;color:var(--ink);margin-top:6px;line-height:1.5}
 table{width:100%;border-collapse:collapse;font-size:13.5px}
 th{text-align:left;font-size:11px;color:var(--ink-faint);font-weight:600;padding:0 8px 9px}
 td{padding:9px 8px;border-top:1px solid var(--line)}
@@ -194,7 +186,7 @@ td{padding:9px 8px;border-top:1px solid var(--line)}
 .ind-head{text-align:center;max-width:760px;margin:0 auto 30px}
 .ind-shot{max-width:660px;margin:0 auto 32px;background:#F5F2FA;border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)}
 .ind-shot img{width:100%;height:auto;display:block;border-radius:6px}
-.art-shot{display:block;width:100%;height:auto;max-height:260px;object-fit:cover;object-position:top;border-radius:10px;border:1px solid var(--line);margin-bottom:12px}
+.art-shot{display:block;width:100%;height:auto;border-radius:10px;border:1px solid var(--line)}
 .ind-bullets{list-style:none;margin:0 auto;padding:0;max-width:720px;display:flex;flex-direction:column;gap:12px}
 .ind-bullets li{font-size:15px;color:var(--ink-soft);line-height:1.6;display:flex;gap:10px}
 .ind-bullets li::before{content:"✓";color:var(--mint);font-weight:700;flex-shrink:0}
@@ -382,33 +374,21 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
   ];
 
   const usedShots = new Set();
+  // Each row is its copy beside a picture: the rep's site for Session Replay, the
+  // LogRocket screen for everything else. The skill's illustrative prompts, answers and
+  // data tables are not shown; they stay in the stored content, so this is reversible.
   const features = rows.map((f, n) => {
-    const bubbles = (f.examples || []).map(e => `
-          <div class="bubble"><div class="q">${esc(e.label)}</div><div class="a">${esc(e.text)}</div></div>`).join("");
-    const table = f.mockup ? `
-          <table>
-            <thead><tr>${f.mockup.columns.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead>
-            <tbody>${f.mockup.rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody>
-          </table>` : "";
-    let art;
-    if (f.art) {
-      art = f.art;
-    } else {
-      // The LogRocket screen for this capability, with its prompts or table under it.
+    let art = f.art || "";
+    if (!art) {
       const shot = dataUri(productShotFor(f.label, f.headline, usedShots));
-      const shotTag = shot ? `<img class="art-shot" src="${shot}" alt="${esc(f.label)}"/>` : "";
-      const body = table || bubbles;
-      art = (shotTag || body) ? `<div class="art-card">${shotTag}${body}</div>` : "";
+      art = shot ? `<div class="art-card"><img class="art-shot" src="${shot}" alt="${esc(f.label)}"/></div>` : "";
     }
-    // A row whose art is the replay keeps its prompts beside the copy instead.
-    const inline = f.art && bubbles ? bubbles : "";
     return `
       <div class="feature-row reveal${n % 2 ? " rev" : ""}">
         <div class="cop">
           <div class="eyebrow">${esc(f.label)}</div>
           <h3>${esc(f.headline)}</h3>
           <p>${esc(f.description)}</p>
-          ${inline}
         </div>
         <div class="art">${art}</div>
       </div>`;
@@ -528,7 +508,6 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
     <span class="eyebrow" style="color:var(--violet-600)">Why now</span>
     <h2>${esc(whyNow.headline)}</h2>
   </div>
-  <div class="thesis reveal"><div class="tag">THE THREAD</div><p>${esc(whyNow.thesis)}</p></div>
   <div class="init-grid">${cards}</div>
 </div></section>
 
