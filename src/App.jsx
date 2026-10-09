@@ -3691,6 +3691,18 @@ function AbmLandingPages() {
     })();
     return () => { alive = false; };
   }, [pageId]);
+  // Edits made on the page itself happen in another tab; pick them up on the way back.
+  useEffect(() => {
+    if (!pageId) return undefined;
+    const onFocus = async () => {
+      const r = await fetch(`/api/abm/${pageId}`);
+      if (r.ok) { const p = await r.json(); setPage({ ...p, id: pageId }); }
+      const l = await fetch("/api/abm");
+      if (l.ok) setPages((await l.json()).pages);
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [pageId]);
 
   const fail = async (r) => {
     const d = await r.json().catch(() => ({}));
@@ -3946,6 +3958,10 @@ function AbmLandingPages() {
             <a href={`/api/abm/${page.id}/preview`} target="_blank" rel="noreferrer"
               style={{ ...S.btnGhost, textDecoration: "none", display: "inline-block" }}>
               ↗ Preview the page
+            </a>
+            <a href={`/api/abm/${page.id}/preview?edit=1`} target="_blank" rel="noreferrer"
+              style={{ ...S.btnGhost, textDecoration: "none", display: "inline-block" }}>
+              ✎ Edit on the page
             </a>
             {page.status === "draft" && (
               <button style={S.btnPrimary(!!busy)} disabled={!!busy}

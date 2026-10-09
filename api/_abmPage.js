@@ -31,6 +31,9 @@ export const AssetRef = z.object({
   // Pixels at the top that are the browser rather than the site. The original is kept
   // and cropped at render time, so the crop can be undone.
   cropTop: z.number().int().min(0).optional(),
+  // Where the screenshot sits in its frame, 0 (top) to 100 (bottom), set by dragging it
+  // in the preview's edit mode. Absent means the frame shows the top, as before.
+  focusY: z.number().min(0).max(100).optional(),
 });
 
 export const AbmPage = z.object({

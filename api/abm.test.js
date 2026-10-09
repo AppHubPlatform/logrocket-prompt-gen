@@ -91,3 +91,53 @@ describe("deleting a page over HTTP", () => {
     assert.equal((await call("DELETE", "/nope")).status, 404);
   });
 });
+
+describe("editing on the page", () => {
+  const withImages = async () => {
+    user = "ae@logrocket.com";
+    const p = await create();
+    const png = fs.readFileSync("public/brand-logos/arhaus.png");
+    await call("POST", `/${p.id}/assets/logo`, png, "image/png");
+    await call("POST", `/${p.id}/assets/screenshot?sourceUrl=https://acme.test/checkout`, png, "image/png");
+    return p;
+  };
+
+  test("the edit preview tags the copy with where it is stored", async () => {
+    const p = await withImages();
+    const html = await (await call("GET", `/${p.id}/preview?edit=1`)).text();
+    for (const path of ["heroOptions.0", "whyNow.thesis", "issueExamples.1", "whyNow.initiatives.1.helps.0",
+      "productFit.headline", "productFit.features.0.headline"]) {
+      assert.ok(html.includes(`data-edit="${path}"`), path);
+    }
+    assert.ok(html.includes('id="abm-ed"'));
+  });
+
+  test("the ordinary preview carries no editor", async () => {
+    const p = await withImages();
+    const html = await (await call("GET", `/${p.id}/preview`)).text();
+    assert.ok(!html.includes("data-edit"));
+    assert.ok(!html.includes("abm-ed"));
+  });
+
+  test("a saved reposition is stored and rendered", async () => {
+    const p = await withImages();
+    const r = await call("PATCH", `/${p.id}`, { screenshotFocusY: 40 });
+    assert.equal((await r.json()).assets.screenshot.focusY, 40);
+    const html = await (await call("GET", `/${p.id}/preview`)).text();
+    assert.ok(html.includes("object-position:50% 40%"));
+  });
+
+  test("editing an approved page costs the approval", async () => {
+    const p = await withImages();
+    await call("POST", `/${p.id}/submit`);
+    user = "brooke@logrocket.com";
+    await call("POST", `/${p.id}/approve`);
+    user = "ae@logrocket.com";
+    const content = structuredClone(CONTENT);
+    content.whyNow.thesis = "A better thesis";
+    const page = await (await call("PATCH", `/${p.id}`, { content, screenshotFocusY: 10 })).json();
+    assert.equal(page.status, "pending");
+    assert.equal(page.approvedBy, null);
+    assert.equal(page.content.whyNow.thesis, "A better thesis");
+  });
+});

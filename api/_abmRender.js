@@ -160,6 +160,7 @@ td{padding:9px 8px;border-top:1px solid var(--line)}
 .rp{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
 .rp-site{position:relative;max-height:320px;overflow:hidden}
 .rp-site img{display:block;width:100%;height:auto}
+.rp-site img.fit{height:320px;object-fit:cover}
 .rp-cursor{position:absolute;left:44%;top:46%;width:18px;height:18px;border-radius:50%;
   background:rgba(250,204,21,.55);box-shadow:0 0 0 6px rgba(250,204,21,.18);animation:tap 3.4s ease-in-out infinite}
 @keyframes tap{0%,100%{transform:translate(0,0) scale(1)}35%{transform:translate(-26px,16px) scale(1)}
@@ -309,7 +310,10 @@ function miniCharts() {
     </div>`;
 }
 
-export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, industry } = {}) {
+export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, industry, edit = null } = {}) {
+  // In edit mode every piece of the skill's copy is tagged with where it lives in the
+  // stored content, so the editor script can write changes back to the same place.
+  const ed = (path) => edit ? ` data-edit="${path}"` : "";
   const { account, hero, issueExamples, whyNow, productFit } = pub;
   const acct = esc(account);
   const logoImg = dataUri(logo);
@@ -327,18 +331,18 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
     ? `<span class="mark"><img src="${logoImg}" alt="${acct}"/></span>`
     : `<span class="mark"><span class="txt">${acct}</span></span>`;
 
-  const issues = issueExamples.map(i => `
-      <div class="issue-row"><div class="issue-flag">!</div><div class="t">${esc(i)}</div></div>`).join("");
+  const issues = issueExamples.map((i, n) => `
+      <div class="issue-row"><div class="issue-flag">!</div><div class="t"${ed(`issueExamples.${n}`)}>${esc(i)}</div></div>`).join("");
 
   const cards = whyNow.initiatives.map((i, n) => `
       <div class="init-card reveal">
         <div class="init-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[n % ICONS.length]}</svg></div>
-        <h3>${esc(i.title)}</h3>
-        <p class="statement">${esc(i.description)}</p>
+        <h3${ed(`whyNow.initiatives.${n}.title`)}>${esc(i.title)}</h3>
+        <p class="statement"${ed(`whyNow.initiatives.${n}.description`)}>${esc(i.description)}</p>
         <ul class="ic-helps">
           <div class="ic-label">How LogRocket helps</div>
-          ${i.helps.map(h => `<li>${esc(h)}</li>`).join("")}
+          ${i.helps.map((h, k) => `<li${ed(`whyNow.initiatives.${n}.helps.${k}`)}>${esc(h)}</li>`).join("")}
         </ul>
       </div>`).join("");
 
@@ -351,7 +355,9 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
   const lift = screenshot?.cropTop && screenshot?.width ? (screenshot.cropTop / screenshot.width) * 100 : 0;
   const replay = shotImg ? `
         <div class="rp">
-          <div class="rp-site"><img src="${shotImg}" alt="${acct}" style="margin-top:-${lift.toFixed(3)}%"/><span class="rp-cursor"></span></div>
+          <div class="rp-site">${screenshot?.focusY != null || edit
+            ? `<img class="fit" src="${shotImg}" alt="${acct}" data-focus style="object-position:50% ${screenshot?.focusY ?? 0}%"/>`
+            : `<img src="${shotImg}" alt="${acct}" style="margin-top:-${lift.toFixed(3)}%"/>`}<span class="rp-cursor"></span></div>
           <div class="rp-foot"><span class="tag">Session replay</span><span class="pill">Rage click</span>
             <span>Illustrative &middot; ${esc(shotUrl.replace(/^https?:\/\//, "").replace(/\?.*$/, "") || account)}</span></div>
         </div>` : "";
@@ -361,6 +367,7 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
   // claims nothing about the account. Every other block follows in the skill's order.
   const isReplay = (f) => /replay|session/i.test(f.label);
   const skillReplay = productFit.features.find(isReplay);
+  const at = (f) => productFit.features.indexOf(f);
   const replayRow = replay ? {
     label: "Session Replay",
     headline: skillReplay?.headline || `See exactly what ${account}'s customers experienced.`,
@@ -368,6 +375,7 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
     examples: skillReplay?.examples || [],
     mockup: null,
     art: replay,
+    src: skillReplay,
   } : null;
   const rows = [
     ...(replayRow ? [replayRow] : []),
@@ -384,12 +392,15 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
       const shot = dataUri(productShotFor(f.label, f.headline, usedShots));
       art = shot ? `<div class="art-card"><img class="art-shot" src="${shot}" alt="${esc(f.label)}"/></div>` : "";
     }
+    // The stand-in Session Replay copy is not in the stored content, so it is not editable.
+    const i = at(f.src || f);
+    const fe = (k) => i >= 0 ? ed(`productFit.features.${i}.${k}`) : "";
     return `
       <div class="feature-row reveal${n % 2 ? " rev" : ""}">
         <div class="cop">
-          <div class="eyebrow">${esc(f.label)}</div>
-          <h3>${esc(f.headline)}</h3>
-          <p>${esc(f.description)}</p>
+          <div class="eyebrow"${fe("label")}>${esc(f.label)}</div>
+          <h3${fe("headline")}>${esc(f.headline)}</h3>
+          <p${fe("description")}>${esc(f.description)}</p>
         </div>
         <div class="art">${art}</div>
       </div>`;
@@ -473,8 +484,8 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
   <div class="wrap hero-inner">
     <div>
       <div class="hero-eyebrow eyebrow"><span class="hero-dot"></span>Prepared for ${acct}</div>
-      <h1>${headline}</h1>
-      <p class="lede">${esc(whyNow.thesis)}</p>
+      <h1${edit ? ed(`heroOptions.${edit.heroChoice}`) : ""}>${edit ? esc(hero) : headline}</h1>
+      <p class="lede"${ed("whyNow.thesis")}>${esc(whyNow.thesis)}</p>
       <div class="hero-ctas">
         <a class="btn btn-solid" href="#next">Book a working session</a>
         <a class="btn btn-outline" href="#why-now">See what&rsquo;s at stake</a>
@@ -507,7 +518,7 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
 <section class="section" id="why-now"><div class="wrap">
   <div class="section-head reveal">
     <span class="eyebrow" style="color:var(--violet-600)">Why now</span>
-    <h2>${esc(whyNow.headline)}</h2>
+    <h2${ed("whyNow.headline")}>${esc(whyNow.headline)}</h2>
   </div>
   <div class="init-grid">${cards}</div>
 </div></section>
@@ -515,7 +526,7 @@ export function renderAbmPage(pub, { logo, screenshot, preparedBy, aePhoto, indu
 <section class="section fit" id="fit"><div class="wrap">
   <div class="section-head reveal">
     <span class="eyebrow" style="color:var(--violet-600)">Product fit</span>
-    <h2>${esc(productFit.headline)}</h2>
+    <h2${ed("productFit.headline")}>${esc(productFit.headline)}</h2>
   </div>
   ${features}
 </div></section>
@@ -561,6 +572,102 @@ ${industrySection}
 </div></section>
 
 <footer class="site">Prepared exclusively for ${acct} &middot; Confidential &middot; LogRocket</footer>
-<script>${SCRIPT}</script>
+<script>${SCRIPT}</script>${edit ? editorBar(edit) : ""}
 </body></html>`;
+}
+
+// The editing toolbar, injected only into the internal preview. Never part of a
+// published page: the public renderer is called without `edit`.
+function editorBar({ id, content, focusY, status }) {
+  const json = JSON.stringify({ id, content, focusY, status }).replace(/</g, "\\u003c");
+  return `
+<style>
+#abm-ed{position:fixed;top:0;left:0;right:0;z-index:1000;display:flex;gap:10px;align-items:center;
+  padding:9px 16px;background:#1a1033;color:#fff;font:500 13px "Public Sans",sans-serif;box-shadow:0 2px 12px rgba(0,0,0,.3)}
+#abm-ed .msg{flex:1;opacity:.85}
+#abm-ed button{font:600 13px "Public Sans",sans-serif;border-radius:7px;padding:7px 13px;cursor:pointer;border:1px solid #8b6cf0;background:transparent;color:#fff}
+#abm-ed button.primary{background:#6D3FD1;border-color:#6D3FD1}
+#abm-ed button:disabled{opacity:.45;cursor:default}
+body.abm-editing nav{top:46px}
+body.abm-editing{padding-top:46px}
+[data-edit]{outline:1px dashed rgba(109,63,209,.45);outline-offset:3px;border-radius:3px;cursor:text}
+[data-edit]:focus{outline:2px solid #6D3FD1;background:rgba(109,63,209,.06)}
+[data-edit].dirty{outline-color:#f59e0b}
+img[data-focus]{cursor:ns-resize;outline:2px dashed #f59e0b;outline-offset:-2px}
+.abm-hint{position:absolute;left:10px;top:10px;z-index:2;background:rgba(26,16,51,.85);color:#fff;font:600 11px "Public Sans",sans-serif;padding:4px 8px;border-radius:5px;pointer-events:none}
+.reveal{opacity:1!important;transform:none!important}
+</style>
+<div id="abm-ed"><span class="msg">Editing. Click any outlined text to change it; drag the website screenshot up or down to reposition it.</span>
+  <button id="abm-save" disabled>Save changes</button><button id="abm-submit" class="primary">Save and submit for approval</button></div>
+<script type="application/json" id="abm-ed-data">${json}</script>
+<script>
+(function () {
+  var data = JSON.parse(document.getElementById("abm-ed-data").textContent);
+  var focusY = data.focusY == null ? 0 : data.focusY, focusDirty = false;
+  var bar = document.getElementById("abm-ed"), msg = bar.querySelector(".msg");
+  var saveBtn = document.getElementById("abm-save"), submitBtn = document.getElementById("abm-submit");
+  document.body.classList.add("abm-editing");
+  if (data.status !== "draft") submitBtn.textContent = "Save (needs re-approval)";
+  function dirty() { saveBtn.disabled = false; }
+  document.querySelectorAll("[data-edit]").forEach(function (el) {
+    el.setAttribute("contenteditable", "plaintext-only");
+    el.addEventListener("input", function () { el.classList.add("dirty"); dirty(); });
+    el.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); el.blur(); } });
+    // Links inside editable text should not navigate while editing.
+    el.addEventListener("click", function (e) { e.preventDefault(); });
+  });
+  var img = document.querySelector("img[data-focus]");
+  if (img) {
+    var hint = document.createElement("span"); hint.className = "abm-hint"; hint.textContent = "Drag to reposition";
+    img.parentNode.appendChild(hint);
+    var startY = null, startF = 0;
+    img.addEventListener("pointerdown", function (e) { startY = e.clientY; startF = focusY; img.setPointerCapture(e.pointerId); e.preventDefault(); });
+    img.addEventListener("pointermove", function (e) {
+      if (startY == null) return;
+      // Dragging the picture down shows more of its top, so the focus moves the other way.
+      var span = Math.max(1, img.naturalHeight * (img.clientWidth / img.naturalWidth) - img.clientHeight);
+      focusY = Math.max(0, Math.min(100, startF - (e.clientY - startY) / span * 100));
+      img.style.objectPosition = "50% " + focusY.toFixed(1) + "%";
+      focusDirty = true; dirty();
+    });
+    img.addEventListener("pointerup", function () { startY = null; });
+  }
+  function set(obj, path, value) {
+    var keys = path.split("."), o = obj;
+    for (var i = 0; i < keys.length - 1; i++) o = o[keys[i]];
+    o[keys[keys.length - 1]] = value;
+  }
+  function collect() {
+    var content = JSON.parse(JSON.stringify(data.content));
+    document.querySelectorAll("[data-edit]").forEach(function (el) {
+      set(content, el.getAttribute("data-edit"), el.innerText.replace(/\\s+/g, " ").trim());
+    });
+    var body = { content: content };
+    if (focusDirty) body.screenshotFocusY = Math.round(focusY * 10) / 10;
+    return body;
+  }
+  function call(method, url, body) {
+    return fetch(url, { method: method, headers: { "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || r.statusText); return j; }); });
+  }
+  function save(andSubmit) {
+    saveBtn.disabled = submitBtn.disabled = true; msg.textContent = "Saving...";
+    var base = "/api/abm/" + encodeURIComponent(data.id);
+    call("PATCH", base, collect()).then(function (page) {
+      data.content = page.content; data.status = page.status; focusDirty = false;
+      document.querySelectorAll(".dirty").forEach(function (el) { el.classList.remove("dirty"); });
+      if (andSubmit && page.status === "draft") return call("POST", base + "/submit").then(function () { return "pending"; });
+      return page.status;
+    }).then(function (status) {
+      msg.textContent = status === "pending" ? "Saved and waiting for approval from Brooke or Greg."
+        : "Saved. Submit it for approval when it is ready.";
+      submitBtn.disabled = false;
+    }).catch(function (e) { msg.textContent = "Not saved: " + e.message; saveBtn.disabled = submitBtn.disabled = false; });
+  }
+  saveBtn.addEventListener("click", function () { save(false); });
+  submitBtn.addEventListener("click", function () { save(true); });
+  window.addEventListener("beforeunload", function (e) { if (!saveBtn.disabled) { e.preventDefault(); e.returnValue = ""; } });
+})();
+</script>`;
 }

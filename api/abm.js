@@ -199,12 +199,18 @@ export function createAbmRouter({
     persona: z.string().optional(),
     initiativeFocus: z.string().optional(),
     industry: z.string().optional(),
+    // From the preview's edit mode: where the screenshot sits in its frame.
+    screenshotFocusY: z.number().min(0).max(100).optional(),
   });
 
   router.patch("/:id", async (req, res) => {
     const user = requireUser(req);
     const page = await load(req.params.id);
-    const patch = EditInput.parse(req.body);
+    const { screenshotFocusY, ...patch } = EditInput.parse(req.body);
+    if (screenshotFocusY != null) {
+      if (!page.assets?.screenshot) throw new HttpError(400, "No screenshot to reposition");
+      patch.assets = { ...page.assets, screenshot: { ...page.assets.screenshot, focusY: screenshotFocusY } };
+    }
     res.json(await save(req.params.id, applyEdit(page, patch, { user, now: Date.now() })));
   });
 
@@ -235,7 +241,8 @@ export function createAbmRouter({
   // too is what lets the whole flow be driven locally without the public service.
   router.get("/:id/preview", async (req, res) => {
     const page = await load(req.params.id);
-    const pub = toPublicPage(page) || toPublicPage({ ...page, status: "published", live: {
+    // The editor works on the working copy even when an older approved version is live.
+    const pub = (!req.query.edit && toPublicPage(page)) || toPublicPage({ ...page, status: "published", live: {
       content: page.content, heroChoice: page.heroChoice, assets: page.assets, industry: page.industry,
       approvedBy: "", approvedAt: 0, publishedBy: "", publishedAt: 0,
     } });
@@ -247,9 +254,14 @@ export function createAbmRouter({
     const small = shot ? await optimizeScreenshot(shot, { cropTop: ref?.cropTop || 0 }) : null;
     res.type("html").send(renderAbmPage(pub, {
       logo: await optimizeLogo(await store.getAsset(req.params.id, "logo")),
-      screenshot: small ? { ...small, sourceUrl: ref?.sourceUrl, cropTop: 0 } : null,
+      screenshot: small ? { ...small, sourceUrl: ref?.sourceUrl, cropTop: 0, focusY: ref?.focusY } : null,
       preparedBy: page.createdBy,
       industry: pub.industry ?? page.industry,
+      // ?edit=1 turns the preview into the editor. Always the working copy, never live.
+      edit: req.query.edit ? {
+        id: req.params.id, content: page.content, heroChoice: page.heroChoice,
+        focusY: ref?.focusY ?? null, status: page.status,
+      } : null,
     }));
   });
 
