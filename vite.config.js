@@ -103,6 +103,9 @@ export default defineConfig(({ mode }) => {
             fallbackUser: process.env.ABM_DEV_USER || 'brooke@logrocket.com',
             rogToken: env.VITE_ROG_TOKEN,
             anthropicKey: env.VITE_ANTHROPIC_API_KEY,
+            // Read without the VITE_ prefix on purpose, so it never reaches the browser.
+            slackWebhookUrl: loadEnv(mode, process.cwd(), '').ABM_SLACK_WEBHOOK_URL,
+            appUrl: 'http://localhost:5173',
           }))
           server.middlewares.use('/api/abm', app)
           // The public address, served locally the way explore will serve it.

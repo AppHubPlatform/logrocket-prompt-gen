@@ -11,6 +11,7 @@ import { z } from "zod";
 import { fillPlaceholders, generateAbmContent } from "./_abmSkill.js";
 import { detectBrowserChrome, validateAePhoto, validateLogo, validateScreenshot } from "./_abmAssets.js";
 import { renderAbmPage } from "./_abmRender.js";
+import { notifyApprovers } from "./_abmNotify.js";
 import { optimizeLogo, optimizeScreenshot } from "./_abmImages.js";
 import { createMemoryStore, newId } from "./_abmStore.js";
 import { iapUserEmail } from "./_iapUser.js";
@@ -39,6 +40,9 @@ export function createAbmRouter({
   rogToken = process.env.ROG_TOKEN || process.env.VITE_ROG_TOKEN,
   anthropicKey = process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY,
   generate = generateAbmContent,
+  slackWebhookUrl = process.env.ABM_SLACK_WEBHOOK_URL,
+  appUrl = process.env.ABM_APP_URL || "https://prompts.logrocket.com",
+  notify = notifyApprovers,
 } = {}) {
   const router = express.Router();
   router.use(express.json({ limit: "1mb" }));
@@ -55,7 +59,19 @@ export function createAbmRouter({
     return page;
   }
 
-  const save = async (id, page) => store.put(id, AbmPage.parse(page));
+  // Every write goes through here, so this is the one place that can tell a page has just
+  // entered the approval queue, whether by Submit or by an edit to an approved page.
+  const save = async (id, page) => {
+    const before = await store.get(id);
+    const saved = await store.put(id, AbmPage.parse(page));
+    if (page.status === "pending" && before?.status !== "pending") {
+      // Not awaited: the rep should not wait on Slack.
+      notify({ ...page, id }, {
+        webhookUrl: slackWebhookUrl, appUrl, resubmitted: before?.status !== "draft",
+      });
+    }
+    return saved;
+  };
 
   // Everything a rep needs to see, minus the raw Rog draft, which is long and only
   // interesting when checking the page against what the skill actually said.
@@ -133,7 +149,7 @@ export function createAbmRouter({
       const next = page.assets
         ? applyEdit(page, { assets }, { user, now: Date.now() })
         : { ...page, assets, updatedBy: user, updatedAt: Date.now() };
-      await store.put(req.params.id, next);
+      await save(req.params.id, next);
       res.json({ asset: ref, status: next.status });
     });
 

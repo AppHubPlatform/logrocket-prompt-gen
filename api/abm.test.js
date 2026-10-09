@@ -161,3 +161,52 @@ describe("the public address", () => {
     assert.equal((await call("GET", `/live/${p.slug}`)).status, 404);
   });
 });
+
+describe("the Slack alert to approvers", async () => {
+  const { approvalMessage, notifyApprovers } = await import("./_abmNotify.js");
+
+  test("mentions Brooke and Greg and links to the page", () => {
+    const m = approvalMessage({ id: "p1", account: "Acme <Bank>", createdBy: "ae@logrocket.com" }, { appUrl: "https://app" });
+    assert.ok(m.text.includes("<@UKG6CR7JT>") && m.text.includes("<@USASPR86A>"));
+    assert.ok(m.text.includes("Acme &lt;Bank&gt;"), "account names cannot inject Slack markup");
+    assert.ok(JSON.stringify(m).includes("https://app/api/abm/p1/preview"));
+    assert.ok(JSON.stringify(m).includes("https://app/?page=abm&id=p1"));
+  });
+
+  test("does nothing without a webhook, and never throws", async () => {
+    assert.equal(await notifyApprovers({ id: "x" }, { webhookUrl: "" }), false);
+    const boom = async () => { throw new Error("down"); };
+    assert.equal(await notifyApprovers({ id: "x" }, { webhookUrl: "https://hook", fetchImpl: boom }), false);
+  });
+
+  test("fires once on submit, and again when an approved page is edited", async () => {
+    const sent = [];
+    const s = createMemoryStore();
+    const app = express();
+    app.use((req, _res, next) => { req.headers["x-goog-authenticated-user-email"] = `accounts.google.com:${user}`; next(); });
+    app.use("/a", createAbmRouter({ store: s, rogToken: "t", anthropicKey: "k", slackWebhookUrl: "https://hook",
+      notify: (page, opts) => sent.push({ id: page.id, resubmitted: opts.resubmitted }),
+      generate: async () => ({ draft: "d", content: structuredClone(CONTENT) }) }));
+    const srv = await new Promise(r => { const x = app.listen(0, () => r(x)); });
+    const b = `http://127.0.0.1:${srv.address().port}/a`;
+    const j = (m, p, body) => fetch(b + p, { method: m, headers: { "Content-Type": "application/json" }, body: body && JSON.stringify(body) });
+    try {
+      user = "ae@logrocket.com";
+      const p = await (await j("POST", "", { account: "Acme" })).json();
+      const png = fs.readFileSync("public/brand-logos/arhaus.png");
+      for (const k of ["logo", "screenshot"]) {
+        await fetch(`${b}/${p.id}/assets/${k}?sourceUrl=https://acme.test`, { method: "POST", headers: { "Content-Type": "image/png" }, body: png });
+      }
+      assert.equal(sent.length, 0, "drafting and uploading are quiet");
+      await j("POST", `/${p.id}/submit`);
+      assert.deepEqual(sent, [{ id: p.id, resubmitted: false }]);
+      await j("PATCH", `/${p.id}`, { heroChoice: 1 });
+      assert.equal(sent.length, 1, "editing while already pending does not alert again");
+      user = "brooke@logrocket.com";
+      await j("POST", `/${p.id}/approve`);
+      user = "ae@logrocket.com";
+      await j("PATCH", `/${p.id}`, { heroChoice: 2 });
+      assert.deepEqual(sent[1], { id: p.id, resubmitted: true });
+    } finally { srv.close(); }
+  });
+});

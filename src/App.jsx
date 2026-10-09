@@ -3679,6 +3679,11 @@ function AbmLandingPages() {
     (async () => {
       const r = await fetch("/api/abm");
       if (alive && r.ok) setPages((await r.json()).pages);
+      const linked = new URLSearchParams(window.location.search).get("id");
+      if (linked) {
+        const one = await fetch(`/api/abm/${encodeURIComponent(linked)}`);
+        if (alive && one.ok) setPage({ ...(await one.json()), id: linked });
+      }
     })();
     return () => { alive = false; };
   }, []);
@@ -4044,7 +4049,11 @@ const PAGES = [
 ];
 
 export default function App() {
-  const [page, setPage] = useState("prompts");
+  // ?page=abm&id=… opens a particular landing page, which is where the Slack alert links.
+  const [page, setPage] = useState(() => {
+    const p = new URLSearchParams(window.location.search).get("page");
+    return PAGES.some(x => x.key === p) ? p : "prompts";
+  });
   const [userEmail, setUserEmail] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
 
