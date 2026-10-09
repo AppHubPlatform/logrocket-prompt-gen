@@ -135,7 +135,13 @@ nav .btn{padding:9px 18px;font-size:13px}
   .reveal.in{opacity:1;transform:none}
 }
 .init-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));gap:16px}
+/* Each card spans four shared rows (icon, title, description, helps), so the divider and
+   "How LogRocket helps" sit at the same height in every column however long the copy. */
 .init-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px 20px;display:flex;flex-direction:column;gap:12px}
+@supports (grid-template-rows:subgrid){
+  .init-card{display:grid;grid-row:span 4;grid-template-rows:subgrid;row-gap:12px;align-content:start}
+  .init-card .ic-helps{margin:0}
+}
 .init-icon{width:34px;height:34px;border-radius:10px;background:var(--paper-3);display:grid;place-items:center;color:var(--violet-600)}
 .init-card h3{font-size:15.5px;font-weight:700}
 .init-card .statement{font-size:14px;color:var(--ink-soft);line-height:1.55;margin:0}
