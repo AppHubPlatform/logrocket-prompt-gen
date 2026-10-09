@@ -116,6 +116,20 @@ nav .btn{padding:9px 18px;font-size:13px}
 .mini.in .lc-line{stroke-dashoffset:0}
 .bc-bar{transform-origin:bottom;transform:scaleY(0);transition:transform .6s cubic-bezier(.2,.8,.3,1)}
 .mini.in .bc-bar{transform:scaleY(1)}
+/* Hover read-outs, as on the LendingTree page: a dot, crosshair and bubble on the line,
+   a lit bar and bubble on the bars. Both play through their points until hovered. */
+.mini{position:relative}
+.mini svg{cursor:crosshair}
+.mini .hit{fill:transparent}
+.lc-dot,.lc-cross{opacity:0;transition:opacity .25s ease}
+.lc-dot.show,.lc-cross.show{opacity:1}
+.bc-bar{transition:transform .6s cubic-bezier(.2,.8,.3,1),filter .2s ease}
+.bc-bar.hi{filter:brightness(.8)}
+.chart-tip{position:absolute;z-index:5;background:var(--ink);color:#F4F1FC;font:600 11px "IBM Plex Mono",monospace;
+  padding:5px 8px;border-radius:7px;pointer-events:none;opacity:0;transform:translate(-50%,calc(-100% - 8px));
+  transition:opacity .12s ease;white-space:nowrap;box-shadow:0 6px 16px -6px rgba(0,0,0,.4)}
+.chart-tip.show{opacity:1}
+.chart-tip .sub{color:rgba(244,241,252,.6);font-weight:500}
 
 .logostrip{background:var(--deep);padding:30px 0;overflow:hidden;border-bottom:1px solid rgba(255,255,255,.08)}
 .logostrip .cap{text-align:center;font-size:12px;color:rgba(244,241,252,.5);margin-bottom:18px;font-weight:600;letter-spacing:.04em}
@@ -311,21 +325,80 @@ const SCRIPT = `
 })();
 `;
 
+const CHART_JS = `
+(function(){
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelectorAll('.mini[data-values]').forEach(function (root) {
+    var values = root.getAttribute('data-values').split(',').map(Number);
+    var labels = root.getAttribute('data-labels').split(',');
+    var unit = root.getAttribute('data-unit') || '';
+    var svg = root.querySelector('svg'), tip = document.createElement('div');
+    tip.className = 'chart-tip'; root.appendChild(tip);
+    var bars = [].slice.call(root.querySelectorAll('.bc-bar'));
+    var dot = root.querySelector('.lc-dot'), cross = root.querySelector('.lc-cross');
+    var pts = (root.getAttribute('data-points') || '').split(' ').map(function (p) { return p.split(',').map(Number); });
+    var n = values.length;
+    function place(i) {
+      var x, y;
+      if (bars.length) {
+        bars.forEach(function (b, k) { b.classList.toggle('hi', k === i); });
+        x = Number(bars[i].getAttribute('x')) + Number(bars[i].getAttribute('width')) / 2;
+        y = Number(bars[i].getAttribute('y'));
+      } else {
+        x = pts[i][0]; y = pts[i][1];
+        dot.setAttribute('cx', x); dot.setAttribute('cy', y);
+        cross.setAttribute('x1', x); cross.setAttribute('x2', x);
+        dot.classList.add('show'); cross.classList.add('show');
+      }
+      tip.innerHTML = '<span class="sub">' + labels[i] + ' &middot; </span>' + values[i] + unit;
+      tip.classList.add('show');
+      var r = svg.getBoundingClientRect(), rr = root.getBoundingClientRect();
+      var half = (tip.offsetWidth || 60) / 2;
+      var left = Math.max(half + 2, Math.min(rr.width - half - 2, r.left - rr.left + x / 100 * r.width));
+      tip.style.left = left + 'px';
+      tip.style.top = (r.top - rr.top + y / 44 * r.height) + 'px';
+    }
+    function at(e) {
+      var r = svg.getBoundingClientRect(), cx = e.touches ? e.touches[0].clientX : e.clientX;
+      return Math.round(Math.max(0, Math.min(1, (cx - r.left) / r.width)) * (n - 1));
+    }
+    var auto = 0, timer = null;
+    function step() { place(auto); auto = (auto + 1) % n; }
+    function play() { if (!reduced && !timer) { step(); timer = setInterval(step, 1650); } }
+    function pause() { clearInterval(timer); timer = null; }
+    svg.addEventListener('mouseenter', pause);
+    svg.addEventListener('mousemove', function (e) { place(at(e)); });
+    svg.addEventListener('touchstart', function (e) { pause(); place(at(e)); }, { passive: true });
+    svg.addEventListener('mouseleave', function () { setTimeout(play, 600); });
+    // Start once the chart has drawn itself in.
+    setTimeout(play, 1400);
+  });
+})();
+`;
+
 function miniCharts() {
   // Shapes only, with no numbers on them. The skill forbids inventing figures about the
   // account, so these read as the shape of a dashboard, never as a measurement.
+  // The read-outs are example values under an "Illustrative" label, as on the IPSY and
+  // LendingTree pages, not measurements of the account.
   const line = [41, 43, 40, 46, 44, 49, 54];
-  const pts = line.map((v, i) => `${(i / (line.length - 1)) * 100},${44 - ((v - 36) / 20) * 40}`).join(" ");
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const pts = line.map((v, i) => `${(i / (line.length - 1)) * 100},${(44 - ((v - 36) / 20) * 40).toFixed(1)}`).join(" ");
   const bars = [12, 8, 15, 31, 22, 18];
+  const hours = ["12am", "4am", "8am", "12pm", "4pm", "8pm"];
   const max = Math.max(...bars);
   return `
     <div class="charts">
-      <div class="mini"><div class="label">Sessions</div>
+      <div class="mini" data-values="${line.map(v => (v / 10).toFixed(1)).join(",")}" data-labels="${days.join(",")}"
+        data-unit="k sessions" data-points="${pts}"><div class="label">Sessions</div>
         <svg viewBox="0 0 100 44" preserveAspectRatio="none">
+          <line class="lc-cross" x1="0" x2="0" y1="0" y2="44" stroke="rgba(109,63,209,.35)" stroke-width="1" vector-effect="non-scaling-stroke"/>
           <polyline class="lc-line" points="${pts}" fill="none" stroke="#6D3FD1" stroke-width="2"
             vector-effect="non-scaling-stroke" stroke-linecap="round"/>
+          <ellipse class="lc-dot" rx="1.6" ry="3.4" fill="#fff" stroke="#6D3FD1" stroke-width="2" vector-effect="non-scaling-stroke"/>
         </svg></div>
-      <div class="mini"><div class="label">Issues by hour</div>
+      <div class="mini" data-values="${bars.join(",")}" data-labels="${hours.join(",")}" data-unit=" issues">
+        <div class="label">Issues by hour</div>
         <svg viewBox="0 0 100 44" preserveAspectRatio="none">
           ${bars.map((b, i) => `<rect class="bc-bar" x="${i * 17 + 2}" y="${44 - (b / max) * 40}" width="11"
             height="${(b / max) * 40}" rx="2" fill="#A78BFA" style="transition-delay:${i * 60}ms"/>`).join("")}
@@ -595,7 +668,7 @@ ${industrySection}
 </div></section>
 
 <footer class="site">Prepared exclusively for ${acct} &middot; Confidential &middot; LogRocket</footer>
-<script>${SCRIPT}</script>${edit ? editorBar(edit) : ""}
+<script>${SCRIPT}${CHART_JS}</script>${edit ? editorBar(edit) : ""}
 </body></html>`;
 }
 
