@@ -45,3 +45,25 @@ resource "google_secret_manager_secret_iam_member" "runtime_rog" {
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.runtime.email}"
 }
+
+# Slack incoming-webhook URL for ABM "needs approval" alerts (#enablement-updates).
+# Anyone holding it can post to the channel, so it is a secret like the API keys. The
+# value is added out of band, the same way as the others:
+#   printf %s "$URL" | gcloud secrets versions add abm-slack-webhook --data-file=-
+resource "google_secret_manager_secret" "abm_slack_webhook" {
+  project   = var.project_id
+  secret_id = "abm-slack-webhook"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.services]
+}
+
+resource "google_secret_manager_secret_iam_member" "runtime_abm_slack_webhook" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.abm_slack_webhook.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.runtime.email}"
+}

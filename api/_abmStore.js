@@ -82,3 +82,83 @@ export function createMemoryStore({ file = null } = {}) {
 }
 
 export const newId = () => crypto.randomBytes(12).toString("hex");
+
+// Production: page documents in Firestore, uploaded images in the bucket from
+// infra/abm.tf under drafts/<pageId>/<kind>. Explore can read the bucket too, but only
+// ever serves pages/<slug>.html, so a draft image is never reachable from a public URL.
+export const COLLECTION = "abmPages";
+
+export function createCloudStore({ firestore, bucket }) {
+  const col = firestore.collection(COLLECTION);
+  const file = (pageId, kind) => bucket.file(`drafts/${pageId}/${kind}`);
+  const fromSnap = (snap) => (snap.exists ? { ...snap.data(), id: snap.id } : null);
+
+  return {
+    kind: "cloud",
+
+    async list() {
+      const snaps = await col.orderBy("updatedAt", "desc").limit(200).get();
+      return snaps.docs.map(fromSnap);
+    },
+
+    async get(id) {
+      return fromSnap(await col.doc(id).get());
+    },
+
+    async getBySlug(slug) {
+      const snaps = await col.where("slug", "==", slug).limit(1).get();
+      return snaps.empty ? null : fromSnap(snaps.docs[0]);
+    },
+
+    async put(id, page) {
+      const data = { ...page };
+      delete data.id;
+      await col.doc(id).set(data);
+      return { ...data, id };
+    },
+
+    async remove(id) {
+      await col.doc(id).delete();
+      await bucket.deleteFiles({ prefix: `drafts/${id}/` }).catch(() => {});
+    },
+
+    async putAsset(pageId, kind, bytes, contentType) {
+      const f = file(pageId, kind);
+      if (bytes == null) await f.delete({ ignoreNotFound: true });
+      else await f.save(bytes, { contentType, resumable: false });
+      return f.name;
+    },
+
+    async getAsset(pageId, kind) {
+      const f = file(pageId, kind);
+      try {
+        const [[bytes], [meta]] = await Promise.all([f.download(), f.getMetadata()]);
+        return { bytes, contentType: meta.contentType };
+      } catch (e) {
+        if (e?.code === 404) return null;
+        throw e;
+      }
+    },
+  };
+}
+
+// Where a published page goes. Publishing writes one self-contained HTML file (the
+// images are embedded), unpublishing deletes it, and explore serves whatever is there.
+export const pageObject = (slug) => `pages/${slug}.html`;
+
+export function createBucketPublisher(bucket) {
+  return {
+    async put(slug, html) {
+      await bucket.file(pageObject(slug)).save(html, {
+        contentType: "text/html; charset=utf-8", resumable: false,
+        metadata: { cacheControl: "no-store" },
+      });
+    },
+    async remove(slug) {
+      await bucket.file(pageObject(slug)).delete({ ignoreNotFound: true });
+    },
+  };
+}
+
+// Dev and tests: nothing to write, because the router serves /live/<slug> itself.
+export const noopPublisher = { async put() {}, async remove() {} };

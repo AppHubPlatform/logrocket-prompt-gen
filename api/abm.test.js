@@ -210,3 +210,49 @@ describe("the Slack alert to approvers", async () => {
     } finally { srv.close(); }
   });
 });
+
+describe("publishing to the bucket", () => {
+  const setup = async (publisher) => {
+    const s = createMemoryStore();
+    const app = express();
+    app.use((req, _res, next) => { req.headers["x-goog-authenticated-user-email"] = `accounts.google.com:${user}`; next(); });
+    app.use("/a", createAbmRouter({ store: s, rogToken: "t", anthropicKey: "k", publisher,
+      generate: async () => ({ draft: "d", content: structuredClone(CONTENT) }) }));
+    const srv = await new Promise(r => { const x = app.listen(0, () => r(x)); });
+    const b = `http://127.0.0.1:${srv.address().port}/a`;
+    const j = (m, p, body) => fetch(b + p, { method: m, headers: { "Content-Type": "application/json" }, body: body && JSON.stringify(body) });
+    user = "ae@logrocket.com";
+    const p = await (await j("POST", "", { account: "Acme" })).json();
+    const png = fs.readFileSync("public/brand-logos/arhaus.png");
+    for (const k of ["logo", "screenshot"]) {
+      await fetch(`${b}/${p.id}/assets/${k}?sourceUrl=https://acme.test`, { method: "POST", headers: { "Content-Type": "image/png" }, body: png });
+    }
+    await j("POST", `/${p.id}/submit`);
+    user = "brooke@logrocket.com";
+    await j("POST", `/${p.id}/approve`);
+    return { srv, j, p, s };
+  };
+
+  test("publish writes the rendered page under its slug; unpublish removes it", async () => {
+    const files = new Map();
+    const { srv, j, p } = await setup({ put: async (slug, html) => files.set(slug, html), remove: async (slug) => files.delete(slug) });
+    try {
+      assert.equal((await j("POST", `/${p.id}/publish`)).status, 200);
+      assert.ok(files.get(p.slug).includes("noindex"));
+      assert.ok(files.get(p.slug).includes("Acme"));
+      assert.ok(!files.get(p.slug).includes("abm-ed"), "never the editor");
+      assert.equal((await j("POST", `/${p.id}/unpublish`)).status, 200);
+      assert.equal(files.has(p.slug), false);
+    } finally { srv.close(); }
+  });
+
+  test("a failed upload leaves the page approved, not claiming to be live", async () => {
+    const { srv, j, p, s } = await setup({ put: async () => { throw new Error("bucket down"); }, remove: async () => {} });
+    try {
+      assert.equal((await j("POST", `/${p.id}/publish`)).status, 500);
+      const page = await s.get(p.id);
+      assert.equal(page.status, "approved");
+      assert.equal(page.live, null);
+    } finally { srv.close(); }
+  });
+});

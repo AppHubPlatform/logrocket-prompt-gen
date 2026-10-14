@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@google-cloud/firestore": "^8.7.1",
+    "@google-cloud/storage": "^7.22.0",
     "express": "^5.2.1",
     "html2canvas-pro": "^2.3.2",
     "jspdf": "^4.2.1",

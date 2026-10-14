@@ -26,6 +26,24 @@ resource "google_cloud_run_v2_service" "app" {
         }
       }
 
+      # ABM landing pages: drafts' images and published pages (abm.tf).
+      env {
+        name  = "ABM_BUCKET"
+        value = google_storage_bucket.abm_pages.name
+      }
+
+      # Posts "needs approval" alerts to Slack. Add a version to the secret before
+      # applying, or the revision will fail to start (see secrets.tf).
+      env {
+        name = "ABM_SLACK_WEBHOOK_URL"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.abm_slack_webhook.secret_id
+            version = "latest"
+          }
+        }
+      }
+
       env {
         name  = "FIRESTORE_DATABASE_ID"
         value = google_firestore_database.mission_control.name
@@ -56,6 +74,7 @@ resource "google_cloud_run_v2_service" "app" {
     google_project_service.services,
     google_secret_manager_secret_iam_member.runtime_anthropic,
     google_secret_manager_secret_iam_member.runtime_rog,
+    google_secret_manager_secret_iam_member.runtime_abm_slack_webhook,
     google_project_iam_member.runtime_firestore,
   ]
 }

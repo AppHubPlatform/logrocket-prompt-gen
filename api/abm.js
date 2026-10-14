@@ -13,7 +13,7 @@ import { detectBrowserChrome, validateAePhoto, validateLogo, validateScreenshot 
 import { renderAbmPage } from "./_abmRender.js";
 import { notifyApprovers } from "./_abmNotify.js";
 import { optimizeLogo, optimizeScreenshot } from "./_abmImages.js";
-import { createMemoryStore, newId } from "./_abmStore.js";
+import { createMemoryStore, newId, noopPublisher } from "./_abmStore.js";
 import { iapUserEmail } from "./_iapUser.js";
 import {
   AbmPage, APPROVERS, applyEdit, approve, assertCanDelete, isApprover, newSlug,
@@ -43,6 +43,9 @@ export function createAbmRouter({
   slackWebhookUrl = process.env.ABM_SLACK_WEBHOOK_URL,
   appUrl = process.env.ABM_APP_URL || "https://prompts.logrocket.com",
   notify = notifyApprovers,
+  // Writes the finished page where explore can serve it. A no-op locally, where the
+  // router's own /live/<slug> stands in for explore.
+  publisher = noopPublisher,
 } = {}) {
   const router = express.Router();
   router.use(express.json({ limit: "1mb" }));
@@ -246,8 +249,24 @@ export function createAbmRouter({
   router.post("/:id/submit", transition(submitForApproval));
   router.post("/:id/approve", transition(approve));
   router.post("/:id/request-changes", transition(requestChanges, req => ({ note: req.body?.note })));
-  router.post("/:id/publish", transition(publish));
-  router.post("/:id/unpublish", transition(unpublish));
+  // The bucket is written before the page is saved as published, so a failed upload leaves
+  // the page approved and unpublished rather than claiming to be live when it is not.
+  router.post("/:id/publish", async (req, res) => {
+    const user = requireUser(req);
+    const page = await load(req.params.id);
+    const next = publish(page, { user, now: Date.now() });
+    await publisher.put(next.slug, await renderLive({ ...next, id: req.params.id }));
+    res.json(await save(req.params.id, next));
+  });
+
+  // Deleted first for the same reason: the link must be dead before the app says it is.
+  router.post("/:id/unpublish", async (req, res) => {
+    const user = requireUser(req);
+    const page = await load(req.params.id);
+    const next = unpublish(page, { user, now: Date.now() });
+    await publisher.remove(page.slug);
+    res.json(await save(req.params.id, next));
+  });
 
   router.get("/:id/can-approve", async (req, res) => {
     res.json({ canApprove: isApprover(requireUser(req)) });
@@ -284,19 +303,23 @@ export function createAbmRouter({
   // What a prospect gets at /abm/<slug>: the approved live snapshot only, never the
   // working copy, and nothing at all once the page is unpublished. In production the
   // explore service serves the same HTML from the bucket; this is the local stand-in.
-  router.get("/live/:slug", async (req, res) => {
-    const page = await store.getBySlug(req.params.slug);
-    const pub = page && toPublicPage(page);
-    if (!pub) return res.status(404).type("text").send("This page is not available.");
+  async function renderLive(page) {
+    const pub = toPublicPage(page);
     const shot = await store.getAsset(page.id, "screenshot");
     const ref = page.live.assets.screenshot;
     const small = shot ? await optimizeScreenshot(shot, { cropTop: ref?.cropTop || 0 }) : null;
-    res.set("X-Robots-Tag", "noindex, nofollow").type("html").send(renderAbmPage(pub, {
+    return renderAbmPage(pub, {
       logo: await optimizeLogo(await store.getAsset(page.id, "logo")),
       screenshot: small ? { ...small, sourceUrl: ref?.sourceUrl, cropTop: 0, focusY: ref?.focusY } : null,
       preparedBy: page.createdBy,
       industry: pub.industry,
-    }));
+    });
+  }
+
+  router.get("/live/:slug", async (req, res) => {
+    const page = await store.getBySlug(req.params.slug);
+    if (!page || !toPublicPage(page)) return res.status(404).type("text").send("This page is not available.");
+    res.set("X-Robots-Tag", "noindex, nofollow").type("html").send(await renderLive(page));
   });
 
   router.use((err, _req, res, next) => {
