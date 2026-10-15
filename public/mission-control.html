@@ -12,6 +12,8 @@
     --board:#f4f6f7;
     --flag:#d62f2a;
     --flag-soft:#ffe6e3;
+    --prio:#e07f00;
+    --prio-soft:#fff0d9;
     --purple:#6a2ee0;
     --violet:#8b5cf0;
     --lilac:#c9b4f5;
@@ -227,9 +229,11 @@
   .legend{display:flex; flex-direction:column; gap:6px; margin-bottom:8px; color:var(--ink); font-weight:700;}
   .legend div{display:flex; align-items:center; gap:10px; line-height:1.15;}
   .legend svg{width:34px; height:26px; flex-shrink:0;}
-  .legend .g svg{width:40px;}
+  .legend .g svg,.legend .p svg{width:40px;}
   .legend .g{color:var(--flag);}
   .legend .g span:last-child{color:var(--ink);}
+  .legend .p{color:var(--prio);}
+  .legend .p span:last-child{color:var(--ink);}
 
   .main{flex:1; display:flex; flex-direction:column; min-width:0;}
   .topbar{height:64px; flex-shrink:0; display:flex; align-items:center; padding:0 26px 0 30px; gap:16px;}
@@ -242,6 +246,7 @@
   .target-count{display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px;}
   .target-count svg{width:36px; height:27px;}
   .target-count b{font-family:'Permanent Marker',cursive; font-weight:400; font-size:20px; color:var(--flag);}
+  .target-count b.prio{color:var(--prio);}
 
   .canvas-area{flex:1; min-height:0; position:relative; display:flex;}
   .canvas-wrap{flex:1; min-width:0; overflow:auto; position:relative;}
@@ -299,6 +304,7 @@
     border-radius:5px 8px 6px 9px / 8px 5px 9px 6px; filter:url(#rough2);
   }
   .card.target{padding:14px 17px 13px 15px;}
+  .card.prio::after{border-color:var(--prio); border-width:2.4px;}
   .card:active{cursor:grabbing;}
   .card.dragging{z-index:30; transform:rotate(-1deg);}
   .card.dragging::before{box-shadow:5px 9px 14px rgba(0,0,0,.22);}
@@ -338,6 +344,9 @@
   .actions-empty{grid-column:1/-1; font-size:14px; color:var(--ink-soft); padding:4px 2px;}
   .ai{display:flex; align-items:center; gap:10px; padding:8px 10px; background:#fff; border:1.6px solid #e2b0ab; border-left:5px solid var(--flag); border-radius:8px; cursor:pointer;}
   .ai:hover{background:#fffafa; box-shadow:0 2px 6px rgba(214,47,42,.15);}
+  .ai.prio{border-color:#efc58a; border-left-color:var(--prio);}
+  .ai.prio:hover{background:#fffbf3; box-shadow:0 2px 6px rgba(224,127,0,.18);}
+  .ai-act .tag{display:inline-block; margin-right:6px; padding:0 6px; border-radius:4px; background:var(--prio); color:#fff; font-family:'Inter',sans-serif; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; vertical-align:1px;}
   .ai svg.g{width:36px; height:27px; flex-shrink:0;}
   .ai-body{flex:1; min-width:0;}
   .ai-act{font-weight:700; font-size:14px; line-height:1.25;}
@@ -359,6 +368,8 @@
   .card-actions button:hover{background:var(--ink); color:#fff;}
   .card-actions button.targetBtn{border-color:var(--flag);}
   .card-actions button.targetBtn:hover,.card-actions button.targetBtn.on{background:var(--flag-soft); color:inherit;}
+  .card-actions button.prioBtn{border-color:var(--prio); color:var(--prio); font-size:15px;}
+  .card-actions button.prioBtn:hover,.card-actions button.prioBtn.on{background:var(--prio-soft); color:var(--prio);}
 
   .handle{
     position:absolute; left:50%; bottom:-9px; width:16px; height:16px; margin-left:-8px; border-radius:50%;
@@ -382,6 +393,13 @@
   .target-toggle{display:flex; align-items:center; gap:10px; cursor:pointer; margin:2px 0 16px; font-weight:700; font-size:15px; line-height:1.15;}
   .target-toggle input{width:20px; height:20px; accent-color:var(--flag); flex-shrink:0; cursor:pointer;}
   .target-toggle svg{width:44px; height:33px; flex-shrink:0;}
+  .status-pick{margin:2px 0 16px;}
+  .status-pick .target-toggle{margin:0 0 8px;}
+  .status-pick .target-toggle input{accent-color:var(--ink);}
+  .status-pick .target-toggle.flag input{accent-color:var(--flag);}
+  .status-pick .target-toggle.prio input{accent-color:var(--prio);}
+  .status-pick .target-toggle > span[data-icon]{width:44px; display:flex; justify-content:center;}
+  .status-pick .target-toggle > span[data-icon="single"] svg{width:30px; height:30px;}
   .modal-actions{display:flex; justify-content:space-between; align-items:center;}
   .modal-actions .right{display:flex; gap:10px;}
   .modal.confirm{width:400px; background:#ffe0dc; transform:rotate(.6deg);}
@@ -569,6 +587,7 @@
           <div class="legend">
             <div><span data-icon="single"></span> <span>contact</span></div>
             <div class="g"><span data-icon="group"></span> <span>red flag: not engaged yet</span></div>
+            <div class="p"><span data-icon="prio"></span> <span>priority: not engaged, reach out first</span></div>
           </div>
           <ul>
             <li>Drag a sticky onto the board</li>
@@ -576,6 +595,7 @@
             <li>Pull the dot under a card onto another to draw an arrow</li>
             <li>Click an arrow to erase it</li>
             <li>Click a card to edit, or hit the red people button to flag or clear it</li>
+            <li>Hit the orange &#9733; button to mark a contact as a priority to reach</li>
             <li>Drag on empty board to select several things, then drag one to move them all (Shift-click adds or removes)</li>
           </ul>
         </div>
@@ -591,7 +611,7 @@
           <div class="account-title"><span class="hl" id="chartTitle">Account</span></div>
           <div class="account-sub" id="chartMeta"></div>
           <div class="spacer"></div>
-          <div class="target-count"><span data-icon="group" style="color:var(--flag)"></span><span><b id="targetCount">0</b> to engage</span></div>
+          <div class="target-count"><span data-icon="group" style="color:var(--flag)"></span><span><b id="targetCount">0</b> to engage<span id="prioCountWrap" hidden> · <b class="prio" id="prioCount">0</b> priority</span></span></div>
           <button class="btn" id="addBucketBtn">+ Add zone</button>
           <div class="export-wrap">
             <button class="btn solid" id="exportBtn" aria-haspopup="true">&#8681; Export &#9662;</button>
@@ -647,7 +667,12 @@
     <input type="text" id="editTitle">
     <label class="lbl">Email</label>
     <input type="text" id="editEmail">
-    <label class="target-toggle"><input type="checkbox" id="editTarget"><span data-icon="group" style="color:var(--flag)"></span><span>Red flag: we haven't engaged this person</span></label>
+    <label class="lbl">Engagement</label>
+    <div class="status-pick" role="radiogroup">
+      <label class="target-toggle"><input type="radio" name="editStatus" value="engaged"><span data-icon="single"></span><span>Engaged</span></label>
+      <label class="target-toggle flag"><input type="radio" name="editStatus" value="flag"><span data-icon="group"></span><span>Red flag: we haven't engaged this person</span></label>
+      <label class="target-toggle prio"><input type="radio" name="editStatus" value="prio"><span data-icon="prio"></span><span>Priority: not engaged yet, reach out first</span></label>
+    </div>
     <div class="modal-actions">
       <button class="link-btn" id="editDeleteBtn">Remove card</button>
       <div class="right">
@@ -696,11 +721,14 @@ const GROUP = `<svg width="56" height="42" viewBox="0 0 56 42" fill="none" aria-
     </g>
   </g>
 </svg>`;
+// Same symbol in orange: not engaged yet AND a priority contact to get in touch with first.
+const PRIO = GROUP.replace('var(--flag)', 'var(--prio)');
+const groupIcon = c => c && c.priority ? PRIO : GROUP;
 const MAIL = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 4.500l6 4.500 6-4.500" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
 const CHECK = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12.500 L9.500 18 L20.500 5" stroke="#6a2ee0" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 document.querySelectorAll('[data-icon]').forEach(el=>{
-  el.innerHTML = el.dataset.icon === 'group' ? GROUP : SINGLE;
+  el.innerHTML = el.dataset.icon === 'group' ? GROUP : el.dataset.icon === 'prio' ? PRIO : SINGLE;
   el.style.display = 'inline-flex';
 });
 
@@ -882,6 +910,7 @@ function execRank(title){
 function analyze(acct){
   const placed = acct.contacts;
   const flagged = placed.filter(c=>c.target);
+  const prio = flagged.filter(c=>c.priority).sort((a,b)=>(execRank(a.title)??9)-(execRank(b.title)??9));
   const execs = placed.filter(c=>execRank(c.title) !== null);
   const flaggedExecs = flagged.filter(c=>execRank(c.title) !== null).sort((a,b)=>execRank(a.title)-execRank(b.title));
   const execEngaged = execs.length > 0 && flaggedExecs.length === 0;
@@ -889,6 +918,10 @@ function analyze(acct){
   let text, flag = false;
   if(!placed.length){
     text = 'Build the org map: add the key contacts';
+  } else if(prio.length){
+    const top = prio[0];
+    text = 'Priority: get to ' + top.name + (top.title ? ' (' + top.title + ')' : '') + (prio.length > 1 ? ' (+' + (prio.length-1) + ' more)' : '');
+    flag = 'prio';
   } else if(flaggedExecs.length){
     const top = flaggedExecs[0];
     text = 'Get ' + (top.title || 'exec') + ' — ' + top.name + (flaggedExecs.length > 1 ? ' (+' + (flaggedExecs.length-1) + ' more)' : '');
@@ -1030,7 +1063,7 @@ function renderList(){
       <td>${escapeHtml(a.rep)}</td>
       <td class="r amt"><span class="amt-val" tabindex="0" role="button" data-arr="${escapeHtml(a.id)}" title="Click to edit the ARR">${money(a.arr)}</span></td>
       <td class="c"><span class="cbox ${r.execEngaged?'on':''}" role="img" aria-label="${r.execEngaged?'Executives engaged':'Executives not engaged'}" title="${r.execEngaged?'Executives engaged':'Executives not engaged yet'}">${r.execEngaged?CHECK:''}</span></td>
-      <td class="act"><div class="a ${r.flag?'':'calm'}">${r.flag?GROUP:''}<span>${escapeHtml(r.text)}</span></div></td>
+      <td class="act"><div class="a ${r.flag?'':'calm'}">${r.flag ? (r.flag === 'prio' ? PRIO : GROUP) : ''}<span>${escapeHtml(r.text)}</span></div></td>
       <td class="go"><button class="btn small" data-open="${escapeHtml(a.id)}">View &rarr;</button><button class="x" data-del="${escapeHtml(a.id)}" title="Delete account">&#10005;</button></td>
     </tr>`).join('');
 }
@@ -1267,16 +1300,19 @@ function renderAll(){
 
 function updateTargetCount(){
   $('targetCount').textContent = contacts.filter(c=>c.target).length;
+  const nPrio = contacts.filter(c=>c.target && c.priority).length;
+  $('prioCount').textContent = nPrio;
+  $('prioCountWrap').hidden = nPrio === 0;
   renderActions();
 }
 
-/* ---- Action items strip: everyone with a red flag, most senior first ---- */
+/* ---- Action items strip: everyone with a red flag, priority contacts first, then most senior ---- */
 function renderActions(){
   if(!current) return;
   const flagged = contacts.filter(c=>c.target)
     .sort((a,b)=>{
       const ra = execRank(a.title), rb = execRank(b.title);
-      return (ra===null?9:ra) - (rb===null?9:rb) || (a.name||'').localeCompare(b.name||'');
+      return (b.priority?1:0) - (a.priority?1:0) || (ra===null?9:ra) - (rb===null?9:rb) || (a.name||'').localeCompare(b.name||'');
     });
   const n = flagged.length;
   const cnt = $('actionsCount');
@@ -1297,10 +1333,10 @@ function renderActions(){
     bits.push(escapeHtml(c.name));
     if(c.email) bits.push(`<a href="mailto:${escapeHtml(c.email)}" data-stop>${escapeHtml(c.email)}</a>`);
     if(!c.placed) bits.push('<span class="off">not on board yet</span>');
-    return `<div class="ai" data-id="${escapeHtml(c.id)}">
-      ${GROUP.replace('<svg ','<svg class="g" ')}
+    return `<div class="ai${c.priority?' prio':''}" data-id="${escapeHtml(c.id)}">
+      ${groupIcon(c).replace('<svg ','<svg class="g" ')}
       <div class="ai-body">
-        <div class="ai-act">${verb} ${escapeHtml(c.title || 'this contact')}</div>
+        <div class="ai-act">${c.priority?'<span class="tag">Priority</span>':''}${verb} ${escapeHtml(c.title || 'this contact')}</div>
         <div class="ai-who">${bits.join('</div><div class="ai-who">')}</div>
       </div>
       <button class="done" data-done="${escapeHtml(c.id)}" title="We've engaged them: clear the red flag">&#10003; Engaged</button>
@@ -1312,7 +1348,7 @@ $('actionsList').addEventListener('click', async e=>{
   const done = e.target.closest('[data-done]');
   if(done){
     const c = contacts.find(x=>x.id === done.dataset.done);
-    if(c){ c.target = false; await saveChart(); renderCards(); renderConnections(); updateTargetCount(); }
+    if(c){ c.target = false; c.priority = false; await saveChart(); renderCards(); renderConnections(); updateTargetCount(); }
     return;
   }
   const row = e.target.closest('.ai');
@@ -1326,7 +1362,7 @@ $('actionsToggle').addEventListener('click', ()=>{
 // "✦ Rog: Champion · engaged". Engagement follows the live red flag, so clearing the flag updates it.
 function rogLine(c){
   if(!c || !c.rog) return '';
-  return '\u2726 Rog' + (c.rogNote ? ': ' + c.rogNote : '') + ' \u00b7 ' + (c.target ? 'not engaged yet' : 'engaged');
+  return '\u2726 Rog' + (c.rogNote ? ': ' + c.rogNote : '') + ' \u00b7 ' + (c.target ? (c.priority ? 'priority, not engaged yet' : 'not engaged yet') : 'engaged');
 }
 
 function renderTray(){
@@ -1432,17 +1468,18 @@ function renderCards(){
   clearNodes('.card');
   contacts.filter(c=>c.placed).forEach(c=>{
     const el = document.createElement('div');
-    el.className = 'card' + (c.target ? ' target' : '');
+    el.className = 'card' + (c.target ? ' target' : '') + (c.target && c.priority ? ' prio' : '');
     el.style.left = c.x+'px'; el.style.top = c.y+'px';
     el.dataset.id = c.id;
     el.innerHTML = `
       <div class="card-actions">
         <button class="targetBtn ${c.target?'on':''}" title="${c.target?'Red flag on. Click to clear (engaged)':'Red flag: we haven\'t engaged this person'}">${GROUP}</button>
+        <button class="prioBtn ${c.priority?'on':''}" title="${c.priority?'Priority on. Click to make it a plain red flag':'Priority: not engaged yet, reach out first'}">&#9733;</button>
         <button class="editBtn" title="Edit">&#9998;</button>
         <button class="unplaceBtn" title="Take off the board">&#8630;</button>
       </div>
       <div class="card-row">
-        <div class="card-icon">${c.target ? GROUP : SINGLE}</div>
+        <div class="card-icon">${c.target ? groupIcon(c) : SINGLE}</div>
         <div class="card-text">
           <div class="card-name">${escapeHtml(c.name)}</div>
           <div class="card-title">${escapeHtml(c.title||'')}</div>
@@ -1454,6 +1491,14 @@ function renderCards(){
     el.querySelector('.targetBtn').addEventListener('click', async (e)=>{
       e.stopPropagation();
       c.target = !c.target;
+      if(!c.target) c.priority = false;
+      await saveChart();
+      renderCards(); renderConnections(); updateTargetCount();
+    });
+    el.querySelector('.prioBtn').addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      c.priority = !c.priority;
+      if(c.priority) c.target = true;            // a priority contact is one we haven't engaged yet
       await saveChart();
       renderCards(); renderConnections(); updateTargetCount();
     });
@@ -1962,9 +2007,9 @@ async function exportChart(fmt){
     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
-    const INK = '#14161a', SOFT = '#50555e', FLAG = '#d62f2a';
-    const [imgRocket, imgSingle, imgGroup, imgGroupSm, imgMail] = await Promise.all([
-      svgToImage(ROCKET_SVG), svgToImage(SINGLE, INK), svgToImage(GROUP, FLAG), svgToImage(GROUP, FLAG), svgToImage(MAIL, SOFT)
+    const INK = '#14161a', SOFT = '#50555e', FLAG = '#d62f2a', PRIO_C = '#e07f00';
+    const [imgRocket, imgSingle, imgGroup, imgGroupSm, imgMail, imgPrio] = await Promise.all([
+      svgToImage(ROCKET_SVG), svgToImage(SINGLE, INK), svgToImage(GROUP, FLAG), svgToImage(GROUP, FLAG), svgToImage(MAIL, SOFT), svgToImage(PRIO, PRIO_C)
     ]);
 
     /* ---- header ---- */
@@ -1977,10 +2022,11 @@ async function exportChart(fmt){
     ctx.fillStyle = INK; ctx.fillText(title, 88, 44);
     ctx.fillStyle = SOFT; ctx.font = '700 17px Kalam, cursive';
     ctx.fillText(`${current.rep}  ·  ${money(current.arr)}  ·  ${new Date().toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'})}`, 88, 78);
-    const nFlag = contacts.filter(c=>c.target).length;
+    const nFlag = contacts.filter(c=>c.target).length, nPrio = contacts.filter(c=>c.target && c.priority).length;
+    const countTxt = `${nFlag} to engage` + (nPrio ? ` · ${nPrio} priority` : '');
     ctx.textAlign = 'right'; ctx.fillStyle = INK; ctx.font = '700 17px Kalam, cursive';
-    ctx.fillText(`${nFlag} to engage`, W - 34, 50);
-    const nw = ctx.measureText(`${nFlag} to engage`).width;
+    ctx.fillText(countTxt, W - 34, 50);
+    const nw = ctx.measureText(countTxt).width;
     if(imgGroupSm) ctx.drawImage(imgGroupSm, W - 34 - nw - 46, 34, 38, 29);
     ctx.textAlign = 'left';
     ctx.strokeStyle = INK; ctx.lineWidth = 2.4;
@@ -2029,13 +2075,13 @@ async function exportChart(fmt){
       ctx.strokeStyle = INK; ctx.lineWidth = 2.6; ctx.stroke();
       if(c.target){
         roughRectPath(ctx, k.x + 5, k.y + 5, k.w - 10, k.h - 10, seed + 7, 2.4);
-        ctx.strokeStyle = FLAG; ctx.lineWidth = 1.8; ctx.stroke();
+        ctx.strokeStyle = c.priority ? PRIO_C : FLAG; ctx.lineWidth = c.priority ? 2.4 : 1.8; ctx.stroke();
       }
       const base = k.el.getBoundingClientRect();
       const rel = n => { const r = n.getBoundingClientRect(); return {x:(r.left - base.left) / z + k.x, y:(r.top - base.top) / z + k.y, w:r.width / z, h:r.height / z}; };
 
       const ic = k.el.querySelector('.card-icon svg');
-      if(ic){ const r = rel(ic); const im = c.target ? imgGroup : imgSingle; if(im) ctx.drawImage(im, r.x, r.y, r.w, r.h); }
+      if(ic){ const r = rel(ic); const im = c.target ? (c.priority ? imgPrio : imgGroup) : imgSingle; if(im) ctx.drawImage(im, r.x, r.y, r.w, r.h); }
 
       ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
       const nm = k.el.querySelector('.card-name');
@@ -2077,6 +2123,9 @@ async function exportChart(fmt){
     ctx.fillText('contact', 60, fy + 1);
     if(imgGroup) ctx.drawImage(imgGroup, 130, fy - 10, 30, 22);
     ctx.fillText('red flag: not engaged yet', 168, fy + 1);
+    const lx = 168 + ctx.measureText('red flag: not engaged yet').width + 28;
+    if(imgPrio) ctx.drawImage(imgPrio, lx, fy - 10, 30, 22);
+    ctx.fillText('priority: reach out first', lx + 38, fy + 1);
     ctx.textAlign = 'right'; ctx.fillStyle = '#9aa0a8'; ctx.font = '13px Kalam, cursive';
     ctx.fillText('LogRocket Mission Control', W - 34, fy + 1);
 
@@ -2113,7 +2162,8 @@ function openEditModal(id, isNew){
   $('editName').value = c.name || '';
   $('editTitle').value = c.title || '';
   $('editEmail').value = c.email || '';
-  $('editTarget').checked = !!c.target;
+  const status = c.target ? (c.priority ? 'prio' : 'flag') : 'engaged';
+  document.querySelector(`input[name="editStatus"][value="${status}"]`).checked = true;
   editOverlay.classList.add('open');
   if(isNew){ $('editName').focus(); $('editName').select(); }
 }
@@ -2124,7 +2174,9 @@ $('editSaveBtn').addEventListener('click', async ()=>{
     c.name = $('editName').value.trim() || c.name;
     c.title = $('editTitle').value.trim();
     c.email = $('editEmail').value.trim();
-    c.target = $('editTarget').checked;
+    const status = (document.querySelector('input[name="editStatus"]:checked') || {}).value || 'flag';
+    c.target = status !== 'engaged';
+    c.priority = status === 'prio';
     await saveChart();
     renderAll();
   }
