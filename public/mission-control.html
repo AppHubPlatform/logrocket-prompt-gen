@@ -14,6 +14,9 @@
     --flag-soft:#ffe6e3;
     --prio:#e07f00;
     --prio-soft:#fff0d9;
+    --engaged:#1f8a4c;
+    --open:#14161a;
+    --open-soft:#eceef0;
     --purple:#6a2ee0;
     --violet:#8b5cf0;
     --lilac:#c9b4f5;
@@ -137,7 +140,7 @@
   .filter{display:flex; align-items:center; gap:8px; font-weight:700; font-size:16px;}
   .summary{display:flex; gap:26px; flex-wrap:wrap; margin:14px 0 22px; font-size:17px; color:var(--ink-soft);}
   .summary b{font-family:'Permanent Marker',cursive; font-weight:400; font-size:24px; color:var(--ink); margin-right:4px;}
-  .summary b.red{color:var(--flag);}
+  .summary b.red{color:var(--open);}
   .table-card{position:relative; padding:8px 14px 10px; overflow-x:auto;}
   .table-card::before{
     content:''; position:absolute; inset:0; background:rgba(255,255,255,.82); border:2.6px solid var(--ink);
@@ -169,8 +172,8 @@
   td.go .x{margin-left:8px; background:none; border:none; cursor:pointer; font-family:'Inter',system-ui,sans-serif; font-weight:600; font-size:15px; color:#9aa0a8; padding:2px 6px;}
   td.go .x:hover{color:var(--flag);}
   .cbox{position:relative; display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; z-index:0; vertical-align:middle;}
-  .cbox::before{content:''; position:absolute; inset:0; z-index:-1; border:2.6px solid var(--flag); background:#fff; border-radius:5px 8px 6px 9px / 8px 5px 9px 6px; filter:url(#rough2);}
-  .cbox.on::before{border-color:var(--ink);}
+  .cbox::before{content:''; position:absolute; inset:0; z-index:-1; border:2.6px solid var(--open); background:#fff; border-radius:5px 8px 6px 9px / 8px 5px 9px 6px; filter:url(#rough2);}
+  .cbox.on::before{border-color:var(--engaged);}
   .cbox svg{width:24px; height:24px;}
   .empty{position:relative; z-index:1; text-align:center; padding:50px 20px; font-size:16px; color:var(--ink-soft);}
   .empty .btn{margin-top:14px;}
@@ -230,7 +233,9 @@
   .legend div{display:flex; align-items:center; gap:10px; line-height:1.15;}
   .legend svg{width:34px; height:26px; flex-shrink:0;}
   .legend .g svg,.legend .p svg{width:40px;}
-  .legend .g{color:var(--flag);}
+  .legend .e{color:var(--engaged);}
+  .legend .e span:last-child{color:var(--ink);}
+  .legend .g{color:var(--open);}
   .legend .g span:last-child{color:var(--ink);}
   .legend .p{color:var(--prio);}
   .legend .p span:last-child{color:var(--ink);}
@@ -245,7 +250,7 @@
   @media (max-width:1100px){ .account-sub{display:none;} }
   .target-count{display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px;}
   .target-count svg{width:36px; height:27px;}
-  .target-count b{font-family:'Permanent Marker',cursive; font-weight:400; font-size:20px; color:var(--flag);}
+  .target-count b{font-family:'Permanent Marker',cursive; font-weight:400; font-size:20px; color:var(--open);}
   .target-count b.prio{color:var(--prio);}
 
   .canvas-area{flex:1; min-height:0; position:relative; display:flex;}
@@ -299,8 +304,10 @@
     content:''; position:absolute; inset:0; z-index:-1; background:#fff; border:2.6px solid var(--ink);
     border-radius:6px 10px 7px 11px / 10px 6px 11px 7px; filter:url(#rough);
   }
+  .card.engaged::before{border-color:var(--engaged);}
+  .card.engaged .card-icon{color:var(--engaged);}
   .card.target::after{
-    content:''; position:absolute; inset:5px; z-index:-1; pointer-events:none; border:1.8px solid var(--flag);
+    content:''; position:absolute; inset:5px; z-index:-1; pointer-events:none; border:1.8px solid var(--open);
     border-radius:5px 8px 6px 9px / 8px 5px 9px 6px; filter:url(#rough2);
   }
   .card.target{padding:14px 17px 13px 15px;}
@@ -330,20 +337,20 @@
 
   /* action items strip */
   .actions{flex-shrink:0; position:relative; margin:0 26px 14px; padding:12px 16px 12px; font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;}
-  .actions::before{content:''; position:absolute; inset:0; z-index:0; background:rgba(255,246,245,.9); border:2.4px solid var(--ink);
+  .actions::before{content:''; position:absolute; inset:0; z-index:0; background:rgba(255,255,255,.92); border:2.4px solid var(--ink);
     border-radius:12px 18px 11px 19px / 18px 11px 19px 12px; filter:url(#rough); pointer-events:none;}
   .actions > *{position:relative; z-index:1;}
   .actions-head{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
   .actions-title{font-family:'Permanent Marker',cursive; font-size:18px; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap;}
-  .actions-count{display:inline-block; margin-left:8px; min-width:26px; padding:0 8px; border-radius:13px; background:var(--flag); color:#fff; font-family:'Inter',sans-serif; font-weight:700; font-size:13px; text-align:center; letter-spacing:0; vertical-align:2px;}
+  .actions-count{display:inline-block; margin-left:8px; min-width:26px; padding:0 8px; border-radius:13px; background:var(--open); color:#fff; font-family:'Inter',sans-serif; font-weight:700; font-size:13px; text-align:center; letter-spacing:0; vertical-align:2px;}
   .actions-count.zero{background:#9aa0a8;}
   .actions-primary{flex:1; min-width:200px; font-size:14px; color:var(--ink-soft);}
   .actions-primary b{color:var(--ink);}
   .actions-list{display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:10px; margin-top:10px; max-height:172px; overflow-y:auto; padding:2px;}
   .actions.collapsed .actions-list{display:none;}
   .actions-empty{grid-column:1/-1; font-size:14px; color:var(--ink-soft); padding:4px 2px;}
-  .ai{display:flex; align-items:center; gap:10px; padding:8px 10px; background:#fff; border:1.6px solid #e2b0ab; border-left:5px solid var(--flag); border-radius:8px; cursor:pointer;}
-  .ai:hover{background:#fffafa; box-shadow:0 2px 6px rgba(214,47,42,.15);}
+  .ai{display:flex; align-items:center; gap:10px; padding:8px 10px; background:#fff; border:1.6px solid #c9ccd1; border-left:5px solid var(--open); border-radius:8px; cursor:pointer;}
+  .ai:hover{background:#fafafb; box-shadow:0 2px 6px rgba(20,22,26,.12);}
   .ai.prio{border-color:#efc58a; border-left-color:var(--prio);}
   .ai.prio:hover{background:#fffbf3; box-shadow:0 2px 6px rgba(224,127,0,.18);}
   .ai-act .tag{display:inline-block; margin-right:6px; padding:0 6px; border-radius:4px; background:var(--prio); color:#fff; font-family:'Inter',sans-serif; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; vertical-align:1px;}
@@ -366,8 +373,8 @@
   }
   .card-actions button svg{width:18px; height:14px;}
   .card-actions button:hover{background:var(--ink); color:#fff;}
-  .card-actions button.targetBtn{border-color:var(--flag);}
-  .card-actions button.targetBtn:hover,.card-actions button.targetBtn.on{background:var(--flag-soft); color:inherit;}
+  .card-actions button.targetBtn{border-color:var(--open);}
+  .card-actions button.targetBtn:hover,.card-actions button.targetBtn.on{background:var(--open-soft); color:inherit;}
   .card-actions button.prioBtn{border-color:var(--prio); color:var(--prio); font-size:15px;}
   .card-actions button.prioBtn:hover,.card-actions button.prioBtn.on{background:var(--prio-soft); color:var(--prio);}
 
@@ -391,12 +398,13 @@
     font-family:'Kalam',cursive; font-size:18px; color:var(--ink);
   }
   .target-toggle{display:flex; align-items:center; gap:10px; cursor:pointer; margin:2px 0 16px; font-weight:700; font-size:15px; line-height:1.15;}
-  .target-toggle input{width:20px; height:20px; accent-color:var(--flag); flex-shrink:0; cursor:pointer;}
+  .target-toggle input{width:20px; height:20px; accent-color:var(--open); flex-shrink:0; cursor:pointer;}
   .target-toggle svg{width:44px; height:33px; flex-shrink:0;}
   .status-pick{margin:2px 0 16px;}
   .status-pick .target-toggle{margin:0 0 8px;}
-  .status-pick .target-toggle input{accent-color:var(--ink);}
-  .status-pick .target-toggle.flag input{accent-color:var(--flag);}
+  .status-pick .target-toggle input{accent-color:var(--engaged);}
+  .status-pick .target-toggle.engaged > span[data-icon]{color:var(--engaged);}
+  .status-pick .target-toggle.flag input{accent-color:var(--open);}
   .status-pick .target-toggle.prio input{accent-color:var(--prio);}
   .status-pick .target-toggle > span[data-icon]{width:44px; display:flex; justify-content:center;}
   .status-pick .target-toggle > span[data-icon="single"] svg{width:30px; height:30px;}
@@ -585,8 +593,8 @@
 
         <div class="help">
           <div class="legend">
-            <div><span data-icon="single"></span> <span>contact</span></div>
-            <div class="g"><span data-icon="group"></span> <span>red flag: not engaged yet</span></div>
+            <div class="e"><span data-icon="single"></span> <span>engaged</span></div>
+            <div class="g"><span data-icon="group"></span> <span>not engaged yet</span></div>
             <div class="p"><span data-icon="prio"></span> <span>priority: not engaged, reach out first</span></div>
           </div>
           <ul>
@@ -594,7 +602,7 @@
             <li>Drag any card to move it</li>
             <li>Pull the dot under a card onto another to draw an arrow</li>
             <li>Click an arrow to erase it</li>
-            <li>Click a card to edit, or hit the red people button to flag or clear it</li>
+            <li>Click a card to edit, or hit the people button to switch between engaged and not engaged</li>
             <li>Hit the orange &#9733; button to mark a contact as a priority to reach</li>
             <li>Drag on empty board to select several things, then drag one to move them all (Shift-click adds or removes)</li>
           </ul>
@@ -611,7 +619,7 @@
           <div class="account-title"><span class="hl" id="chartTitle">Account</span></div>
           <div class="account-sub" id="chartMeta"></div>
           <div class="spacer"></div>
-          <div class="target-count"><span data-icon="group" style="color:var(--flag)"></span><span><b id="targetCount">0</b> to engage<span id="prioCountWrap" hidden> · <b class="prio" id="prioCount">0</b> priority</span></span></div>
+          <div class="target-count"><span data-icon="group"></span><span><b id="targetCount">0</b> to engage<span id="prioCountWrap" hidden> · <b class="prio" id="prioCount">0</b> priority</span></span></div>
           <button class="btn" id="addBucketBtn">+ Add zone</button>
           <div class="export-wrap">
             <button class="btn solid" id="exportBtn" aria-haspopup="true">&#8681; Export &#9662;</button>
@@ -669,8 +677,8 @@
     <input type="text" id="editEmail">
     <label class="lbl">Engagement</label>
     <div class="status-pick" role="radiogroup">
-      <label class="target-toggle"><input type="radio" name="editStatus" value="engaged"><span data-icon="single"></span><span>Engaged</span></label>
-      <label class="target-toggle flag"><input type="radio" name="editStatus" value="flag"><span data-icon="group"></span><span>Red flag: we haven't engaged this person</span></label>
+      <label class="target-toggle engaged"><input type="radio" name="editStatus" value="engaged"><span data-icon="single"></span><span>Engaged</span></label>
+      <label class="target-toggle flag"><input type="radio" name="editStatus" value="flag"><span data-icon="group"></span><span>Not engaged yet: we haven't spoken with this person</span></label>
       <label class="target-toggle prio"><input type="radio" name="editStatus" value="prio"><span data-icon="prio"></span><span>Priority: not engaged yet, reach out first</span></label>
     </div>
     <div class="modal-actions">
@@ -711,8 +719,8 @@ const SINGLE = `<svg width="44" height="44" viewBox="0 0 44 44" fill="none" aria
   <circle cx="22" cy="17" r="5.6" fill="currentColor"/>
   <path d="M11.5 33c1.6-6 6-8.6 10.5-8.6s8.900 2.600 10.500 8.600z" fill="currentColor"/>
 </svg>`;
-// The three-person "get to" symbol is always red: it's the red flag for "not engaged yet".
-const GROUP = `<svg width="56" height="42" viewBox="0 0 56 42" fill="none" aria-hidden="true" style="color:var(--flag)">
+// The three-person "get to" symbol is black for "not engaged yet" (orange when it's also a priority).
+const GROUP = `<svg width="56" height="42" viewBox="0 0 56 42" fill="none" aria-hidden="true" style="color:var(--open)">
   <g fill="currentColor">
     <circle cx="11" cy="16" r="4.6"/><path d="M2 33c.8-6 4.500-9 9-9s8.200 3 9 9z"/>
     <circle cx="45" cy="16" r="4.6"/><path d="M36 33c.8-6 4.500-9 9-9s8.200 3 9 9z"/>
@@ -722,10 +730,10 @@ const GROUP = `<svg width="56" height="42" viewBox="0 0 56 42" fill="none" aria-
   </g>
 </svg>`;
 // Same symbol in orange: not engaged yet AND a priority contact to get in touch with first.
-const PRIO = GROUP.replace('var(--flag)', 'var(--prio)');
+const PRIO = GROUP.replace('var(--open)', 'var(--prio)');
 const groupIcon = c => c && c.priority ? PRIO : GROUP;
 const MAIL = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2 4.500l6 4.500 6-4.500" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
-const CHECK = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12.500 L9.500 18 L20.500 5" stroke="#6a2ee0" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const CHECK = `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12.500 L9.500 18 L20.500 5" stroke="#1f8a4c" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 document.querySelectorAll('[data-icon]').forEach(el=>{
   el.innerHTML = el.dataset.icon === 'group' ? GROUP : el.dataset.icon === 'prio' ? PRIO : SINGLE;
@@ -939,7 +947,7 @@ function analyze(acct){
   } else if(!execs.length){
     text = 'Identify an executive sponsor';
   } else {
-    text = 'No open red flags: keep the cadence';
+    text = 'Everyone is engaged: keep the cadence';
   }
   return {execEngaged, text, flag, flagCount:flagged.length};
 }
@@ -1306,7 +1314,7 @@ function updateTargetCount(){
   renderActions();
 }
 
-/* ---- Action items strip: everyone with a red flag, priority contacts first, then most senior ---- */
+/* ---- Action items strip: everyone not engaged yet, priority contacts first, then most senior ---- */
 function renderActions(){
   if(!current) return;
   const flagged = contacts.filter(c=>c.target)
@@ -1323,8 +1331,8 @@ function renderActions(){
   const list = $('actionsList');
   if(!n){
     list.innerHTML = '<div class="actions-empty">' + (contacts.length
-      ? 'No open red flags. Everyone on the map has been engaged.'
-      : 'Add contacts, or use Enrich with Rog, then flag the people we still need to reach.') + '</div>';
+      ? 'Everyone on the map has been engaged.'
+      : 'Add contacts, or use Enrich with Rog, then mark the people we still need to reach.') + '</div>';
     return;
   }
   list.innerHTML = flagged.map(c=>{
@@ -1359,7 +1367,7 @@ $('actionsToggle').addEventListener('click', ()=>{
   $('actionsToggle').textContent = box.classList.contains('collapsed') ? 'Show' : 'Hide';
 });
 
-// "✦ Rog: Champion · engaged". Engagement follows the live red flag, so clearing the flag updates it.
+// "✦ Rog: Champion · engaged". Engagement follows the card's live status, so marking them engaged updates it.
 function rogLine(c){
   if(!c || !c.rog) return '';
   return '\u2726 Rog' + (c.rogNote ? ': ' + c.rogNote : '') + ' \u00b7 ' + (c.target ? (c.priority ? 'priority, not engaged yet' : 'not engaged yet') : 'engaged');
@@ -1468,13 +1476,13 @@ function renderCards(){
   clearNodes('.card');
   contacts.filter(c=>c.placed).forEach(c=>{
     const el = document.createElement('div');
-    el.className = 'card' + (c.target ? ' target' : '') + (c.target && c.priority ? ' prio' : '');
+    el.className = 'card' + (c.target ? ' target' : ' engaged') + (c.target && c.priority ? ' prio' : '');
     el.style.left = c.x+'px'; el.style.top = c.y+'px';
     el.dataset.id = c.id;
     el.innerHTML = `
       <div class="card-actions">
-        <button class="targetBtn ${c.target?'on':''}" title="${c.target?'Red flag on. Click to clear (engaged)':'Red flag: we haven\'t engaged this person'}">${GROUP}</button>
-        <button class="prioBtn ${c.priority?'on':''}" title="${c.priority?'Priority on. Click to make it a plain red flag':'Priority: not engaged yet, reach out first'}">&#9733;</button>
+        <button class="targetBtn ${c.target?'on':''}" title="${c.target?'Not engaged yet. Click to mark engaged':'Engaged. Click to mark not engaged yet'}">${GROUP}</button>
+        <button class="prioBtn ${c.priority?'on':''}" title="${c.priority?'Priority on. Click to remove priority (stays not engaged)':'Priority: not engaged yet, reach out first'}">&#9733;</button>
         <button class="editBtn" title="Edit">&#9998;</button>
         <button class="unplaceBtn" title="Take off the board">&#8630;</button>
       </div>
@@ -1920,7 +1928,7 @@ $('rogBtn').addEventListener('click', async ()=>{
       const engaged = p.engaged === true || p.engaged === 'true';
       list.push({
         id:uid(), name, title:cleanText(p.title, 100), email:/^\S+@\S+\.\S+$/.test(email) ? email : '',
-        target:!engaged,                       // not engaged yet = red flag
+        target:!engaged,                       // not engaged yet
         placed:false, x:0, y:0, bucketId:null,
         rog:true, rogEngaged:engaged, rogNote:cleanText(p.role, 60)
       });
@@ -2007,9 +2015,9 @@ async function exportChart(fmt){
     ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
-    const INK = '#14161a', SOFT = '#50555e', FLAG = '#d62f2a', PRIO_C = '#e07f00';
+    const INK = '#14161a', SOFT = '#50555e', OPEN = '#14161a', PRIO_C = '#e07f00', GREEN = '#1f8a4c';
     const [imgRocket, imgSingle, imgGroup, imgGroupSm, imgMail, imgPrio] = await Promise.all([
-      svgToImage(ROCKET_SVG), svgToImage(SINGLE, INK), svgToImage(GROUP, FLAG), svgToImage(GROUP, FLAG), svgToImage(MAIL, SOFT), svgToImage(PRIO, PRIO_C)
+      svgToImage(ROCKET_SVG), svgToImage(SINGLE, GREEN), svgToImage(GROUP, OPEN), svgToImage(GROUP, OPEN), svgToImage(MAIL, SOFT), svgToImage(PRIO, PRIO_C)
     ]);
 
     /* ---- header ---- */
@@ -2072,10 +2080,10 @@ async function exportChart(fmt){
       const seed = hash(c.id);
       roughRectPath(ctx, k.x, k.y, k.w, k.h, seed, 3);
       ctx.fillStyle = '#ffffff'; ctx.fill();
-      ctx.strokeStyle = INK; ctx.lineWidth = 2.6; ctx.stroke();
+      ctx.strokeStyle = c.target ? INK : GREEN; ctx.lineWidth = 2.6; ctx.stroke();
       if(c.target){
         roughRectPath(ctx, k.x + 5, k.y + 5, k.w - 10, k.h - 10, seed + 7, 2.4);
-        ctx.strokeStyle = c.priority ? PRIO_C : FLAG; ctx.lineWidth = c.priority ? 2.4 : 1.8; ctx.stroke();
+        ctx.strokeStyle = c.priority ? PRIO_C : OPEN; ctx.lineWidth = c.priority ? 2.4 : 1.8; ctx.stroke();
       }
       const base = k.el.getBoundingClientRect();
       const rel = n => { const r = n.getBoundingClientRect(); return {x:(r.left - base.left) / z + k.x, y:(r.top - base.top) / z + k.y, w:r.width / z, h:r.height / z}; };
@@ -2120,10 +2128,10 @@ async function exportChart(fmt){
     const fy = H - FOOT/2 - 2;
     if(imgSingle) ctx.drawImage(imgSingle, 32, fy - 11, 22, 22);
     ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.fillStyle = SOFT; ctx.font = '700 14px Kalam, cursive';
-    ctx.fillText('contact', 60, fy + 1);
+    ctx.fillText('engaged', 60, fy + 1);
     if(imgGroup) ctx.drawImage(imgGroup, 130, fy - 10, 30, 22);
-    ctx.fillText('red flag: not engaged yet', 168, fy + 1);
-    const lx = 168 + ctx.measureText('red flag: not engaged yet').width + 28;
+    ctx.fillText('not engaged yet', 168, fy + 1);
+    const lx = 168 + ctx.measureText('not engaged yet').width + 28;
     if(imgPrio) ctx.drawImage(imgPrio, lx, fy - 10, 30, 22);
     ctx.fillText('priority: reach out first', lx + 38, fy + 1);
     ctx.textAlign = 'right'; ctx.fillStyle = '#9aa0a8'; ctx.font = '13px Kalam, cursive';
