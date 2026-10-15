@@ -1339,7 +1339,7 @@ function renderActions(){
         <div class="ai-act">${c.priority?'<span class="tag">Priority</span>':''}${verb} ${escapeHtml(c.title || 'this contact')}</div>
         <div class="ai-who">${bits.join('</div><div class="ai-who">')}</div>
       </div>
-      <button class="done" data-done="${escapeHtml(c.id)}" title="We've engaged them: clear the red flag">&#10003; Engaged</button>
+      <button class="done" data-done="${escapeHtml(c.id)}" title="Click once you've spoken with them: moves them to engaged">Mark engaged</button>
     </div>`;
   }).join('');
 }
