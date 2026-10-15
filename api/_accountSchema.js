@@ -26,6 +26,7 @@ const contact = z.object({
   email: text(200),
   phone: text(40),
   target: z.boolean().default(false),
+  priority: z.boolean().default(false),
   placed: z.boolean().default(false),
   x: coord.default(0),
   y: coord.default(0),

@@ -27,9 +27,14 @@ test("strips unknown fields and fills defaults", () => {
   assert.equal(a.evil, undefined);
   assert.equal(a.contacts[0].hack, undefined);
   assert.deepEqual(
-    { title: a.contacts[0].title, target: a.contacts[0].target, bucketId: a.contacts[0].bucketId },
-    { title: "", target: false, bucketId: null },
+    { title: a.contacts[0].title, target: a.contacts[0].target, priority: a.contacts[0].priority, bucketId: a.contacts[0].bucketId },
+    { title: "", target: false, priority: false, bucketId: null },
   );
+});
+
+test("keeps the priority flag on contacts", () => {
+  const a = parseAccount({ ...base, contacts: [{ id: "c", name: "X", target: true, priority: true }] }, { storePhone: true });
+  assert.equal(a.contacts[0].priority, true);
 });
 
 test("drops dangling bucket refs and connections", () => {
