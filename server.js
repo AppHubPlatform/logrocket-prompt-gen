@@ -6,7 +6,11 @@ import anthropic from "./api/anthropic.js";
 import rog from "./api/rog.js";
 import me from "./api/me.js";
 import integrations from "./api/integrations.js";
-import { createAccountsRouter } from "./api/accounts.js";
+import { Storage } from "@google-cloud/storage";
+
+import { createAccountsRouter, createFirestore } from "./api/accounts.js";
+import { createAbmRouter } from "./api/abm.js";
+import { createBucketPublisher, createCloudStore } from "./api/_abmStore.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.join(__dirname, "dist");
@@ -22,6 +26,20 @@ app.get("/api/integrations", integrations);
 app.post("/api/anthropic", anthropic);
 app.post("/api/rog", rog);
 app.use("/api/accounts", createAccountsRouter());
+
+// ABM landing pages. Drafts live in Firestore and the bucket; publishing writes the
+// finished page to the bucket, where explore serves it. Without ABM_BUCKET the routes are
+// simply not mounted, so a deploy that runs ahead of the infrastructure still boots.
+if (process.env.ABM_BUCKET) {
+  const bucket = new Storage().bucket(process.env.ABM_BUCKET);
+  app.use("/api/abm", createAbmRouter({
+    store: createCloudStore({ firestore: createFirestore(), bucket }),
+    publisher: createBucketPublisher(bucket),
+    appUrl: process.env.ABM_APP_URL || "https://prompts.logrocket.com",
+  }));
+} else {
+  console.warn("ABM_BUCKET is not set; ABM landing pages are disabled");
+}
 
 app.use(express.static(distDir));
 

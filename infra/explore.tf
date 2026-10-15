@@ -31,6 +31,13 @@ resource "google_cloud_run_v2_service" "explore" {
       ports {
         container_port = 8080
       }
+
+      # Read-only access to published ABM pages (abm.tf). Nothing else: no secrets,
+      # no Firestore.
+      env {
+        name  = "ABM_BUCKET"
+        value = google_storage_bucket.abm_pages.name
+      }
     }
   }
 

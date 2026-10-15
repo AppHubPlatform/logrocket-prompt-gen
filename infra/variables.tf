@@ -69,3 +69,9 @@ variable "image" {
   type        = string
   default     = "us-docker.pkg.dev/cloudrun/container/hello"
 }
+
+variable "abm_bucket_name" {
+  description = "Bucket holding published ABM landing pages and their images. Written by the IAP app, read by the public explore service."
+  type        = string
+  default     = "logrocket-abm-pages"
+}
