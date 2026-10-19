@@ -88,10 +88,29 @@ export const newId = () => crypto.randomBytes(12).toString("hex");
 // ever serves pages/<slug>.html, so a draft image is never reachable from a public URL.
 export const COLLECTION = "abmPages";
 
+// Firestore rejects an array directly inside another array ("invalid nested entity"),
+// and the skill's data tables are exactly that: rows of cells. So the two fields that
+// hold the skill's content are stored as JSON text and parsed back on read. Nothing
+// queries inside them, so nothing is lost.
+const JSON_FIELDS = ["content", "live"];
+
+export function toFirestore(page) {
+  const data = { ...page };
+  delete data.id;
+  for (const k of JSON_FIELDS) if (data[k] != null) data[k] = JSON.stringify(data[k]);
+  return data;
+}
+
+export function fromFirestore(data) {
+  const page = { ...data };
+  for (const k of JSON_FIELDS) if (typeof page[k] === "string") page[k] = JSON.parse(page[k]);
+  return page;
+}
+
 export function createCloudStore({ firestore, bucket }) {
   const col = firestore.collection(COLLECTION);
   const file = (pageId, kind) => bucket.file(`drafts/${pageId}/${kind}`);
-  const fromSnap = (snap) => (snap.exists ? { ...snap.data(), id: snap.id } : null);
+  const fromSnap = (snap) => (snap.exists ? { ...fromFirestore(snap.data()), id: snap.id } : null);
 
   return {
     kind: "cloud",
@@ -111,10 +130,9 @@ export function createCloudStore({ firestore, bucket }) {
     },
 
     async put(id, page) {
-      const data = { ...page };
-      delete data.id;
-      await col.doc(id).set(data);
-      return { ...data, id };
+      await col.doc(id).set(toFirestore(page));
+      const saved = { ...page, id };
+      return saved;
     },
 
     async remove(id) {
