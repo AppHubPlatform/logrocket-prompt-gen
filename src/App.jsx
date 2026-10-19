@@ -3862,7 +3862,7 @@ function AbmLandingPages() {
           </div>
           <div style={S.sectionSub}>
             {page.status === "published"
-              ? "Live. Editing anything the reader sees sends it back for approval, and the live page keeps serving the approved version until it is republished."
+              ? "Published. If you edit it, the current version stays live until the changes are approved and republished."
               : "Editing anything the reader sees costs the approval."}
           </div>
           {/* Which run of Greg's skill made this, so a page that comes out wrong can be
@@ -4012,9 +4012,31 @@ function AbmLandingPages() {
           {page.live && (
             <div style={{ marginTop: "16px", fontSize: "13px", color: "#4A2FA0",
               backgroundColor: "#F0ECFB", borderRadius: "8px", padding: "10px 12px" }}>
-              Live locally at{" "}
-              <a href={`/abm/${page.slug}`} target="_blank" rel="noreferrer">/abm/{page.slug}</a>.
-              It will be at <code>explore.logrocket.com/abm/{page.slug}</code> once publishing to explore is built.
+              {(() => {
+                // The local dev server stands in for explore, so a test run links there instead.
+                const url = import.meta.env.DEV
+                  ? `${window.location.origin}/abm/${page.slug}`
+                  : `https://explore.logrocket.com/abm/${page.slug}`;
+                return (
+                  <>
+                    <div style={{ fontWeight: 600, marginBottom: "6px" }}>
+                      {page.status === "published"
+                        ? `This page is live. Share this link with ${page.account}:`
+                        : "The last approved version is still live at this link. Your newer edits will appear once they are approved and republished."}
+                    </div>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                      <a href={url} target="_blank" rel="noreferrer" style={{ color: "#4A2FA0", wordBreak: "break-all" }}>{url}</a>
+                      <button style={{ ...S.btnGhost, padding: "4px 10px", fontSize: "12px" }}
+                        onClick={() => navigator.clipboard?.writeText(url)}>Copy link</button>
+                    </div>
+                    {import.meta.env.DEV && (
+                      <div style={{ marginTop: "6px", opacity: 0.8 }}>
+                        Local test copy. On prompts.logrocket.com this link is on explore.logrocket.com.
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>
