@@ -1,6 +1,7 @@
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { Storage } from "@google-cloud/storage";
 
 // Serves explore.logrocket.com. Deliberately static-only: this service is
 // reachable by anyone on the internet (allUsers invoker, no IAP), so it must
@@ -23,6 +24,29 @@ app.use("/r", (_req, res, next) => {
   res.set("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet");
   res.set("Referrer-Policy", "no-referrer");
   next();
+});
+
+// ABM landing pages, published by the IAP-gated app as one rendered HTML file each.
+// This service can only read the bucket (infra/abm.tf) and only ever asks for
+// pages/<slug>.html, so drafts and uploaded images stay out of reach. Read per request
+// and never cached, so unpublishing (which deletes the file) takes the page down at once.
+const abmBucket = process.env.ABM_BUCKET ? new Storage().bucket(process.env.ABM_BUCKET) : null;
+const SLUG = /^[a-z0-9]{16,64}$/;
+
+app.get("/abm/:slug", async (req, res) => {
+  res.set("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet, noimageindex");
+  res.set("Referrer-Policy", "no-referrer");
+  res.set("Cache-Control", "no-store");
+  const notFound = () => res.status(404).type("text").send("This page is not available.");
+  if (!abmBucket || !SLUG.test(req.params.slug)) return notFound();
+  try {
+    const [html] = await abmBucket.file(`pages/${req.params.slug}.html`).download();
+    res.type("html").send(html);
+  } catch (e) {
+    if (e?.code === 404) return notFound();
+    console.error("abm page read failed", e?.message);
+    res.status(503).type("text").send("This page is temporarily unavailable.");
+  }
 });
 
 // extensions: ["html"] lets /monitoring-maturity-quest resolve without the
