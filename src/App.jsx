@@ -3685,6 +3685,9 @@ function AbmLandingPages() {
       if (linked) {
         const one = await fetch(`/api/abm/${encodeURIComponent(linked)}`);
         if (alive && one.ok) setPage({ ...(await one.json()), id: linked });
+        else if (alive && one.status === 404) {
+          setError("The page that link pointed to no longer exists. It may have been deleted. Any other version is in the list below.");
+        }
       }
     })();
     return () => { alive = false; };
