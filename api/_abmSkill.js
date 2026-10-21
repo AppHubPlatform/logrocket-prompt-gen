@@ -194,7 +194,37 @@ Rules:
   when a block has neither.
 - Keep every item self-contained, as written.`;
 
-export async function structureAbmContent(markdown, {
+// The model occasionally hands back a nested section (whyNow, a feature, a mockup) as a
+// JSON string rather than an object, which fails validation with "expected object,
+// received string". Strings that are themselves JSON objects or arrays are unwrapped;
+// ordinary copy is left alone, since it never starts with { or [ and parses cleanly.
+export function unstringifyNested(value) {
+  if (typeof value === "string") {
+    const t = value.trim();
+    if ((t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"))) {
+      try { return unstringifyNested(JSON.parse(t)); } catch { return value; }
+    }
+    return value;
+  }
+  if (Array.isArray(value)) return value.map(unstringifyNested);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, unstringifyNested(v)]));
+  }
+  return value;
+}
+
+export async function structureAbmContent(markdown, opts = {}) {
+  // One retry: the failure is intermittent, and a second pass almost always comes back
+  // well formed. Two failures in a row surface the validation error as before.
+  try {
+    return await structureOnce(markdown, opts);
+  } catch (e) {
+    if (!(e instanceof z.ZodError)) throw e;
+    return structureOnce(markdown, opts);
+  }
+}
+
+async function structureOnce(markdown, {
   apiKey = process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY,
   fetchImpl = fetch,
   model = STRUCTURE_MODEL,
@@ -226,7 +256,7 @@ export async function structureAbmContent(markdown, {
   // Validated rather than trusted: the tool schema constrains the shape, but a missing
   // initiative or a fourth hero option would still reach the page as a gap, and the page
   // is customer-facing.
-  return AbmContent.parse(call.input);
+  return AbmContent.parse(unstringifyNested(call.input));
 }
 
 // Where the reader would still see "[metric]" after the skill has run.
