@@ -274,8 +274,23 @@ export function createAbmRouter({
 
   // The rendered page, exactly as it will be written to the bucket. Serving it from here
   // too is what lets the whole flow be driven locally without the public service.
+  // Opened from a Slack alert or a new tab, so a missing page gets a readable explanation
+  // rather than the API's JSON error.
+  const missingPage = (res) => res.status(404).type("html").send(`<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Page not found</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#F5F2FA;color:#1a1033;
+font:16px/1.55 system-ui,-apple-system,sans-serif;padding:16px;box-sizing:border-box}
+.card{background:#fff;border:1px solid #E4DDF3;border-radius:16px;padding:32px;max-width:440px}
+h1{font-size:20px;margin:0 0 8px}p{margin:0 0 20px;color:#4b4463}
+a{display:inline-block;background:#6D3FD1;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600}</style>
+</head><body><div class="card"><h1>This page no longer exists</h1>
+<p>It may have been deleted after this link was shared. Any other version of it will be in the ABM Landing Pages list.</p>
+<a href="/?page=abm">Open ABM Landing Pages</a></div></body></html>`);
+
   router.get("/:id/preview", async (req, res) => {
-    const page = await load(req.params.id);
+    const page = await store.get(req.params.id);
+    if (!page) return missingPage(res);
     // The editor works on the working copy even when an older approved version is live.
     const pub = (!req.query.edit && toPublicPage(page)) || toPublicPage({ ...page, status: "published", live: {
       content: page.content, heroChoice: page.heroChoice, assets: page.assets, industry: page.industry,

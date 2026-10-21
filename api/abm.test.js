@@ -256,3 +256,14 @@ describe("publishing to the bucket", () => {
     } finally { srv.close(); }
   });
 });
+
+describe("a link to a deleted page", () => {
+  test("the preview explains it in a readable page, not JSON", async () => {
+    const r = await call("GET", "/does-not-exist/preview");
+    assert.equal(r.status, 404);
+    assert.match(r.headers.get("content-type"), /html/);
+    const html = await r.text();
+    assert.ok(html.includes("This page no longer exists"));
+    assert.ok(html.includes('href="/?page=abm"'));
+  });
+});
