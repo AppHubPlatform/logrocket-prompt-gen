@@ -381,3 +381,46 @@ describe("fillPlaceholders with tables", () => {
     assert.equal(out.productFit.features[1].mockup.rows[0][1], "[volume]");
   });
 });
+
+describe("when the model returns a section as a JSON string", () => {
+  test("a stringified whyNow is unwrapped instead of failing validation", async () => {
+    const bad = structuredClone(VALID);
+    bad.whyNow = JSON.stringify(bad.whyNow);
+    bad.productFit.features[0] = JSON.stringify(bad.productFit.features[0]);
+    let calls = 0;
+    const out = await structureAbmContent(DRAFT, {
+      apiKey: "k", fetchImpl: async () => { calls++; return anthropicReply(bad); },
+    });
+    assert.equal(calls, 1, "repaired without a second call");
+    assert.equal(out.whyNow.initiatives.length, VALID.whyNow.initiatives.length);
+    assert.equal(out.productFit.features[0].label, VALID.productFit.features[0].label);
+  });
+
+  test("ordinary copy that mentions braces is left alone", async () => {
+    const odd = structuredClone(VALID);
+    odd.heroOptions[0] = "{Acme} keeps checkout moving";
+    const out = await structureAbmContent(DRAFT, { apiKey: "k", fetchImpl: async () => anthropicReply(odd) });
+    assert.equal(out.heroOptions[0], "{Acme} keeps checkout moving");
+  });
+
+  test("a response that is still malformed is retried once", async () => {
+    const broken = structuredClone(VALID);
+    broken.whyNow = "not an object at all";
+    const replies = [broken, VALID];
+    let calls = 0;
+    const out = await structureAbmContent(DRAFT, {
+      apiKey: "k", fetchImpl: async () => anthropicReply(replies[calls++]),
+    });
+    assert.equal(calls, 2);
+    assert.equal(out.whyNow.headline, VALID.whyNow.headline);
+  });
+
+  test("two malformed responses in a row still report the error", async () => {
+    const broken = structuredClone(VALID);
+    broken.whyNow = "not an object at all";
+    await assert.rejects(
+      structureAbmContent(DRAFT, { apiKey: "k", fetchImpl: async () => anthropicReply(broken) }),
+      /expected object, received string/,
+    );
+  });
+});
